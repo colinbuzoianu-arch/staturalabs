@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "postinstall": "prisma generate",
     "predev": "node scripts/fetch-pose-model.mjs && node scripts/fetch-fonts.mjs",
     "dev": "next dev",
     "prebuild": "node scripts/fetch-pose-model.mjs && node scripts/fetch-fonts.mjs",
