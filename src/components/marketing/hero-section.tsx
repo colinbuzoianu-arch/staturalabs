@@ -31,8 +31,8 @@ export async function HeroSection() {
         }}
       />
 
-      <div className="mx-auto w-full max-w-6xl px-6 py-24">
-        <div className="max-w-[620px]">
+      <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-12 px-6 py-24 min-[860px]:grid-cols-[minmax(0,620px)_1fr]">
+        <div>
           <Eyebrow>{dict.eyebrow}</Eyebrow>
           <h1 className="mt-4 font-heading text-[34px] font-bold leading-[1.1] text-ivory min-[860px]:text-[54px]">
             {dict.h1}
@@ -54,6 +54,22 @@ export async function HeroSection() {
               {dict.ctaSecondary}
             </a>
           </div>
+        </div>
+
+        <div className="overflow-hidden rounded-xl border border-ivory/20 shadow-2xl">
+          {/* Muted/autoplay/loop/playsInline, no controls: a decorative
+              background-style clip, not a media player — mirrors how the
+              bg SVGs elsewhere in this hero are `aria-hidden`. */}
+          <video
+            src="/hero-weight-lifting.mp4"
+            aria-hidden="true"
+            tabIndex={-1}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="aspect-[4/5] w-full object-cover min-[860px]:aspect-[3/4]"
+          />
         </div>
       </div>
     </section>
