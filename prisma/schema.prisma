@@ -1,0 +1,385 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+//
+// Schema shape is governed by ERGO_COMPLIANCE_BY_DESIGN.md §3.1-§3.3 and §4.
+// Non-negotiable: no field here may store or reference a specific worker's
+// identity (employee_id, name, badge number, etc.). The primary entity chain
+// is company -> site -> workstation -> task -> posture_sample -> body_region_score,
+// with manual_input attached to a task and assessment_session grouping a
+// dated set of tasks at a workstation (via assessment_session_task).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// The tenant. Top of the hierarchy — every site (and transitively every
+/// workstation) belongs to exactly one company.
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sites         Site[]
+  platformUsers PlatformUser[]
+}
+
+/// A physical location/department within a company (conversationally
+/// "workplace"). Belongs to exactly one company.
+model Site {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Restrict: forces explicit offboarding of a company's sites rather than
+  // an accidental cascade wipe of everything under it.
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  workstations    Workstation[]
+  siteAssignments SiteAssignment[]
+
+  @@index([companyId])
+}
+
+/// Platform roles, from broadest to narrowest scope. See
+/// ERGO_COMPLIANCE_BY_DESIGN.md "Tenant & role hierarchy" for the escalation
+/// flow (site_admin -> company_admin -> l3_support -> super_admin).
+enum PlatformRole {
+  SUPER_ADMIN
+  L3_SUPPORT
+  COMPANY_ADMIN
+  SITE_ADMIN
+}
+
+/// The only human-account table in the schema — unlike workstation, a name
+/// and email here are expected: these are platform users (EHS managers, HR
+/// staff, site coordinators, internal support/admin), not assessment
+/// subjects. Never let a field from here find its way onto Workstation or
+/// anything below it.
+///
+/// `id` is intentionally not a generated cuid: it is the same UUID as the
+/// corresponding Supabase `auth.users.id` row (one auth identity, one
+/// platform_user row). Provisioning only ever happens via an invite-only
+/// admin flow — there is no public sign-up path that creates either row.
+///
+/// `companyId` is enforced (nullable for super_admin/l3_support, required
+/// for company_admin/site_admin) by a CHECK constraint added in migration
+/// SQL, since Prisma's schema language has no native way to express a
+/// column constraint conditioned on another column's value. Likewise the FK
+/// from `id` to `auth.users.id` is hand-added SQL, since Prisma doesn't
+/// model the `auth` schema. Prisma's drift detection doesn't know about
+/// either: review any future auto-generated migration touching this table
+/// for an accidental `DROP CONSTRAINT` before applying it.
+model PlatformUser {
+  id        String       @id @db.Uuid
+  role      PlatformRole
+  companyId String?
+  name      String
+  email     String       @unique
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  // Restrict: a company with an active admin account can't be deleted out
+  // from under them.
+  company         Company?         @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  siteAssignments SiteAssignment[]
+}
+
+/// Scopes a site_admin to the specific site(s) they cover. Only meaningful
+/// for the site_admin role — company_admin's scope is implicit (every site
+/// where site.companyId matches their own companyId) and needs no join row.
+model SiteAssignment {
+  id        String   @id @default(cuid())
+  userId    String   @db.Uuid
+  siteId    String
+  createdAt DateTime @default(now())
+
+  user PlatformUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  site Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, siteId])
+  @@index([siteId])
+}
+
+/// A physical work area/station being assessed. Primary entity — never linked
+/// to a specific worker (§3.1, §4). Belongs to exactly one site; a site
+/// belongs to exactly one company (tenant).
+model Workstation {
+  id          String   @id @default(cuid())
+  siteId      String
+  name        String
+  location    String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Restrict, not Cascade: a site should be offboarded/archived explicitly,
+  // never have its workstations (and their assessment history) silently
+  // wiped out as a side effect of deleting the site (§3.6 audit trail).
+  site               Site                @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  tasks              Task[]
+  assessmentSessions AssessmentSession[]
+
+  @@index([siteId])
+}
+
+/// A specific job/task performed at a workstation (e.g. "pallet loading",
+/// "component inspection"). Describes the work, never the worker performing it.
+/// Belongs to exactly one workstation; grouped into dated assessments via
+/// AssessmentSessionTask rather than owned by any one session, since the
+/// same task is expected to be re-assessed over time.
+model Task {
+  id            String   @id @default(cuid())
+  workstationId String
+  name          String
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Restrict, matching every other relation in this chain: a task with
+  // assessment history behind it can't be deleted out from under that
+  // history (§3.6 audit trail).
+  workstation        Workstation             @relation(fields: [workstationId], references: [id], onDelete: Restrict)
+  postureSamples     PostureSample[]
+  manualInputs       ManualInput[]
+  assessmentSessions AssessmentSessionTask[]
+
+  @@index([workstationId])
+}
+
+/// Dual-mode decision (§5, ERGO_COMPLIANCE_BY_DESIGN.md, resolved
+/// 2026-07): SCHEDULED is the current, only-implemented regime —
+/// operator-triggered discrete captures, workstation-audit framing.
+/// CONTINUOUS is designed for structurally (mandate 3.11) but has no
+/// implementation yet — createAssessmentSession()
+/// (src/lib/assessment-session/create-assessment-session.ts) throws if
+/// asked to create one. Do not remove that guard just because this enum
+/// value exists; the schema being ready and the feature being ready are
+/// deliberately different milestones (feature flag + a documented
+/// worker-rep consent artifact per deployment are the actual gate).
+enum AssessmentMode {
+  SCHEDULED
+  CONTINUOUS
+}
+
+/// A dated assessment event at a workstation, grouping the set of tasks
+/// that were assessed during it. A task can appear in more than one
+/// session over time (it's re-assessed on a later date), so the task set
+/// is a join (AssessmentSessionTask), not a direct FK on Task.
+///
+/// `mode` is recorded per session, never inferred or left to a default at
+/// read time — see AssessmentMode doc comment and mandate 3.11. Existing
+/// rows predating this field were backfilled to SCHEDULED explicitly in
+/// the migration that added it, not left to ride on the column default.
+///
+/// `pilotContext` is free-text, internal-only metadata (§3.6 audit trail)
+/// for annotating why a session exists — e.g. a technical pilot at a
+/// partner site vs. an internal validation study vs. a real customer
+/// engagement — so pilot/test data can be cleanly separated from real
+/// customer data in later analysis. Nullable: most sessions won't have it
+/// set. Deliberately not surfaced in the customer-facing dashboard
+/// (src/app/(app)/**) — super_admin-only, via the internal /admin tool.
+model AssessmentSession {
+  id            String         @id @default(cuid())
+  workstationId String
+  mode          AssessmentMode @default(SCHEDULED)
+  pilotContext  String?
+  startedAt     DateTime
+  endedAt       DateTime?
+  notes         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  workstation Workstation             @relation(fields: [workstationId], references: [id], onDelete: Restrict)
+  tasks       AssessmentSessionTask[]
+
+  @@index([workstationId])
+}
+
+/// Join table: which tasks were covered by a given assessment session.
+model AssessmentSessionTask {
+  id                  String   @id @default(cuid())
+  assessmentSessionId String
+  taskId              String
+  createdAt           DateTime @default(now())
+
+  assessmentSession AssessmentSession @relation(fields: [assessmentSessionId], references: [id], onDelete: Restrict)
+  task              Task              @relation(fields: [taskId], references: [id], onDelete: Restrict)
+
+  @@unique([assessmentSessionId, taskId])
+  @@index([taskId])
+}
+
+/// The viewpoint a PostureSample was captured from. Matters for which joint
+/// angles the sample can support: sagittal (side-on) is needed for trunk
+/// flexion, frontal (front-on) for lateral bending/deviation; oblique views
+/// are recorded as such rather than misclassified as one of the two.
+enum CameraAngle {
+  FRONTAL
+  SAGITTAL
+  OBLIQUE
+}
+
+/// A single derived-pose snapshot captured while a task is performed.
+/// `keypoints` holds only joint positions/angles produced by client-side
+/// MediaPipe processing — never a raw video frame, and never data
+/// reusable to re-identify a person (§3.2, §4).
+model PostureSample {
+  id          String      @id @default(cuid())
+  taskId      String
+  capturedAt  DateTime
+  cameraAngle CameraAngle
+  frameIndex  Int?
+  keypoints   Json
+  createdAt   DateTime    @default(now())
+
+  task             Task              @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  bodyRegionScores BodyRegionScore[]
+
+  @@index([taskId])
+}
+
+/// One body-region risk score derived from a posture sample — one row per
+/// body region per sample. `scoringRuleVersion` tags which ScoringRule
+/// vintage (methodologyVersion) produced the score; the lookup itself
+/// (matching an angle to a ScoringRule row) is scoring-engine logic and is
+/// intentionally not modeled/implemented here.
+model BodyRegionScore {
+  id                 String     @id @default(cuid())
+  postureSampleId    String
+  bodyRegion         BodyRegion
+  score              Float
+  scoringRuleVersion String?
+  createdAt          DateTime   @default(now())
+
+  postureSample PostureSample @relation(fields: [postureSampleId], references: [id], onDelete: Restrict)
+
+  @@unique([postureSampleId, bodyRegion])
+  @@index([postureSampleId])
+}
+
+/// Manually entered inputs an assessor supplies for a task — load weight,
+/// push/pull force, tool used — that computer vision cannot derive from
+/// video alone. One row per entry, so a task can carry any number of these
+/// (e.g. both a push and a pull force, or a tool plus a weight).
+///
+/// `value`/`unit` (numeric entries) and `textValue` (TOOL_USED) are
+/// mutually exclusive depending on `inputType`, enforced by a CHECK
+/// constraint added in migration SQL — see the note on PlatformUser above
+/// for why this lives outside schema.prisma, and the same drift-detection
+/// caveat applies here.
+model ManualInput {
+  id        String          @id @default(cuid())
+  taskId    String
+  inputType ManualInputType
+  value     Float?
+  unit      String?
+  textValue String?
+  notes     String?
+  createdAt DateTime        @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Restrict)
+
+  @@index([taskId])
+}
+
+enum BodyRegion {
+  NECK
+  TRUNK
+  SHOULDER_LEFT
+  SHOULDER_RIGHT
+  UPPER_ARM_LEFT
+  UPPER_ARM_RIGHT
+  ELBOW_LEFT
+  ELBOW_RIGHT
+  FOREARM_LEFT
+  FOREARM_RIGHT
+  WRIST_LEFT
+  WRIST_RIGHT
+  HIP
+  KNEE_LEFT
+  KNEE_RIGHT
+  ANKLE_LEFT
+  ANKLE_RIGHT
+}
+
+/// Qualitative risk tier a ScoringRule row falls into. ELEVATED sits between
+/// MODERATE and HIGH — used where a methodology needs a fourth tier (e.g.
+/// shoulder flexion) rather than collapsing straight from MODERATE to HIGH.
+enum RiskBand {
+  LOW
+  MODERATE
+  ELEVATED
+  HIGH
+}
+
+/// Tracks which ScoringRule vintage is "current" for new lookups, as real
+/// data rather than a code constant — so activating a new methodology
+/// version is a data change (flip isActive), not a deploy, and which
+/// version was active at any point in time stays reconstructable from
+/// `activatedAt`.
+///
+/// At most one row may have isActive = true. Prisma's schema language can't
+/// express a partial/filtered unique index, so that constraint is hand-added
+/// in migration SQL (`MethodologyVersion_isActive_unique_when_true`) — same
+/// caveat as the other hand-added constructs in this schema: Prisma's drift
+/// detection doesn't know about it, review any future auto-generated
+/// migration touching this table before applying it. A lookup that finds
+/// zero active rows must fail closed (error), never silently fall back to
+/// some other version.
+model MethodologyVersion {
+  version     String   @id
+  isActive    Boolean  @default(false)
+  activatedAt DateTime @default(now())
+
+  scoringRules ScoringRule[]
+}
+
+/// Versioned scoring thresholds (§3.8): the "rule content" that
+/// BodyRegionScore.scoringRuleVersion tags but doesn't itself hold. Rows are
+/// data, not code — a new methodologyVersion is a new set of rows, never an
+/// edit to existing ones, so a past score's rule version stays reproducible.
+///
+/// Angles are flexion-from-neutral degrees (0° = upright/anatomical
+/// position), independent of which side of a bilateral joint they're for.
+/// [angleMin, angleMax) bounds a band; either end may be null for an
+/// open-ended band (e.g. HIGH trunk flexion has no upper bound). A body
+/// region can have more than one row in the same band (see ELBOW_LEFT/RIGHT
+/// HIGH: risk at both very extended and very flexed ends, with LOW as the
+/// single band in between; NECK is the same shape around 0° — MODERATE and
+/// HIGH each appear once on the forward-flexion side and once on the
+/// backward-extension side, the latter pair with different riskScores) —
+/// so there is deliberately no uniqueness constraint on
+/// (methodologyVersion, bodyRegion, riskBand).
+model ScoringRule {
+  id                 String     @id @default(cuid())
+  methodologyVersion String
+  bodyRegion         BodyRegion
+  riskBand           RiskBand
+  riskScore          Int
+  angleMin           Float?
+  angleMax           Float?
+  createdAt          DateTime   @default(now())
+
+  // Restrict: a methodology version with rules still referencing it can't
+  // be deleted out from under them.
+  methodology MethodologyVersion @relation(fields: [methodologyVersion], references: [version], onDelete: Restrict)
+
+  @@index([methodologyVersion, bodyRegion])
+}
+
+enum ManualInputType {
+  LOAD_WEIGHT_KG
+  PUSH_FORCE_N
+  PULL_FORCE_N
+  TOOL_USED
+  REPETITION_COUNT
+  DURATION_SECONDS
+}

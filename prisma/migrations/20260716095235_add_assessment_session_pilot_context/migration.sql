@@ -1,0 +1,16 @@
+-- Adds AssessmentSession.pilotContext: free-text, internal-only audit-
+-- trail metadata (§3.6, ERGO_COMPLIANCE_BY_DESIGN.md) for annotating what
+-- a session was captured for (e.g. a technical pilot at a partner site,
+-- an internal validation study) so pilot/test data can be cleanly
+-- separated from real customer data later. Nullable, no default, no
+-- backfill needed — most sessions won't have it set, and there's no
+-- "correct" value to backfill existing rows to (unlike mode, where every
+-- pre-existing row really was SCHEDULED).
+--
+-- Separate migration from the AssessmentMode/mode migration
+-- (20260716063952_add_assessment_session_mode) even though both are about
+-- categorizing what kind of session this was — that migration was already
+-- applied before this field was requested, so folding them into one is
+-- not an option without reverting an applied migration.
+-- AlterTable
+ALTER TABLE "AssessmentSession" ADD COLUMN "pilotContext" TEXT;

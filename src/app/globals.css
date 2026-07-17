@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+/*
+  Statura Labs Dynamics brand palette + theme tokens. Dark is the primary
+  theme (see CLAUDE.md); `data-theme` on <html> ("dark" | "light") drives
+  which block below is active — set server-side to "dark" by default and
+  overridden client-side from localStorage before first paint (see
+  ThemeScript in layout.tsx) to avoid a flash of the wrong theme.
+
+  Raw brand hexes live once, here, as named tokens — components should
+  reference the semantic (--background/--foreground/--surface/--border) or
+  brand (--color-teal etc.) tokens below rather than hex literals.
+*/
+:root {
+  --color-teal: #0e3733;
+  --color-ivory: #f2ece1;
+  --color-coral: #e35c3a;
+  --color-sage-dark: #568076;
+  --color-sage-light: #96a5a0;
+  /* Card/panel lift: brand surface mixed ~10% toward the opposite base
+     color, one direction per theme — never a pure white/black surface. */
+  --color-surface-on-dark: #164541;
+  --color-surface-on-light: #dbdad0;
+
+  /* Semantic tokens — default to dark (the app's primary theme) so
+     anything rendered before data-theme resolves still reads correctly. */
+  --background: var(--color-teal);
+  --foreground: var(--color-ivory);
+  --surface: var(--color-surface-on-dark);
+  --border: var(--color-sage-dark);
+  --accent: var(--color-coral);
+}
+
+:root[data-theme="light"] {
+  --background: var(--color-ivory);
+  --foreground: var(--color-teal);
+  --surface: var(--color-surface-on-light);
+  --border: var(--color-sage-light);
+}
+
+:root[data-theme="dark"] {
+  --background: var(--color-teal);
+  --foreground: var(--color-ivory);
+  --surface: var(--color-surface-on-dark);
+  --border: var(--color-sage-dark);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+
+  --color-teal: var(--color-teal);
+  --color-ivory: var(--color-ivory);
+  --color-coral: var(--color-coral);
+  --color-sage-dark: var(--color-sage-dark);
+  --color-sage-light: var(--color-sage-light);
+
+  /* Body copy: system font stack, deliberately not Outfit (a display face)
+     or a fetched web font — see CLAUDE.md design system notes. */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  --font-heading: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-wordmark: var(--font-jura), ui-sans-serif, system-ui, sans-serif;
+  --font-technical:
+    var(--font-jetbrains-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+
+/*
+  Deliberately no global `body { background/color: ... }` rule here: the
+  brand palette is opt-in via the bg-background/text-foreground utilities
+  (applied explicitly by the (app) dashboard shell and the sign-in page),
+  not forced on every page. /admin stays on its original plain black-on-
+  white look, unaffected — see CLAUDE.md, "no styling effort" for that tool.
+*/
+
+/*
+  Theme-matched decorative background pattern (landing view only — see
+  CLAUDE.md, not used on data-heavy views). Plain attribute-selector CSS
+  rather than a client component: swapping on data-theme this way needs no
+  JS and can't flicker on mount the way a useState-driven <img> pick would.
+*/
+.theme-bg-dark,
+.theme-bg-light {
+  display: none;
+}
+:root[data-theme="dark"] .theme-bg-dark {
+  display: block;
+}
+:root[data-theme="light"] .theme-bg-light {
+  display: block;
+}
+
+/*
+  Smooth in-page anchor scrolling (the marketing page's "See how it works"
+  -> #pipeline) — gated behind the no-preference media query rather than
+  applied unconditionally, so prefers-reduced-motion visitors get an
+  instant jump instead of an animated scroll.
+*/
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
