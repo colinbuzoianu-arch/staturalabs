@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { requireSiteAccess } from "@/lib/auth/require-access";
+import { getDashboardDictionary } from "@/lib/i18n/dictionaries/dashboard";
+import { getLocale } from "@/lib/i18n/get-locale";
 import { prisma } from "@/lib/prisma";
 
 export default async function SiteWorkstationsPage({
@@ -15,19 +17,22 @@ export default async function SiteWorkstationsPage({
     orderBy: { name: "asc" },
   });
 
+  const locale = await getLocale();
+  const dict = getDashboardDictionary(locale).siteDetailPage;
+
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-12">
-      <Breadcrumb site={site} />
+      <Breadcrumb site={site} sitesLabel={dict.breadcrumbSites} />
 
       <div className="flex flex-col gap-1">
         <p className="font-technical text-xs uppercase tracking-[0.2em] text-border">
-          {"Site //"}
+          {dict.eyebrow}
         </p>
         <h1 className="font-heading text-2xl font-bold">{site.name}</h1>
       </div>
 
       {workstations.length === 0 && (
-        <p className="text-sm text-border">No workstations at this site yet.</p>
+        <p className="text-sm text-border">{dict.empty}</p>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -52,11 +57,17 @@ export default async function SiteWorkstationsPage({
   );
 }
 
-function Breadcrumb({ site }: { site: { name: string } }) {
+function Breadcrumb({
+  site,
+  sitesLabel,
+}: {
+  site: { name: string };
+  sitesLabel: string;
+}) {
   return (
     <p className="text-sm text-border">
       <Link href="/sites" className="hover:text-accent">
-        Sites
+        {sitesLabel}
       </Link>{" "}
       / {site.name}
     </p>

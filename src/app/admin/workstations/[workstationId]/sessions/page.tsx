@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { AssessmentMode } from "@/generated/prisma/enums";
 import { createAssessmentSession } from "@/lib/assessment-session";
 import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
+import { getAdminDictionary } from "@/lib/i18n/dictionaries/admin";
+import { getLocale } from "@/lib/i18n/get-locale";
 import { prisma } from "@/lib/prisma";
 
 const MODE_OPTIONS = Object.values(AssessmentMode);
@@ -85,11 +87,14 @@ export default async function SessionsPage({
     orderBy: { startedAt: "desc" },
   });
 
+  const locale = await getLocale();
+  const dict = getAdminDictionary(locale).sessionsPage;
+
   return (
     <div className="flex flex-col gap-6">
       <p className="text-sm">
         <Link href="/admin/companies" className="underline">
-          Companies
+          {dict.companiesBreadcrumb}
         </Link>{" "}
         /{" "}
         <Link
@@ -107,12 +112,12 @@ export default async function SessionsPage({
         </Link>{" "}
         / {workstation.name}
       </p>
-      <h1 className="text-xl font-semibold">Assessment sessions</h1>
+      <h1 className="text-xl font-semibold">{dict.heading}</h1>
 
       <form action={createSession} className="flex flex-col gap-2">
         <div className="flex flex-wrap gap-2">
           <label className="flex flex-col gap-1 text-sm">
-            Started at
+            {dict.startedAtLabel}
             <input
               type="datetime-local"
               name="startedAt"
@@ -121,7 +126,7 @@ export default async function SessionsPage({
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            Ended at
+            {dict.endedAtLabel}
             <input
               type="datetime-local"
               name="endedAt"
@@ -129,7 +134,7 @@ export default async function SessionsPage({
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            Mode
+            {dict.modeLabel}
             <select
               name="mode"
               defaultValue={AssessmentMode.SCHEDULED}
@@ -144,16 +149,16 @@ export default async function SessionsPage({
           </label>
         </div>
         <label className="flex flex-col gap-1 text-sm">
-          Pilot context (internal only — not shown to customers)
+          {dict.pilotContextLabel}
           <input
             type="text"
             name="pilotContext"
-            placeholder="e.g. technical pilot at partner site X, no commercial engagement"
+            placeholder={dict.pilotContextPlaceholder}
             className="rounded border px-2 py-1"
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          Notes
+          {dict.notesLabel}
           <input
             type="text"
             name="notes"
@@ -164,22 +169,20 @@ export default async function SessionsPage({
           type="submit"
           className="self-start rounded bg-black px-3 py-1 text-white dark:bg-white dark:text-black"
         >
-          Create
+          {dict.create}
         </button>
       </form>
 
-      {sessions.length === 0 && (
-        <p className="text-sm">No assessment sessions yet.</p>
-      )}
+      {sessions.length === 0 && <p className="text-sm">{dict.empty}</p>}
 
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b">
-            <th className="py-1 pr-4">Started</th>
-            <th className="py-1 pr-4">Ended</th>
-            <th className="py-1 pr-4">Mode</th>
-            <th className="py-1 pr-4">Pilot context</th>
-            <th className="py-1">Notes</th>
+            <th className="py-1 pr-4">{dict.colStarted}</th>
+            <th className="py-1 pr-4">{dict.colEnded}</th>
+            <th className="py-1 pr-4">{dict.colMode}</th>
+            <th className="py-1 pr-4">{dict.colPilotContext}</th>
+            <th className="py-1">{dict.colNotes}</th>
           </tr>
         </thead>
         <tbody>
@@ -187,11 +190,11 @@ export default async function SessionsPage({
             <tr key={session.id} className="border-b last:border-0">
               <td className="py-1 pr-4">{session.startedAt.toISOString()}</td>
               <td className="py-1 pr-4">
-                {session.endedAt ? session.endedAt.toISOString() : "—"}
+                {session.endedAt ? session.endedAt.toISOString() : dict.none}
               </td>
               <td className="py-1 pr-4">{session.mode}</td>
-              <td className="py-1 pr-4">{session.pilotContext ?? "—"}</td>
-              <td className="py-1">{session.notes ?? "—"}</td>
+              <td className="py-1 pr-4">{session.pilotContext ?? dict.none}</td>
+              <td className="py-1">{session.notes ?? dict.none}</td>
             </tr>
           ))}
         </tbody>

@@ -3,11 +3,10 @@ import { BodyRegion } from "@/generated/prisma/enums";
 import { requireTaskAccess } from "@/lib/auth/require-access";
 import { buildRegionResults } from "@/lib/capture/build-region-results";
 import { describeRegionResult } from "@/lib/capture/describe-region-result";
-import {
-  describeManualInput,
-  MANUAL_INPUT_LABELS,
-} from "@/lib/capture/manual-input";
+import { describeManualInput } from "@/lib/capture/manual-input";
 import type { RegionResult } from "@/lib/capture/types";
+import { getDashboardDictionary } from "@/lib/i18n/dictionaries/dashboard";
+import { getLocale } from "@/lib/i18n/get-locale";
 import type { PoseLandmarks } from "@/lib/pose/angles";
 import { prisma } from "@/lib/prisma";
 import { getActiveMethodologyVersion } from "@/lib/scoring/methodology-version";
@@ -21,6 +20,12 @@ const ALL_BODY_REGIONS = Object.values(BodyRegion);
 // results view, see build-region-results.ts). Never shows anything
 // identity-related: PostureSample carries none, by design (ERGO_COMPLIANCE
 // _BY_DESIGN.md §3.1/§3.2), and nothing here invents a place to show it.
+//
+// BodyRegion/CameraAngle/RegionResult-status values and
+// describeRegionResult()/describeManualInput()'s generated text are
+// deliberately NOT translated — see CLAUDE.md i18n notes: those are
+// technical identifiers that are also what the DB/API/PDF report show
+// verbatim, so a parallel translated vocabulary would just be confusing.
 export default async function TaskHistoryPage({
   params,
 }: {
@@ -43,6 +48,11 @@ export default async function TaskHistoryPage({
       orderBy: { createdAt: "desc" },
     }),
   ]);
+
+  const locale = await getLocale();
+  const dashboardDict = getDashboardDictionary(locale);
+  const dict = dashboardDict.taskPage;
+  const manualInputLabels = dashboardDict.manualInputLabels;
 
   let methodologyVersion: string | null = null;
   let methodologyError: string | null = null;
@@ -83,12 +93,13 @@ export default async function TaskHistoryPage({
         site={task.workstation.site}
         workstation={task.workstation}
         taskName={task.name}
+        sitesLabel={dict.breadcrumbSites}
       />
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
           <p className="font-technical text-xs uppercase tracking-[0.2em] text-border">
-            {"Task //"}
+            {dict.eyebrow}
           </p>
           <h1 className="font-heading text-2xl font-bold">{task.name}</h1>
           {task.description && (
@@ -104,13 +115,13 @@ export default async function TaskHistoryPage({
             href={`/api/tasks/${task.id}/report`}
             className="rounded-md border border-border px-4 py-2 font-heading font-bold text-foreground transition-colors hover:border-accent hover:text-accent"
           >
-            Download report
+            {dict.downloadReport}
           </a>
           <Link
             href={`/tasks/${task.id}/capture`}
             className="rounded-md bg-accent px-4 py-2 font-heading font-bold text-teal transition-opacity hover:opacity-90"
           >
-            Capture Sample
+            {dict.captureSample}
           </Link>
         </div>
       </div>
@@ -118,7 +129,7 @@ export default async function TaskHistoryPage({
       {sessions.length > 0 && (
         <section className="flex flex-col gap-3">
           <h2 className="font-heading text-lg font-bold">
-            Assessment sessions
+            {dict.assessmentSessions}
           </h2>
           <ul className="flex flex-col gap-2">
             {sessions.map((session) => (
@@ -130,7 +141,7 @@ export default async function TaskHistoryPage({
                   {session.startedAt.toISOString()}
                   {session.endedAt
                     ? ` → ${session.endedAt.toISOString()}`
-                    : " (ongoing)"}
+                    : ` ${dict.ongoing}`}
                 </span>
                 {session.notes && (
                   <p className="mt-1 text-border">{session.notes}</p>
@@ -142,17 +153,13 @@ export default async function TaskHistoryPage({
       )}
 
       <section className="flex flex-col gap-3">
-        <h2 className="font-heading text-lg font-bold">Manual inputs</h2>
-        <p className="text-sm text-border">
-          Load, force, and tool context recorded for this task — not tied to a
-          specific posture sample. Creation-only for now; nothing here can be
-          edited or removed from this view.
-        </p>
+        <h2 className="font-heading text-lg font-bold">
+          {dict.manualInputsHeading}
+        </h2>
+        <p className="text-sm text-border">{dict.manualInputsDescription}</p>
 
         {manualInputs.length === 0 && (
-          <p className="text-sm text-border">
-            No manual inputs recorded for this task yet.
-          </p>
+          <p className="text-sm text-border">{dict.manualInputsEmpty}</p>
         )}
 
         {manualInputs.length > 0 && (
@@ -163,7 +170,7 @@ export default async function TaskHistoryPage({
                 className="rounded-lg border border-border bg-surface p-4 text-sm"
               >
                 <span className="font-heading font-bold">
-                  {MANUAL_INPUT_LABELS[entry.inputType]}
+                  {manualInputLabels[entry.inputType]}
                 </span>{" "}
                 <span className="font-technical">
                   {describeManualInput(entry)}
@@ -181,16 +188,18 @@ export default async function TaskHistoryPage({
       </section>
 
       <section className="flex flex-col gap-4">
-        <h2 className="font-heading text-lg font-bold">Posture samples</h2>
+        <h2 className="font-heading text-lg font-bold">
+          {dict.postureSamplesHeading}
+        </h2>
 
         {methodologyError && (
           <div className="rounded-lg border border-accent p-3 text-sm text-accent">
-            Cannot recompute region breakdowns: {methodologyError}
+            {dict.cannotRecompute(methodologyError)}
           </div>
         )}
 
         {samples.length === 0 && (
-          <p className="text-sm text-border">No captures yet for this task.</p>
+          <p className="text-sm text-border">{dict.postureSamplesEmpty}</p>
         )}
 
         {rows.map(({ sample, regions, error }) => (
@@ -199,13 +208,13 @@ export default async function TaskHistoryPage({
             className="rounded-lg border border-border bg-surface p-5"
           >
             <p className="font-technical text-xs text-border">
-              {sample.capturedAt.toISOString()} — cameraAngle:{" "}
+              {sample.capturedAt.toISOString()} — {dict.cameraAngleField}{" "}
               {sample.cameraAngle}
             </p>
 
             {error && (
               <p className="mt-2 text-sm text-accent">
-                Error recomputing this sample: {error}
+                {dict.recomputeError(error)}
               </p>
             )}
 
@@ -214,9 +223,13 @@ export default async function TaskHistoryPage({
                 <table className="w-full min-w-[480px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-border text-border">
-                      <th className="py-1 pr-4 font-normal">Region</th>
-                      <th className="py-1 pr-4 font-normal">Status</th>
-                      <th className="py-1 font-normal">Detail</th>
+                      <th className="py-1 pr-4 font-normal">
+                        {dict.tableRegion}
+                      </th>
+                      <th className="py-1 pr-4 font-normal">
+                        {dict.tableStatus}
+                      </th>
+                      <th className="py-1 font-normal">{dict.tableDetail}</th>
                     </tr>
                   </thead>
                   <tbody className="font-technical">
@@ -250,15 +263,17 @@ function Breadcrumb({
   site,
   workstation,
   taskName,
+  sitesLabel,
 }: {
   site: { id: string; name: string };
   workstation: { id: string; name: string };
   taskName: string;
+  sitesLabel: string;
 }) {
   return (
     <p className="text-sm text-border">
       <Link href="/sites" className="hover:text-accent">
-        Sites
+        {sitesLabel}
       </Link>{" "}
       /{" "}
       <Link href={`/sites/${site.id}`} className="hover:text-accent">

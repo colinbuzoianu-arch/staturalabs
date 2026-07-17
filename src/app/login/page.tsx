@@ -3,6 +3,9 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { getLoginDictionary } from "@/lib/i18n/dictionaries/login";
+import { useLocale } from "@/lib/i18n/locale-context";
 import { createClient } from "@/lib/supabase/client";
 
 // Minimal login page — deliberately no sign-up/create-account link anywhere
@@ -14,6 +17,8 @@ import { createClient } from "@/lib/supabase/client";
 // per the design spec.
 export default function LoginPage() {
   const router = useRouter();
+  const { locale } = useLocale();
+  const dict = getLoginDictionary(locale);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +46,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-full flex-col items-center justify-center gap-10 bg-teal px-6 py-16 text-ivory">
+    <div className="relative flex min-h-full flex-col items-center justify-center gap-10 bg-teal px-6 py-16 text-ivory">
+      <div className="absolute top-6 right-6">
+        <LanguageSwitcher />
+      </div>
+
       <Image
         src="/logo/statura_logo_main.svg"
         alt="Statura Labs Dynamics"
@@ -56,7 +65,7 @@ export default function LoginPage() {
         className="flex w-full max-w-sm flex-col gap-4"
       >
         <label className="flex flex-col gap-1 text-sm">
-          Email
+          {dict.emailLabel}
           <input
             type="email"
             required
@@ -67,7 +76,7 @@ export default function LoginPage() {
         </label>
 
         <label className="flex flex-col gap-1 text-sm">
-          Password
+          {dict.passwordLabel}
           <input
             type="password"
             required
@@ -84,7 +93,7 @@ export default function LoginPage() {
           disabled={submitting}
           className="mt-2 rounded-md bg-coral px-4 py-2 font-heading font-bold text-teal transition-opacity hover:opacity-90 disabled:opacity-50"
         >
-          {submitting ? "Signing in…" : "Sign in"}
+          {submitting ? dict.signingIn : dict.signIn}
         </button>
       </form>
     </div>

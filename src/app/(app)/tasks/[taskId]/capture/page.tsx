@@ -15,12 +15,13 @@ import { describeRegionResult } from "@/lib/capture/describe-region-result";
 import {
   describeManualInput,
   isTextManualInputType,
-  MANUAL_INPUT_LABELS,
   MANUAL_INPUT_TYPES,
   MANUAL_INPUT_UNITS,
   validateManualInputShape,
 } from "@/lib/capture/manual-input";
 import type { PostureSampleResponse, RegionResult } from "@/lib/capture/types";
+import { getDashboardDictionary } from "@/lib/i18n/dictionaries/dashboard";
+import { useLocale } from "@/lib/i18n/locale-context";
 import { boundingBox, drawSkeleton } from "@/lib/pose/draw-skeleton";
 import { getPoseLandmarker } from "@/lib/pose/mediapipe-client";
 
@@ -46,6 +47,8 @@ export default function CapturePage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = use(params);
+  const { locale } = useLocale();
+  const dict = getDashboardDictionary(locale).capturePage;
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -68,6 +71,7 @@ export default function CapturePage({
 
   // Warm up the pose model as soon as the page loads, in parallel with
   // camera setup, so it's ready by the time the operator clicks Capture.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: dict is a stable reference per locale (singleton dictionaries), but adding it here would re-run camera/model setup on every language switch — only run this once on mount.
   useEffect(() => {
     let cancelled = false;
     getPoseLandmarker()
@@ -79,7 +83,9 @@ export default function CapturePage({
         if (!cancelled) {
           setPhase({
             kind: "error",
-            message: `Failed to load pose model: ${err instanceof Error ? err.message : String(err)}`,
+            message: dict.failedToLoadPoseModel(
+              err instanceof Error ? err.message : String(err),
+            ),
           });
         }
       });
@@ -91,6 +97,7 @@ export default function CapturePage({
   // Starts a camera stream and enumerates devices. Device labels are only
   // populated after a getUserMedia permission grant, so this requests a
   // default stream first, then re-enumerates with labels available.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: dict is a stable reference per locale (singleton dictionaries), but adding it here would restart the camera stream on every language switch — only stopCurrentStream is a real dependency.
   useEffect(() => {
     let cancelled = false;
 
@@ -117,7 +124,9 @@ export default function CapturePage({
         if (!cancelled) {
           setPhase({
             kind: "error",
-            message: `Camera access failed: ${err instanceof Error ? err.message : String(err)}`,
+            message: dict.cameraAccessFailed(
+              err instanceof Error ? err.message : String(err),
+            ),
           });
         }
       }
@@ -142,11 +151,13 @@ export default function CapturePage({
       } catch (err) {
         setPhase({
           kind: "error",
-          message: `Could not switch camera: ${err instanceof Error ? err.message : String(err)}`,
+          message: dict.couldNotSwitchCamera(
+            err instanceof Error ? err.message : String(err),
+          ),
         });
       }
     },
-    [stopCurrentStream],
+    [stopCurrentStream, dict],
   );
 
   const submitLandmarks = useCallback(
@@ -172,18 +183,18 @@ export default function CapturePage({
         });
         if (!res.ok) {
           const errorBody = await res.json().catch(() => null);
-          throw new Error(errorBody?.error ?? `Request failed: ${res.status}`);
+          throw new Error(errorBody?.error ?? dict.requestFailed(res.status));
         }
         const response = (await res.json()) as PostureSampleResponse;
         setPhase({ kind: "result", response });
       } catch (err) {
         setPhase({
           kind: "error",
-          message: err instanceof Error ? err.message : "Submit failed",
+          message: err instanceof Error ? err.message : dict.submitFailed,
         });
       }
     },
-    [cameraAngle, taskId],
+    [cameraAngle, taskId, dict],
   );
 
   const handleCapture = useCallback(async () => {
@@ -198,8 +209,7 @@ export default function CapturePage({
     if (video.videoWidth === 0 || video.videoHeight === 0) {
       setPhase({
         kind: "error",
-        message:
-          "Camera feed not ready yet — wait a moment for the preview to appear, then try again.",
+        message: dict.cameraFeedNotReady,
       });
       return;
     }
@@ -211,7 +221,7 @@ export default function CapturePage({
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) {
-      setPhase({ kind: "error", message: "Canvas 2D context unavailable" });
+      setPhase({ kind: "error", message: dict.canvasUnavailable });
       return;
     }
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -244,10 +254,10 @@ export default function CapturePage({
     } catch (err) {
       setPhase({
         kind: "error",
-        message: err instanceof Error ? err.message : "Detection failed",
+        message: err instanceof Error ? err.message : dict.detectionFailed,
       });
     }
-  }, [submitLandmarks]);
+  }, [submitLandmarks, dict]);
 
   const reset = useCallback(() => setPhase({ kind: "ready" }), []);
 
@@ -265,9 +275,9 @@ export default function CapturePage({
           capture page in the first place (canAccessSite covers
           super_admin too). */}
       <Link href={`/tasks/${taskId}`} className="self-start text-sm underline">
-        ← Back to task
+        {dict.backToTask}
       </Link>
-      <h1 className="text-xl font-semibold">Capture posture sample</h1>
+      <h1 className="text-xl font-semibold">{dict.heading}</h1>
 
       {phase.kind === "error" && (
         <div className="rounded border border-red-400 bg-red-50 p-3 text-red-800 dark:bg-red-950 dark:text-red-200">
@@ -301,7 +311,7 @@ export default function CapturePage({
         <>
           <div className="flex flex-wrap gap-4">
             <label className="flex flex-col gap-1 text-sm">
-              Camera
+              {dict.cameraLabel}
               <select
                 className="rounded border px-2 py-1"
                 value={deviceId}
@@ -316,7 +326,7 @@ export default function CapturePage({
             </label>
 
             <label className="flex flex-col gap-1 text-sm">
-              Camera angle
+              {dict.cameraAngleLabel}
               <select
                 className="rounded border px-2 py-1"
                 value={cameraAngle}
@@ -333,7 +343,7 @@ export default function CapturePage({
 
           {noPersonNotice && (
             <p className="text-sm text-amber-700 dark:text-amber-400">
-              No person detected in frame. Adjust framing and try again.
+              {dict.noPersonDetected}
             </p>
           )}
 
@@ -344,12 +354,12 @@ export default function CapturePage({
             className="self-start rounded bg-black px-4 py-2 text-white disabled:opacity-50 dark:bg-white dark:text-black"
           >
             {phase.kind === "loading"
-              ? "Loading pose model…"
+              ? dict.loadingPoseModel
               : phase.kind === "detecting"
-                ? "Detecting…"
+                ? dict.detecting
                 : phase.kind === "submitting"
-                  ? "Submitting…"
-                  : "Capture Sample"}
+                  ? dict.submitting
+                  : dict.captureSample}
           </button>
         </>
       )}
@@ -360,11 +370,16 @@ export default function CapturePage({
           candidates={phase.candidates}
           onSelect={(candidate) => submitLandmarks(candidate.landmarks)}
           onCancel={reset}
+          dict={dict}
         />
       )}
 
       {phase.kind === "result" && (
-        <ResultView response={phase.response} onCaptureAnother={reset} />
+        <ResultView
+          response={phase.response}
+          onCaptureAnother={reset}
+          dict={dict}
+        />
       )}
 
       {/*
@@ -378,16 +393,20 @@ export default function CapturePage({
   );
 }
 
+type CaptureDict = ReturnType<typeof getDashboardDictionary>["capturePage"];
+
 function SkeletonPicker({
   frame,
   candidates,
   onSelect,
   onCancel,
+  dict,
 }: {
   frame: ImageBitmap;
   candidates: PersonCandidate[];
   onSelect: (candidate: PersonCandidate) => void;
   onCancel: () => void;
+  dict: CaptureDict;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -412,10 +431,7 @@ function SkeletonPicker({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm">
-        {candidates.length} people detected. Click the highlighted skeleton for
-        the person being assessed.
-      </p>
+      <p className="text-sm">{dict.peopleDetected(candidates.length)}</p>
       <div className="relative">
         <canvas ref={canvasRef} className="w-full rounded border" />
         {candidates.map((candidate) => {
@@ -425,7 +441,7 @@ function SkeletonPicker({
               key={candidate.id}
               type="button"
               onClick={() => onSelect(candidate)}
-              aria-label={`Select person ${candidate.id + 1}`}
+              aria-label={dict.selectPerson(candidate.id + 1)}
               style={{
                 position: "absolute",
                 left: `${box.minX * 100}%`,
@@ -444,7 +460,7 @@ function SkeletonPicker({
         onClick={onCancel}
         className="self-start text-sm underline"
       >
-        Cancel and retake
+        {dict.cancelAndRetake}
       </button>
     </div>
   );
@@ -453,24 +469,25 @@ function SkeletonPicker({
 function ResultView({
   response,
   onCaptureAnother,
+  dict,
 }: {
   response: PostureSampleResponse;
   onCaptureAnother: () => void;
+  dict: CaptureDict;
 }) {
   const regions = Object.entries(response.regions) as [string, RegionResult][];
 
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        Sample {response.postureSampleId} — methodology{" "}
-        {response.methodologyVersion}
+        {dict.sampleMeta(response.postureSampleId, response.methodologyVersion)}
       </p>
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b">
-            <th className="py-1 pr-4">Region</th>
-            <th className="py-1 pr-4">Status</th>
-            <th className="py-1">Detail</th>
+            <th className="py-1 pr-4">{dict.tableRegion}</th>
+            <th className="py-1 pr-4">{dict.tableStatus}</th>
+            <th className="py-1">{dict.tableDetail}</th>
           </tr>
         </thead>
         <tbody>
@@ -488,7 +505,7 @@ function ResultView({
         onClick={onCaptureAnother}
         className="self-start rounded bg-black px-4 py-2 text-white dark:bg-white dark:text-black"
       >
-        Capture another sample
+        {dict.captureAnother}
       </button>
     </div>
   );
@@ -515,6 +532,11 @@ function describeManualInputWithNotes(entry: ManualInputRecord): string {
 // just immediate feedback for what was just submitted, not fetched from
 // the server and not persisted in this component across a reload.
 function ManualInputPanel({ taskId }: { taskId: string }) {
+  const { locale } = useLocale();
+  const dashboardDict = getDashboardDictionary(locale);
+  const dict = dashboardDict.capturePage;
+  const manualInputLabels = dashboardDict.manualInputLabels;
+
   const [inputType, setInputType] = useState<ManualInputType>(
     ManualInputType.LOAD_WEIGHT_KG,
   );
@@ -555,7 +577,7 @@ function ManualInputPanel({ taskId }: { taskId: string }) {
       });
       if (!res.ok) {
         const errorBody = await res.json().catch(() => null);
-        throw new Error(errorBody?.error ?? `Request failed: ${res.status}`);
+        throw new Error(errorBody?.error ?? dict.requestFailed(res.status));
       }
       const { manualInput } = (await res.json()) as {
         manualInput: ManualInputRecord;
@@ -565,7 +587,7 @@ function ManualInputPanel({ taskId }: { taskId: string }) {
       setTextValue("");
       setNotes("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Submit failed");
+      setError(err instanceof Error ? err.message : dict.submitFailed);
     } finally {
       setSubmitting(false);
     }
@@ -573,15 +595,14 @@ function ManualInputPanel({ taskId }: { taskId: string }) {
 
   return (
     <div className="flex flex-col gap-3 border-t pt-6">
-      <h2 className="text-lg font-semibold">Manual inputs</h2>
+      <h2 className="text-lg font-semibold">{dict.manualInputsHeading}</h2>
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        Load weight, push/pull force, or tool used for this task — not tied to a
-        specific posture sample.
+        {dict.manualInputsDescription}
       </p>
 
       <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-4">
         <label className="flex flex-col gap-1 text-sm">
-          Type
+          {dict.typeLabel}
           <select
             className="rounded border px-2 py-1"
             value={inputType}
@@ -589,7 +610,7 @@ function ManualInputPanel({ taskId }: { taskId: string }) {
           >
             {MANUAL_INPUT_TYPES.map((type) => (
               <option key={type} value={type}>
-                {MANUAL_INPUT_LABELS[type]}
+                {manualInputLabels[type]}
               </option>
             ))}
           </select>
@@ -597,7 +618,7 @@ function ManualInputPanel({ taskId }: { taskId: string }) {
 
         {isText ? (
           <label className="flex flex-col gap-1 text-sm">
-            Tool
+            {dict.toolLabel}
             <input
               type="text"
               required
@@ -608,7 +629,7 @@ function ManualInputPanel({ taskId }: { taskId: string }) {
           </label>
         ) : (
           <label className="flex flex-col gap-1 text-sm">
-            Value ({unit})
+            {dict.valueLabel(unit)}
             <input
               type="number"
               step="any"
@@ -621,7 +642,7 @@ function ManualInputPanel({ taskId }: { taskId: string }) {
         )}
 
         <label className="flex flex-col gap-1 text-sm">
-          Notes (optional)
+          {dict.notesLabel}
           <input
             type="text"
             value={notes}
@@ -635,7 +656,7 @@ function ManualInputPanel({ taskId }: { taskId: string }) {
           disabled={submitting}
           className="rounded border px-4 py-2 disabled:opacity-50"
         >
-          {submitting ? "Adding…" : "Add"}
+          {submitting ? dict.adding : dict.add}
         </button>
       </form>
 
@@ -647,7 +668,7 @@ function ManualInputPanel({ taskId }: { taskId: string }) {
         <ul className="flex flex-col gap-1 text-sm">
           {addedThisVisit.map((entry) => (
             <li key={entry.id} className="text-zinc-700 dark:text-zinc-300">
-              {MANUAL_INPUT_LABELS[entry.inputType]}:{" "}
+              {manualInputLabels[entry.inputType]}:{" "}
               {describeManualInputWithNotes(entry)}
             </li>
           ))}

@@ -1,7 +1,11 @@
 import Link from "next/link";
+import { getMarketingDictionary } from "@/lib/i18n/dictionaries/marketing";
+import { getLocale } from "@/lib/i18n/get-locale";
 
-export function MarketingFooter() {
+export async function MarketingFooter() {
   const year = new Date().getFullYear();
+  const locale = await getLocale();
+  const dict = getMarketingDictionary(locale);
 
   return (
     <footer className="bg-teal">
@@ -13,17 +17,14 @@ export function MarketingFooter() {
           </span>
           <nav className="flex gap-5 text-xs text-sage-light">
             <Link href="/about" className="hover:text-ivory">
-              About
+              {dict.footer.about}
             </Link>
             <Link href="/legal" className="hover:text-ivory">
-              Legal
+              {dict.footer.legal}
             </Link>
           </nav>
         </div>
-        <p className="text-xs text-sage-light">
-          © {year} Verumsell SRL · Statura Labs Dynamics is a product of
-          Verumsell SRL
-        </p>
+        <p className="text-xs text-sage-light">{dict.footer.copyright(year)}</p>
       </div>
     </footer>
   );

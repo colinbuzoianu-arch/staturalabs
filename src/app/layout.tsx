@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { getLocale } from "@/lib/i18n/get-locale";
+import { LocaleProvider } from "@/lib/i18n/locale-context";
 import "./globals.css";
 
 // Self-hosted brand typefaces, provisioned into /public/fonts by
@@ -54,14 +56,16 @@ export const metadata: Metadata = {
 // deliberately no server-side theme setting yet (CLAUDE.md).
 const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem("statura-theme");if(t==="light")document.documentElement.setAttribute("data-theme","light");}catch(e){}})();`;
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+
   return (
     <html
-      lang="en"
+      lang={locale}
       data-theme="dark"
       className={`${outfit.variable} ${jura.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
@@ -69,7 +73,9 @@ export default function RootLayout({
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static, no user input — theme-init script only */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className="flex min-h-full flex-col font-sans">{children}</body>
+      <body className="flex min-h-full flex-col font-sans">
+        <LocaleProvider initialLocale={locale}>{children}</LocaleProvider>
+      </body>
     </html>
   );
 }

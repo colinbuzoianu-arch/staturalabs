@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { LanguageSwitcher } from "@/components/language-switcher";
 import { ThemeToggle } from "./theme-toggle";
 
 const STORAGE_KEY = "statura-theme";
@@ -51,7 +52,10 @@ export function AppHeader() {
           STATURA LABS DYNAMICS
         </span>
       </Link>
-      <ThemeToggle theme={theme} onToggle={toggleTheme} />
+      <div className="flex items-center gap-4 text-foreground">
+        <LanguageSwitcher />
+        <ThemeToggle theme={theme} onToggle={toggleTheme} />
+      </div>
     </header>
   );
 }

@@ -5,6 +5,8 @@ import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 import { buildRegionResults } from "@/lib/capture/build-region-results";
 import { describeRegionResult } from "@/lib/capture/describe-region-result";
 import type { RegionResult } from "@/lib/capture/types";
+import { getAdminDictionary } from "@/lib/i18n/dictionaries/admin";
+import { getLocale } from "@/lib/i18n/get-locale";
 import type { PoseLandmarks } from "@/lib/pose/angles";
 import { prisma } from "@/lib/prisma";
 import { getActiveMethodologyVersion } from "@/lib/scoring/methodology-version";
@@ -31,6 +33,9 @@ export default async function TaskResultsPage({
     where: { taskId },
     orderBy: { capturedAt: "desc" },
   });
+
+  const locale = await getLocale();
+  const dict = getAdminDictionary(locale).taskResultsPage;
 
   let methodologyVersion: string | null = null;
   let methodologyError: string | null = null;
@@ -69,7 +74,7 @@ export default async function TaskResultsPage({
     <div className="flex flex-col gap-6">
       <p className="text-sm">
         <Link href="/admin/companies" className="underline">
-          Companies
+          {dict.companiesBreadcrumb}
         </Link>{" "}
         /{" "}
         <Link
@@ -94,39 +99,32 @@ export default async function TaskResultsPage({
         </Link>{" "}
         / {task.name}
       </p>
-      <h1 className="text-xl font-semibold">Captures: {task.name}</h1>
+      <h1 className="text-xl font-semibold">{dict.heading(task.name)}</h1>
       <p className="flex gap-3">
         <Link href={`/tasks/${task.id}/capture`} className="underline">
-          Capture a new sample
+          {dict.captureNewSample}
         </Link>
         {/* Plain <a>, not next/link: file download (Content-Disposition:
             attachment), not a client-side page transition — same reasoning
             as the (app) dashboard's task page. */}
         <a href={`/api/tasks/${task.id}/report`} className="underline">
-          Download report
+          {dict.downloadReport}
         </a>
       </p>
 
       {methodologyError && (
         <div className="rounded border border-red-400 bg-red-50 p-3 text-red-800 dark:bg-red-950 dark:text-red-200">
-          Cannot recompute region breakdowns: {methodologyError}
+          {dict.cannotRecompute(methodologyError)}
         </div>
       )}
 
       {methodologyVersion && (
         <p className="text-xs text-zinc-500">
-          Region breakdowns below are recomputed live from each sample's stored
-          landmarks against the currently active methodology version (
-          {methodologyVersion}) and current formulas — not necessarily identical
-          to what was returned/persisted at capture time if scoring rules or
-          formulas have changed since (see CLAUDE.md, "Scoring lookup" /
-          build-region-results.ts).
+          {dict.recomputeNote(methodologyVersion)}
         </p>
       )}
 
-      {samples.length === 0 && (
-        <p className="text-sm">No captures yet for this task.</p>
-      )}
+      {samples.length === 0 && <p className="text-sm">{dict.empty}</p>}
 
       {rows.map(({ sample, regions, error }) => (
         <div key={sample.id} className="rounded border p-4">
@@ -137,7 +135,7 @@ export default async function TaskResultsPage({
 
           {error && (
             <p className="mt-2 text-sm text-red-700 dark:text-red-400">
-              Error recomputing this sample: {error}
+              {dict.recomputeError(error)}
             </p>
           )}
 
@@ -145,9 +143,9 @@ export default async function TaskResultsPage({
             <table className="mt-2 w-full text-left text-sm">
               <thead>
                 <tr className="border-b">
-                  <th className="py-1 pr-4">Region</th>
-                  <th className="py-1 pr-4">Status</th>
-                  <th className="py-1">Detail</th>
+                  <th className="py-1 pr-4">{dict.colRegion}</th>
+                  <th className="py-1 pr-4">{dict.colStatus}</th>
+                  <th className="py-1">{dict.colDetail}</th>
                 </tr>
               </thead>
               <tbody>
