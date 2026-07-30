@@ -36,6 +36,12 @@ export default async function WorkstationTasksPage({
         {workstation.description && (
           <p className="text-sm text-border">{workstation.description}</p>
         )}
+        <Link
+          href={`/workstations/${workstation.id}/risk`}
+          className="text-sm text-accent hover:underline"
+        >
+          {dict.riskAssessmentLink}
+        </Link>
       </div>
 
       {tasks.length === 0 && (

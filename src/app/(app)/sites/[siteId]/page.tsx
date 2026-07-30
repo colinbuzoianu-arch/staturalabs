@@ -29,6 +29,12 @@ export default async function SiteWorkstationsPage({
           {dict.eyebrow}
         </p>
         <h1 className="font-heading text-2xl font-bold">{site.name}</h1>
+        <Link
+          href={`/sites/${site.id}/risk-overview`}
+          className="text-sm text-accent hover:underline"
+        >
+          {dict.riskOverviewLink}
+        </Link>
       </div>
 
       {workstations.length === 0 && (
