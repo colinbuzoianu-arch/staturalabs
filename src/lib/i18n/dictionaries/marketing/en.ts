@@ -3,6 +3,7 @@
 export const en = {
   header: {
     requestPilot: "Request a pilot",
+    signIn: "Sign in",
   },
   hero: {
     eyebrow: "Measured motion // workplace ergonomics",

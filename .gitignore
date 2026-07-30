@@ -54,3 +54,5 @@ next-env.d.ts
 # Self-hosted brand typefaces — provisioned by scripts/fetch-fonts.mjs
 # (npm run predev / prebuild), not committed.
 /public/fonts
+
+certificates

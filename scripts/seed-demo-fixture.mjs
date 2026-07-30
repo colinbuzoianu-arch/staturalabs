@@ -26,7 +26,10 @@ import pg from "pg";
 import { DEMO_COMPANY_NAME } from "./demo-fixture-constants.mjs";
 
 const DEMO_EMAIL = "demo-admin@statura.local";
-const DEMO_PASSWORD = "Demo-Fixture-Passw0rd!";
+// Deliberately simple (no symbols, no shift key) — this account is typed
+// on a phone keyboard during live walkthroughs, where a long/symbol-heavy
+// password is genuinely hard to enter correctly before a page reload.
+const DEMO_PASSWORD = "demo1234";
 const DEMO_NAME = "Statura Demo Account";
 const DEMO_SITE_NAME = "Riverside Fabrication Plant";
 

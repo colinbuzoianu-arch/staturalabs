@@ -30,6 +30,12 @@ export async function MarketingHeader() {
 
         <div className="flex items-center gap-5">
           <LanguageSwitcher />
+          <Link
+            href="/login"
+            className="font-heading text-sm font-bold text-ivory transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral"
+          >
+            {dict.header.signIn}
+          </Link>
           <a
             href={PILOT_MAILTO}
             className="rounded-md bg-coral px-4 py-2 font-heading text-sm font-bold text-teal transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral"

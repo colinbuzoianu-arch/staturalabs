@@ -4,6 +4,7 @@ import type { en } from "./en";
 export const ro: typeof en = {
   header: {
     requestPilot: "Solicită un proiect pilot",
+    signIn: "Autentificare",
   },
   hero: {
     eyebrow: "Mișcare măsurată // ergonomia la locul de muncă",

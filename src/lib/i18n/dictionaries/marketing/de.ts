@@ -4,6 +4,7 @@ import type { en } from "./en";
 export const de: typeof en = {
   header: {
     requestPilot: "Pilotprojekt anfragen",
+    signIn: "Anmelden",
   },
   hero: {
     eyebrow: "Gemessene Bewegung // Ergonomie am Arbeitsplatz",

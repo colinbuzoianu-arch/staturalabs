@@ -29,20 +29,34 @@ export default function LoginPage() {
     setError(null);
     setSubmitting(true);
 
-    const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    // Deliberately wrapped: signInWithPassword returning a `{ error }`
+    // object only covers Supabase-reported auth failures. Anything else
+    // (createClient() throwing on a missing env var, a network failure,
+    // the browser storage adapter throwing) is a plain thrown exception
+    // that would otherwise leave this handler failing silently — no
+    // message shown, submitting stuck true forever.
+    try {
+      const supabase = createClient();
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    setSubmitting(false);
-    if (signInError) {
-      setError(signInError.message);
-      return;
+      if (signInError) {
+        setError(signInError.message);
+        return;
+      }
+
+      router.push("/sites");
+      router.refresh();
+    } catch (err) {
+      console.error("Sign-in failed:", err);
+      setError(
+        err instanceof Error ? err.message : "Sign-in failed unexpectedly.",
+      );
+    } finally {
+      setSubmitting(false);
     }
-
-    router.push("/sites");
-    router.refresh();
   }
 
   return (
@@ -69,6 +83,10 @@ export default function LoginPage() {
           <input
             type="email"
             required
+            autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            inputMode="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="rounded-md border border-sage-dark bg-transparent px-3 py-2 text-ivory placeholder:text-sage-dark focus:border-coral focus:outline-none"
@@ -80,6 +98,9 @@ export default function LoginPage() {
           <input
             type="password"
             required
+            autoComplete="current-password"
+            autoCapitalize="none"
+            autoCorrect="off"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="rounded-md border border-sage-dark bg-transparent px-3 py-2 text-ivory focus:border-coral focus:outline-none"
