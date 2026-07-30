@@ -4,4 +4,7 @@ export const de: typeof en = {
   languageSwitcher: {
     ariaLabel: "Sprache wechseln",
   },
+  nav: {
+    administration: "Verwaltung",
+  },
 };

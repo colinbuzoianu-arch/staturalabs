@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
+import { useLocale } from "@/lib/i18n/locale-context";
 import { ThemeToggle } from "./theme-toggle";
 
 const STORAGE_KEY = "statura-theme";
@@ -14,8 +16,19 @@ const STORAGE_KEY = "statura-theme";
 // as a mismatched patch — same theme state drives both the badge and the
 // toggle button, read from the DOM attribute the inline init script (root
 // layout.tsx) already set before this component mounts.
-export function AppHeader() {
+//
+// showAdministrationLink is resolved server-side by the caller
+// ((app)/layout.tsx, via requireAuthenticatedUser's role) rather than
+// re-deriving role logic here — this component has no access to the
+// current user itself.
+export function AppHeader({
+  showAdministrationLink = false,
+}: {
+  showAdministrationLink?: boolean;
+}) {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const { locale } = useLocale();
+  const dict = getCommonDictionary(locale);
 
   useEffect(() => {
     const current = document.documentElement.getAttribute("data-theme");
@@ -53,6 +66,11 @@ export function AppHeader() {
         </span>
       </Link>
       <div className="flex items-center gap-4 text-foreground">
+        {showAdministrationLink && (
+          <Link href="/administration" className="text-sm hover:text-accent">
+            {dict.nav.administration}
+          </Link>
+        )}
         <LanguageSwitcher />
         <ThemeToggle theme={theme} onToggle={toggleTheme} />
       </div>
