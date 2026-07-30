@@ -27,6 +27,7 @@ model Company {
 
   sites         Site[]
   platformUsers PlatformUser[]
+  hazards       Hazard[]
 }
 
 /// A physical location/department within a company (conversationally
@@ -44,6 +45,10 @@ model Site {
   company         Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
   workstations    Workstation[]
   siteAssignments SiteAssignment[]
+  orgUnits        OrgUnit[]
+  processes       Process[]
+  riskAssessments RiskAssessment[]
+  actions         Action[]
 
   @@index([companyId])
 }
@@ -114,6 +119,7 @@ model SiteAssignment {
 model Workstation {
   id          String   @id @default(cuid())
   siteId      String
+  orgUnitId   String?
   name        String
   location    String?
   description String?
@@ -123,11 +129,19 @@ model Workstation {
   // Restrict, not Cascade: a site should be offboarded/archived explicitly,
   // never have its workstations (and their assessment history) silently
   // wiped out as a side effect of deleting the site (§3.6 audit trail).
+  //
+  // orgUnitId is additive-only grouping/presentation on top of an access
+  // model that already works via siteId — see the OrgUnit model doc
+  // comment below. Never make this required or derive site from the org
+  // tree; siteId stays the sole authorization-relevant column here.
   site               Site                @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  orgUnit            OrgUnit?            @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
   tasks              Task[]
   assessmentSessions AssessmentSession[]
+  riskAssessments    RiskAssessment[]
 
   @@index([siteId])
+  @@index([orgUnitId])
 }
 
 /// A specific job/task performed at a workstation (e.g. "pallet loading",
@@ -150,6 +164,7 @@ model Task {
   postureSamples     PostureSample[]
   manualInputs       ManualInput[]
   assessmentSessions AssessmentSessionTask[]
+  processTasks       ProcessTask[]
 
   @@index([workstationId])
 }
@@ -199,6 +214,7 @@ model AssessmentSession {
 
   workstation Workstation             @relation(fields: [workstationId], references: [id], onDelete: Restrict)
   tasks       AssessmentSessionTask[]
+  actions     Action[]
 
   @@index([workstationId])
 }
@@ -382,4 +398,335 @@ enum ManualInputType {
   TOOL_USED
   REPETITION_COUNT
   DURATION_SECONDS
+}
+
+// ---------------------------------------------------------------------------
+// Process / risk / action register (SLD_IMPLEMENTATION_PLAN_demo-loop.md M2).
+// Sits alongside the assessment chain above, not inside it: OrgUnit and
+// Process are organisational/grouping concepts layered on the existing
+// Site/Workstation/Task authorization model, never load-bearing for it.
+// RiskAssessment/RiskFinding/Action describe the job, never a worker — same
+// §1/§3.1 test as everything above. See ERGO_COMPLIANCE_BY_DESIGN.md
+// mandates 3.12-3.14.
+// ---------------------------------------------------------------------------
+
+enum OrgUnitType {
+  PLANT
+  DEPARTMENT
+  AREA
+  LINE
+}
+
+/// Organisational structure within a site. Describes the organisation of
+/// work, never a person (§1, §3.1). `siteId` is denormalised onto every
+/// node deliberately: authorization must never require walking this tree —
+/// `canAccessSite`/`require*Access` keep working unchanged regardless of
+/// how deep or shallow a given org tree is.
+model OrgUnit {
+  id        String      @id @default(cuid())
+  siteId    String
+  parentId  String?
+  type      OrgUnitType
+  name      String
+  code      String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  site         Site          @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  parent       OrgUnit?      @relation("OrgUnitTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children     OrgUnit[]     @relation("OrgUnitTree")
+  workstations Workstation[]
+  processes    Process[]
+
+  @@index([siteId])
+  @@index([parentId])
+}
+
+enum ProcessStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+/// A work process: an ordered set of tasks, possibly spanning workstations
+/// within one site. Describes work, never a worker (§1).
+model Process {
+  id          String        @id @default(cuid())
+  siteId      String
+  orgUnitId   String?
+  name        String
+  code        String?
+  description String?
+  status      ProcessStatus @default(DRAFT)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  site            Site             @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  orgUnit         OrgUnit?         @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
+  tasks           ProcessTask[]
+  riskAssessments RiskAssessment[]
+
+  @@index([siteId])
+}
+
+/// Join: which tasks make up a process, in what order. A task may belong to
+/// more than one process — same reasoning as AssessmentSessionTask.
+///
+/// No separate ProcessStep entity: Task already means "a specific job
+/// performed at a workstation"; a process is a sequence of those. A
+/// described step with no Task is a signal to create the task, not to
+/// introduce a parallel model that drifts from it.
+model ProcessTask {
+  id        String   @id @default(cuid())
+  processId String
+  taskId    String
+  sequence  Int
+  createdAt DateTime @default(now())
+
+  process Process @relation(fields: [processId], references: [id], onDelete: Restrict)
+  task    Task    @relation(fields: [taskId], references: [id], onDelete: Restrict)
+
+  @@unique([processId, taskId])
+  @@index([taskId])
+}
+
+enum HazardCategory {
+  PHYSICAL_MECHANICAL
+  NOISE
+  VIBRATION
+  LIGHTING
+  CLIMATE_THERMAL
+  CHEMICAL
+  DUST_PARTICULATE
+  BIOLOGICAL
+  ERGONOMIC_MSD
+  PSYCHOSOCIAL
+  ELECTRICAL
+  FIRE_EXPLOSION
+  RADIATION
+}
+
+/// Hazard catalog. companyId == null = system catalog (seeded, shared,
+/// super_admin-only to write). companyId set = a company's own additions.
+model Hazard {
+  id          String         @id @default(cuid())
+  companyId   String?
+  category    HazardCategory
+  code        String
+  name        String
+  description String?
+  isSystem    Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  company  Company?      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  findings RiskFinding[]
+
+  @@index([companyId, category])
+}
+
+/// Which risk matrix is current is data, not a code constant — same design
+/// and same fail-closed contract as MethodologyVersion (ERGO_COMPLIANCE_BY_
+/// DESIGN.md §3.8, §3.14). At most one isActive = true, enforced by a
+/// HAND-ADDED partial unique index in migration SQL (Prisma has no
+/// filtered/partial index support) — see
+/// MethodologyVersion_isActive_unique_when_true for the pattern this
+/// copies. A lookup that finds zero active rows must fail closed, never
+/// silently fall back to another version.
+model RiskMatrixVersion {
+  version     String   @id
+  label       String
+  isActive    Boolean  @default(false)
+  activatedAt DateTime @default(now())
+
+  cells           RiskMatrixCell[]
+  riskAssessments RiskAssessment[]
+}
+
+model RiskMatrixCell {
+  id            String   @id @default(cuid())
+  matrixVersion String
+  probability   Int
+  severity      Int
+  riskScore     Int
+  riskBand      RiskBand
+  createdAt     DateTime @default(now())
+
+  matrix RiskMatrixVersion @relation(fields: [matrixVersion], references: [version], onDelete: Restrict)
+
+  @@unique([matrixVersion, probability, severity])
+  @@index([matrixVersion])
+}
+
+enum RiskAssessmentStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  ARCHIVED
+}
+
+/// A dated risk assessment of either a workstation or a process — exactly
+/// one of the two, enforced by a HAND-ADDED CHECK constraint in migration
+/// SQL (same technique as ManualInput_value_shape_check).
+///
+/// DRAFT -> IN_REVIEW -> APPROVED is ERGO_COMPLIANCE_BY_DESIGN.md §3.4
+/// (mandatory human review) expressed as data. Never add an auto-approve
+/// path.
+///
+/// pilotContext mirrors AssessmentSession.pilotContext — internal-only
+/// audit metadata (§3.6) marking demo/pilot rows so they stay separable
+/// from real customer data.
+model RiskAssessment {
+  id               String               @id @default(cuid())
+  siteId           String
+  workstationId    String?
+  processId        String?
+  matrixVersion    String
+  status           RiskAssessmentStatus @default(DRAFT)
+  assessorUserId   String               @db.Uuid
+  approvedByUserId String?              @db.Uuid
+  assessedAt       DateTime
+  approvedAt       DateTime?
+  pilotContext     String?
+  notes            String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  site            Site              @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  workstation     Workstation?      @relation(fields: [workstationId], references: [id], onDelete: Restrict)
+  process         Process?          @relation(fields: [processId], references: [id], onDelete: Restrict)
+  matrix          RiskMatrixVersion @relation(fields: [matrixVersion], references: [version], onDelete: Restrict)
+  findings        RiskFinding[]
+  verifiedActions Action[]          @relation("ActionVerificationAssessment")
+
+  @@index([siteId])
+  @@index([workstationId])
+}
+
+model RiskFinding {
+  id                  String    @id @default(cuid())
+  riskAssessmentId    String
+  hazardId            String
+  probability         Int
+  severity            Int
+  riskScore           Int
+  riskBand            RiskBand
+  existingControls    String?
+  notes               String?
+  residualProbability Int?
+  residualSeverity    Int?
+  residualRiskScore   Int?
+  residualRiskBand    RiskBand?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  riskAssessment RiskAssessment        @relation(fields: [riskAssessmentId], references: [id], onDelete: Restrict)
+  hazard         Hazard                @relation(fields: [hazardId], references: [id], onDelete: Restrict)
+  measurements   ExposureMeasurement[]
+  actions        Action[]
+
+  @@index([riskAssessmentId])
+}
+
+/// Instrument or survey measurement supporting a finding, with the legal
+/// limit it is compared against recorded alongside it.
+///
+/// Deliberately NOT merged with ManualInput despite the similar shape:
+/// ManualInput is task-level input feeding the CV scoring path, this is
+/// environmental data supporting a risk finding. Same shape, different
+/// lifecycle and consumer — do not "DRY" them together.
+model ExposureMeasurement {
+  id             String   @id @default(cuid())
+  riskFindingId  String
+  value          Float
+  unit           String
+  limitValue     Float?
+  limitReference String?
+  instrument     String?
+  method         String?
+  measuredAt     DateTime
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  riskFinding RiskFinding @relation(fields: [riskFindingId], references: [id], onDelete: Restrict)
+
+  @@index([riskFindingId])
+}
+
+enum ActionStatus {
+  OPEN
+  IN_PROGRESS
+  IMPLEMENTED
+  VERIFIED
+  CANCELLED
+}
+
+enum HierarchyOfControl {
+  ELIMINATION
+  SUBSTITUTION
+  ENGINEERING_CONTROL
+  ADMINISTRATIVE_CONTROL
+  PPE
+}
+
+enum VerificationOutcome {
+  EFFECTIVE
+  PARTIALLY_EFFECTIVE
+  NOT_EFFECTIVE
+}
+
+/// A corrective action from a risk finding or an ergonomic assessment
+/// session — exactly one source, HAND-ADDED CHECK in migration SQL.
+/// Ergonomic findings roll up to their AssessmentSession rather than to an
+/// individual BodyRegionScore — keeps the CHECK simple and matches how an
+/// EHS manager actually raises an action ("this workstation's assessment
+/// found X"), not per-joint.
+///
+/// responsibleUserId references PlatformUser only (§3.13). Where the owner
+/// is a function rather than an account, use responsibleRoleLabel — a role,
+/// never a person's name.
+model Action {
+  id                        String               @id @default(cuid())
+  siteId                    String
+  riskFindingId             String?
+  assessmentSessionId       String?
+  title                     String
+  description               String?
+  hierarchyOfControl        HierarchyOfControl?
+  responsibleUserId         String?              @db.Uuid
+  responsibleRoleLabel      String?
+  dueDate                   DateTime?
+  status                    ActionStatus         @default(OPEN)
+  implementedAt             DateTime?
+  verifiedAt                DateTime?
+  verifiedByUserId          String?              @db.Uuid
+  verificationOutcome       VerificationOutcome?
+  verificationAssessmentId  String?
+  verificationNote          String?
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+
+  site                   Site                @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  riskFinding            RiskFinding?        @relation(fields: [riskFindingId], references: [id], onDelete: Restrict)
+  assessmentSession      AssessmentSession?  @relation(fields: [assessmentSessionId], references: [id], onDelete: Restrict)
+  verificationAssessment RiskAssessment?     @relation("ActionVerificationAssessment", fields: [verificationAssessmentId], references: [id], onDelete: Restrict)
+  statusEvents           ActionStatusEvent[]
+
+  @@index([siteId, status])
+  @@index([riskFindingId])
+}
+
+/// Append-only status history (§3.6). Never updated, never deleted.
+model ActionStatusEvent {
+  id         String        @id @default(cuid())
+  actionId   String
+  fromStatus ActionStatus?
+  toStatus   ActionStatus
+  byUserId   String        @db.Uuid
+  note       String?
+  createdAt  DateTime      @default(now())
+
+  action Action @relation(fields: [actionId], references: [id], onDelete: Restrict)
+
+  @@index([actionId])
 }
