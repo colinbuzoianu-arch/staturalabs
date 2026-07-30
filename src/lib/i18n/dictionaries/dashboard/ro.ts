@@ -81,6 +81,14 @@ export const ro: typeof en = {
     heading: "Captură postură",
     cameraLabel: "Cameră",
     cameraAngleLabel: "Unghi cameră",
+    cameraAngleHint: {
+      SAGITTAL:
+        "Din lateral — necesar pentru evaluarea trunchiului, gâtului, cotului și genunchiului.",
+      FRONTAL:
+        "Din față — din acest unghi pot fi evaluate doar regiunile umărului.",
+      OBLIQUE:
+        "Nici din lateral, nici din față — din acest unghi pot fi evaluate doar regiunile umărului.",
+    },
     noPersonDetected:
       "Nicio persoană detectată în cadru. Ajustați încadrarea și încercați din nou.",
     loadingPoseModel: "Se încarcă modelul de postură…",

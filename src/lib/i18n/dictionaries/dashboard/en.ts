@@ -91,6 +91,13 @@ export const en = {
     heading: "Capture posture sample",
     cameraLabel: "Camera",
     cameraAngleLabel: "Camera angle",
+    cameraAngleHint: {
+      SAGITTAL: "Side-on — required for trunk, neck, elbow, and knee scoring.",
+      FRONTAL:
+        "Front-on — only shoulder regions can be scored from this angle.",
+      OBLIQUE:
+        "Neither side-on nor front-on — only shoulder regions can be scored from this angle.",
+    },
     noPersonDetected:
       "No person detected in frame. Adjust framing and try again.",
     loadingPoseModel: "Loading pose model…",

@@ -81,6 +81,14 @@ export const de: typeof en = {
     heading: "Haltungsaufnahme erfassen",
     cameraLabel: "Kamera",
     cameraAngleLabel: "Kamerawinkel",
+    cameraAngleHint: {
+      SAGITTAL:
+        "Seitlich — erforderlich für die Bewertung von Rumpf, Nacken, Ellbogen und Knie.",
+      FRONTAL:
+        "Frontal — aus diesem Winkel können nur die Schulterregionen bewertet werden.",
+      OBLIQUE:
+        "Weder seitlich noch frontal — aus diesem Winkel können nur die Schulterregionen bewertet werden.",
+    },
     noPersonDetected:
       "Keine Person im Bild erkannt. Bildausschnitt anpassen und erneut versuchen.",
     loadingPoseModel: "Haltungsmodell wird geladen…",

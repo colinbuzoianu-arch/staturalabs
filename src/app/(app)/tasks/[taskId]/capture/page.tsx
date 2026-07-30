@@ -23,7 +23,10 @@ import type { PostureSampleResponse, RegionResult } from "@/lib/capture/types";
 import { getDashboardDictionary } from "@/lib/i18n/dictionaries/dashboard";
 import { useLocale } from "@/lib/i18n/locale-context";
 import { boundingBox, drawSkeleton } from "@/lib/pose/draw-skeleton";
-import { getPoseLandmarker } from "@/lib/pose/mediapipe-client";
+import {
+  getActivePoseDelegate,
+  getPoseLandmarker,
+} from "@/lib/pose/mediapipe-client";
 
 // A stable id assigned once per detected person, so the picker below has a
 // real React key instead of the raw array index.
@@ -60,6 +63,7 @@ export default function CapturePage({
   );
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [noPersonNotice, setNoPersonNotice] = useState(false);
+  const [poseDelegate, setPoseDelegate] = useState<"GPU" | "CPU" | null>(null);
 
   const stopCurrentStream = useCallback(() => {
     const stream = streamRef.current;
@@ -76,8 +80,10 @@ export default function CapturePage({
     let cancelled = false;
     getPoseLandmarker()
       .then(() => {
-        if (!cancelled)
+        if (!cancelled) {
           setPhase((p) => (p.kind === "loading" ? { kind: "ready" } : p));
+          setPoseDelegate(getActivePoseDelegate());
+        }
       })
       .catch((err) => {
         if (!cancelled) {
@@ -103,8 +109,13 @@ export default function CapturePage({
 
     (async () => {
       try {
+        // `ideal`, not `exact`: a soft constraint the browser honors when it
+        // can (routing a phone to its rear camera, the one actually useful
+        // for filming someone at 3-5m) and silently ignores otherwise — a
+        // desktop/USB camera with no environment-facing device just falls
+        // back to its normal default, so this changes nothing there.
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
+          video: { facingMode: { ideal: "environment" } },
         });
         if (cancelled) {
           for (const track of stream.getTracks()) track.stop();
@@ -340,6 +351,23 @@ export default function CapturePage({
               </select>
             </label>
           </div>
+
+          {/* Which regions score at all depends on this being right (see
+              computeBodyAngles's camera-angle gate) — unmissable on a phone,
+              not just implied by the dropdown label. */}
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            {dict.cameraAngleHint[cameraAngle]}
+          </p>
+
+          {/* Dev-only: which MediaPipe delegate actually initialized — the
+              GPU delegate failing silently on mobile with no fallback was
+              the top suspected M0 risk; this makes a CPU fallback visible
+              during testing instead of indistinguishable from GPU. */}
+          {process.env.NODE_ENV !== "production" && poseDelegate && (
+            <p className="font-mono text-xs text-zinc-400">
+              pose delegate: {poseDelegate}
+            </p>
+          )}
 
           {noPersonNotice && (
             <p className="text-sm text-amber-700 dark:text-amber-400">
