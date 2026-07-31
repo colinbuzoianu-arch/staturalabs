@@ -90,10 +90,10 @@ export const en = {
         kicker: "Capture flexibility",
         heading: "Fixed, handheld, and what's next",
         paragraphs: [
-          "Today, Statura works with any camera a browser can access — a laptop or USB camera mounted once at a workstation for repeated audits, or carried by an assessor from station to station across a facility. No proprietary hardware, no wearables.",
+          "Today, Statura works with any camera a browser can access — a laptop or USB camera mounted once at a workstation for repeated audits, or a phone carried by an assessor from station to station across a facility. No proprietary hardware, no wearables.",
         ],
         roadmapNote:
-          "In development: a dedicated mobile capture mode for close-range assessment of specific regions — like wrist and hand posture — that a full-body shot can't resolve well. Not yet part of the product.",
+          "In development: a dedicated close-range capture mode for regions a full-body shot can't resolve well — wrist and hand posture in particular. Not yet part of the product.",
       },
       {
         kicker: "Beyond posture",

@@ -97,10 +97,10 @@ export const de: typeof en = {
         kicker: "Flexible Aufnahme",
         heading: "Fest montiert, mobil, und was als Nächstes kommt",
         paragraphs: [
-          "Statura funktioniert heute mit jeder Kamera, auf die ein Browser zugreifen kann — einer Laptop- oder USB-Kamera, die dauerhaft an einem Arbeitsplatz montiert für wiederkehrende Prüfungen genutzt wird, oder die eine prüfende Person von Station zu Station durch die Anlage trägt. Keine proprietäre Hardware, keine Wearables.",
+          "Statura funktioniert heute mit jeder Kamera, auf die ein Browser zugreifen kann — einer Laptop- oder USB-Kamera, die dauerhaft an einem Arbeitsplatz montiert für wiederkehrende Prüfungen genutzt wird, oder einem Smartphone, das eine prüfende Person von Station zu Station durch die Anlage trägt. Keine proprietäre Hardware, keine Wearables.",
         ],
         roadmapNote:
-          "In Entwicklung: ein eigener mobiler Aufnahmemodus für die Nahbereichsbewertung einzelner Regionen — etwa Handgelenk und Hand —, die eine Ganzkörperaufnahme nicht zuverlässig erfassen kann. Noch nicht Teil des Produkts.",
+          "In Entwicklung: ein eigener Nahbereichs-Aufnahmemodus für Regionen, die eine Ganzkörperaufnahme nicht zuverlässig erfassen kann — insbesondere Handgelenk und Hand. Noch nicht Teil des Produkts.",
       },
       {
         kicker: "Mehr als Haltung",

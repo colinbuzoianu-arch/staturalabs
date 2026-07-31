@@ -94,10 +94,10 @@ export const ro: typeof en = {
         kicker: "Flexibilitate în captură",
         heading: "Fixă, portabilă și ce urmează",
         paragraphs: [
-          "Astăzi, Statura funcționează cu orice cameră accesibilă unui browser — o cameră de laptop sau USB montată permanent la un loc de muncă pentru audituri repetate, sau purtată de un evaluator de la o stație la alta în cadrul unei fabrici. Fără hardware proprietar, fără dispozitive purtabile.",
+          "Astăzi, Statura funcționează cu orice cameră accesibilă unui browser — o cameră de laptop sau USB montată permanent la un loc de muncă pentru audituri repetate, sau telefonul mobil purtat de un evaluator de la o stație la alta în cadrul unei fabrici. Fără hardware proprietar, fără dispozitive purtabile.",
         ],
         roadmapNote:
-          "În dezvoltare: un mod dedicat de captură mobilă pentru evaluarea la distanță mică a unor regiuni specifice — precum postura încheieturii și a mâinii — pe care o imagine de corp întreg nu le poate surprinde suficient de bine. Nu face încă parte din produs.",
+          "În dezvoltare: un mod dedicat de captură la distanță mică pentru regiuni pe care o imagine de corp întreg nu le poate surprinde suficient de bine — în special postura încheieturii și a mâinii. Nu face încă parte din produs.",
       },
       {
         kicker: "Dincolo de postură",
