@@ -57,6 +57,7 @@ export const en = {
     eyebrow: "Site //",
     empty: "No workstations at this site yet.",
     riskOverviewLink: "Risk overview →",
+    workerBriefingLink: "Worker representative briefing (PDF) →",
   },
   workstationPage: {
     breadcrumbSites: "Sites",

@@ -29,12 +29,22 @@ export default async function SiteWorkstationsPage({
           {dict.eyebrow}
         </p>
         <h1 className="font-heading text-2xl font-bold">{site.name}</h1>
-        <Link
-          href={`/sites/${site.id}/risk-overview`}
-          className="text-sm text-accent hover:underline"
-        >
-          {dict.riskOverviewLink}
-        </Link>
+        <div className="flex flex-wrap gap-x-4 gap-y-1">
+          <Link
+            href={`/sites/${site.id}/risk-overview`}
+            className="text-sm text-accent hover:underline"
+          >
+            {dict.riskOverviewLink}
+          </Link>
+          {/* Plain <a>, not next/link: a real file download, same reasoning
+              as the task/risk-assessment report links. */}
+          <a
+            href={`/api/sites/${site.id}/worker-briefing`}
+            className="text-sm text-accent hover:underline"
+          >
+            {dict.workerBriefingLink}
+          </a>
+        </div>
       </div>
 
       {workstations.length === 0 && (

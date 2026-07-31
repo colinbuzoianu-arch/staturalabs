@@ -46,6 +46,7 @@ export const ro: typeof en = {
     eyebrow: "Locație //",
     empty: "Această locație nu are încă niciun loc de muncă definit.",
     riskOverviewLink: "Prezentare generală a riscurilor →",
+    workerBriefingLink: "Informare pentru reprezentanții salariaților (PDF) →",
   },
   workstationPage: {
     breadcrumbSites: "Locații",

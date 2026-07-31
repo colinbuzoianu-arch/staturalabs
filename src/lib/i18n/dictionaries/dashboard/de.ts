@@ -46,6 +46,7 @@ export const de: typeof en = {
     eyebrow: "Standort //",
     empty: "An diesem Standort sind noch keine Arbeitsplätze angelegt.",
     riskOverviewLink: "Risikoübersicht →",
+    workerBriefingLink: "Information für die Arbeitnehmervertretung (PDF) →",
   },
   workstationPage: {
     breadcrumbSites: "Standorte",

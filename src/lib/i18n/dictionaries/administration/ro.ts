@@ -172,6 +172,7 @@ export const ro: typeof en = {
     assessedAtLabel: "Evaluat la:",
     matrixVersionLabel: "Versiune matrice:",
     pilotContextLabel: "Context pilot/demonstrativ:",
+    downloadReport: "Descarcă raportul",
     submitForReview: "Trimite spre verificare",
     approve: "Aprobă",
     findingsHeading: "Constatări",

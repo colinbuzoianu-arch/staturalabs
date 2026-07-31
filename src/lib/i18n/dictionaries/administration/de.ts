@@ -173,6 +173,7 @@ export const de: typeof en = {
     assessedAtLabel: "Beurteilt:",
     matrixVersionLabel: "Matrixversion:",
     pilotContextLabel: "Pilot-/Demo-Kontext:",
+    downloadReport: "Bericht herunterladen",
     submitForReview: "Zur Prüfung einreichen",
     approve: "Freigeben",
     findingsHeading: "Feststellungen",

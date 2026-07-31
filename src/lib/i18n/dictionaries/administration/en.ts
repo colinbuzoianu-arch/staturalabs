@@ -182,6 +182,7 @@ export const en = {
     assessedAtLabel: "Assessed:",
     matrixVersionLabel: "Matrix version:",
     pilotContextLabel: "Pilot/demo context:",
+    downloadReport: "Download report",
     submitForReview: "Submit for review",
     approve: "Approve",
     findingsHeading: "Findings",

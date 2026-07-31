@@ -293,6 +293,15 @@ export default async function RiskAssessmentDetailPage({
       </div>
 
       <div className="flex gap-2">
+        {/* Plain <a>, not next/link: a real file download
+            (Content-Disposition: attachment), not a client-side page
+            transition — same reasoning as the task report's link. */}
+        <a
+          href={`/api/risk-assessments/${initial.id}/report`}
+          className="rounded border border-border px-3 py-1.5 text-sm hover:border-accent"
+        >
+          {dict.downloadReport}
+        </a>
         {initial.status === RiskAssessmentStatus.DRAFT && (
           <form action={submitForReviewAction}>
             <button
