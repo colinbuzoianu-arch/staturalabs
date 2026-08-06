@@ -33,6 +33,10 @@ export default async function SiteAdministrationLayout({
       label: dict.riskAssessments,
     },
     { href: `/administration/sites/${siteId}/actions`, label: dict.actions },
+    {
+      href: `/administration/sites/${siteId}/floor-plans`,
+      label: dict.floorPlans,
+    },
   ];
 
   return (

@@ -46,6 +46,7 @@ export const ro: typeof en = {
     eyebrow: "Locație //",
     empty: "Această locație nu are încă niciun loc de muncă definit.",
     riskOverviewLink: "Prezentare generală a riscurilor →",
+    siteMapLink: "Harta locației →",
     workerBriefingLink: "Informare pentru reprezentanții salariaților (PDF) →",
   },
   workstationPage: {
@@ -192,5 +193,35 @@ export const ro: typeof en = {
     colDue: "Termen",
     colStatus: "Stare",
     viewLink: "Vezi →",
+  },
+  siteMapPage: {
+    breadcrumbSites: "Locații",
+    eyebrow: "Harta locației //",
+    heading: "Harta locației",
+    backToSite: "← Înapoi la locație",
+    empty: "Niciun plan de amplasare încărcat încă.",
+    manageFloorPlansLink: "Gestionează planurile de amplasare →",
+    categoryFilterHeading: "Filtrează după categoria de pericol",
+    allCategoriesLabel: "Toate categoriile",
+    legendHeading: "Legendă",
+    legendWorkstationShape: "Loc de muncă (agregat)",
+    legendTaskShape: "Sarcină (măsurătoare individuală)",
+    legendNotAssessedColor: "Neevaluat încă",
+    taskPopoverWorkstationPrefix: "Loc de muncă:",
+    taskPopoverBandPrefix: "Cel mai grav nivel:",
+    taskPopoverConcerningHeading: "Regiuni corporale îngrijorătoare:",
+    taskPopoverNoConcerning: "Nicio regiune ridicată/înaltă",
+    taskPopoverViewLink: "Vezi sarcina →",
+    workstationPopoverBandPrefix: "Nivel:",
+    workstationPopoverNotAssessed: "Neevaluat încă",
+    workstationPopoverNoFindingsForCategory:
+      "Nicio constatare în această categorie pentru filtrul activ",
+    workstationPopoverOpenActionsPrefix: "Măsuri deschise:",
+    workstationPopoverViewLink: "Vezi riscul locului de muncă →",
+    workstationPopoverTasksPlacedSuffix: "sarcini plasate",
+    workstationPopoverUnplacedBandPrefix:
+      "Cel mai grav nivel ergonomic (sarcini rămase):",
+    workstationPopoverNoUnplacedData:
+      "Încă nu există date de postură pentru sarcinile rămase",
   },
 };

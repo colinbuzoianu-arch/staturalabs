@@ -20,6 +20,7 @@
 //     does for its fixture users), so there is nothing to clean up there.
 //
 // Usage: npm run reset:demo
+import { createClient } from "@supabase/supabase-js";
 import "dotenv/config";
 import pg from "pg";
 import { DEMO_COMPANY_NAME } from "./demo-fixture-constants.mjs";
@@ -39,6 +40,10 @@ async function del(db, label, sql, params) {
 }
 
 async function main() {
+  const admin = createClient(
+    requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    requireEnv("SUPABASE_SECRET_KEY"),
+  );
   const db = new pg.Client({ connectionString: requireEnv("DIRECT_URL") });
   await db.connect();
 
@@ -168,6 +173,27 @@ async function main() {
       `DELETE FROM "AssessmentSession" WHERE "workstationId" IN (SELECT id FROM "Workstation" WHERE "siteId" = ANY($1))`,
       [siteIds],
     );
+    // WorkstationPlanPosition/TaskPlanPosition are the only Cascade FKs in
+    // this schema (§3.9 is about Company/Site/Workstation/Task and doesn't
+    // apply to a map pin, which is meaningless without the thing it's
+    // pinning) — deleting Task/Workstation below would cascade these away
+    // regardless, but they're deleted explicitly here anyway so this
+    // script's row-count log stays accurate rather than silently relying
+    // on a cascade the log wouldn't reflect.
+    await del(
+      db,
+      "TaskPlanPosition",
+      `DELETE FROM "TaskPlanPosition" WHERE "taskId" IN (
+         SELECT t.id FROM "Task" t JOIN "Workstation" w ON w.id = t."workstationId" WHERE w."siteId" = ANY($1)
+       )`,
+      [siteIds],
+    );
+    await del(
+      db,
+      "WorkstationPlanPosition",
+      `DELETE FROM "WorkstationPlanPosition" WHERE "workstationId" IN (SELECT id FROM "Workstation" WHERE "siteId" = ANY($1))`,
+      [siteIds],
+    );
     await del(
       db,
       "Task",
@@ -226,6 +252,37 @@ async function main() {
       `DELETE FROM "SiteAssignment" WHERE "siteId" = ANY($1)`,
       [siteIds],
     );
+
+    // FloorPlan.siteId is ON DELETE RESTRICT, same as every other relation
+    // off Site — a leftover FloorPlan row would block the Site delete
+    // below, so it (and its uploaded image, which has no DB-level cleanup
+    // of its own) must go first.
+    const floorPlanPaths = (
+      await db.query(
+        `SELECT "storagePath" FROM "FloorPlan" WHERE "siteId" = ANY($1)`,
+        [siteIds],
+      )
+    ).rows.map((r) => r.storagePath);
+    if (floorPlanPaths.length > 0) {
+      const { error: removeError } = await admin.storage
+        .from("floor-plans")
+        .remove(floorPlanPaths);
+      if (removeError) {
+        throw new Error(
+          `Failed to remove floor plan storage objects: ${removeError.message}`,
+        );
+      }
+      console.log(
+        `  FloorPlan storage objects: ${floorPlanPaths.length} removed`,
+      );
+    }
+    await del(
+      db,
+      "FloorPlan",
+      `DELETE FROM "FloorPlan" WHERE "siteId" = ANY($1)`,
+      [siteIds],
+    );
+
     await del(db, "Site", `DELETE FROM "Site" WHERE "companyId" = $1`, [
       company.id,
     ]);

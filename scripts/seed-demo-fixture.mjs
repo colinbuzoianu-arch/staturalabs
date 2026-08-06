@@ -10,8 +10,10 @@
 // client — this is a one-off maintenance script, not application code.
 //
 // Idempotent for the *structural* entities (Company/Site/OrgUnit/
-// Workstation/Task/Process/ProcessTask — matched by name within their
-// parent, same selectOrInsert pattern as seed-dev-fixture.mjs). The
+// Workstation/Task/Process/ProcessTask/FloorPlan/WorkstationPlanPosition/
+// TaskPlanPosition — matched by name (or by floorPlanId+workstationId/
+// taskId for the two position tables) within their parent, same
+// selectOrInsert pattern as seed-dev-fixture.mjs). The
 // "historical demo narrative" (risk assessments/findings/actions/posture
 // sample) is seeded as one all-or-nothing block, gated on whether the
 // hero workstation's "before" RiskAssessment already exists — re-running
@@ -23,6 +25,7 @@
 import { createClient } from "@supabase/supabase-js";
 import "dotenv/config";
 import pg from "pg";
+import { PNG } from "pngjs";
 import { DEMO_COMPANY_NAME } from "./demo-fixture-constants.mjs";
 
 const DEMO_EMAIL = "demo-admin@statura.local";
@@ -147,6 +150,34 @@ async function getSystemHazard(db, code) {
     );
   }
   return result.rows[0].id;
+}
+
+// Floor plan image for the site map / heatmap feature. Approach taken:
+// generate a plain grey placeholder PNG programmatically (solid background
+// + a grid every 100px) rather than requiring a real floor-plan photo to
+// exist somewhere on disk — this script has no such asset and shouldn't
+// depend on one being manually placed. Uses `pngjs` (pure JS, zero native
+// deps, added as a regular dependency alongside pg/@supabase/supabase-js —
+// this script already has no qualms pulling in what it needs, same as
+// those two) rather than hand-rolling PNG chunk/CRC32/zlib framing, which
+// would be a lot of error-prone bytes for a one-off maintenance script.
+function buildFloorPlanPng(width, height) {
+  const png = new PNG({ width, height });
+  const GRID_STEP = 100;
+  const BACKGROUND = [224, 224, 224];
+  const GRID_LINE = [160, 160, 160];
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = (width * y + x) << 2;
+      const onGridLine = x % GRID_STEP < 2 || y % GRID_STEP < 2;
+      const [r, g, b] = onGridLine ? GRID_LINE : BACKGROUND;
+      png.data[idx] = r;
+      png.data[idx + 1] = g;
+      png.data[idx + 2] = b;
+      png.data[idx + 3] = 255;
+    }
+  }
+  return PNG.sync.write(png);
 }
 
 function monthsAgo(n) {
@@ -450,6 +481,109 @@ async function main() {
     }
     console.log("Processes: Panel Assembly Line, Frame Fabrication Line");
 
+    // --- Floor plan + heatmap positions ---
+    // A structural, always-idempotent block like OrgUnit/Workstation/Task
+    // above (not gated behind the "historical narrative" flag below) —
+    // these rows don't depend on any risk assessment existing, only on the
+    // workstations/tasks created above.
+    const FLOOR_PLAN_WIDTH = 1200;
+    const FLOOR_PLAN_HEIGHT = 800;
+    const FLOOR_PLAN_NAME = "Riverside Plant — Ground Floor";
+    const FLOOR_PLAN_STORAGE_PATH = `${site.id}/demo-floor-plan.png`;
+
+    const floorPlanPng = buildFloorPlanPng(FLOOR_PLAN_WIDTH, FLOOR_PLAN_HEIGHT);
+    const { error: floorPlanUploadError } = await admin.storage
+      .from("floor-plans")
+      .upload(FLOOR_PLAN_STORAGE_PATH, floorPlanPng, {
+        contentType: "image/png",
+        upsert: true,
+      });
+    if (floorPlanUploadError) {
+      throw new Error(
+        `Failed to upload demo floor plan image (is the "floor-plans" bucket created in the Supabase dashboard? See src/lib/storage/floor-plan.ts): ${floorPlanUploadError.message}`,
+      );
+    }
+
+    const { row: floorPlan, created: floorPlanCreated } = await selectOrInsert(
+      db,
+      "FloorPlan",
+      { siteId: site.id, name: FLOOR_PLAN_NAME },
+      {
+        id: crypto.randomUUID(),
+        siteId: site.id,
+        name: FLOOR_PLAN_NAME,
+        storagePath: FLOOR_PLAN_STORAGE_PATH,
+        width: FLOOR_PLAN_WIDTH,
+        height: FLOOR_PLAN_HEIGHT,
+        updatedAt: new Date(),
+      },
+    );
+    console.log(
+      `${floorPlanCreated ? "Created" : "Reusing"} FloorPlan ${floorPlan.id}`,
+    );
+
+    // Workstation-level pins — spread across the plan, not clustered:
+    // - Panel Assembly Station 1 (hero): mixed — 2 of 3 tasks pinned below.
+    // - Press Brake Station: no task pins at all — exercises the pure
+    //   workstation-level fallback tier, colored via its NOISE finding.
+    // - Panel Assembly Station 2: no task pins AND no RiskAssessment
+    //   (deliberately left unassessed above) — exercises the grey
+    //   "not yet assessed" marker.
+    // - Weld Cell A: mixed — 1 of 3 tasks pinned below.
+    // Spray Booth deliberately has NO WorkstationPlanPosition: both its
+    // tasks are individually pinned below, so the map should render only
+    // those two task pins and no workstation-level marker for it at all.
+    const workstationPinDefs = [
+      { name: "Panel Assembly Station 1", x: 0.15, y: 0.25 },
+      { name: "Press Brake Station", x: 0.75, y: 0.2 },
+      { name: "Panel Assembly Station 2", x: 0.45, y: 0.15 },
+      { name: "Weld Cell A", x: 0.6, y: 0.7 },
+    ];
+    for (const { name, x, y } of workstationPinDefs) {
+      await selectOrInsert(
+        db,
+        "WorkstationPlanPosition",
+        { floorPlanId: floorPlan.id, workstationId: workstations[name].id },
+        {
+          id: crypto.randomUUID(),
+          floorPlanId: floorPlan.id,
+          workstationId: workstations[name].id,
+          x,
+          y,
+        },
+      );
+    }
+
+    // Task-level pins. "Manual panel fitting" and "Fastener installation"
+    // (both at the hero workstation) get real PostureSample data below, so
+    // their pins render a real color; the other three are deliberately
+    // left without a posture sample to also exercise a task pin's own
+    // "no data yet" grey state, rather than every task pin being colored.
+    const taskPinDefs = [
+      { name: "Manual panel fitting", x: 0.12, y: 0.22 },
+      { name: "Fastener installation", x: 0.2, y: 0.3 },
+      { name: "Panel spray coating", x: 0.3, y: 0.55 },
+      { name: "Booth cleaning", x: 0.36, y: 0.6 },
+      { name: "Weld seam inspection", x: 0.62, y: 0.68 },
+    ];
+    for (const { name, x, y } of taskPinDefs) {
+      await selectOrInsert(
+        db,
+        "TaskPlanPosition",
+        { floorPlanId: floorPlan.id, taskId: tasks[name].id },
+        {
+          id: crypto.randomUUID(),
+          floorPlanId: floorPlan.id,
+          taskId: tasks[name].id,
+          x,
+          y,
+        },
+      );
+    }
+    console.log(
+      `Floor plan pins: ${workstationPinDefs.length} workstation-level, ${taskPinDefs.length} task-level`,
+    );
+
     // --- Demo user: company_admin, invite-flow-equivalent (admin-API auth user + PlatformUser) ---
     const { data: existingUsers, error: listError } =
       await admin.auth.admin.listUsers();
@@ -738,34 +872,80 @@ async function main() {
         taskId: fittingTask.id,
       });
 
-      const keypoints = buildPoorPostureLandmarks();
-      const postureSample = await insertRow(db, "PostureSample", {
-        id: crypto.randomUUID(),
-        taskId: fittingTask.id,
-        capturedAt: addMinutes(sessionStartedAt, 2),
-        cameraAngle: "SAGITTAL",
-        keypoints: JSON.stringify(keypoints),
-      });
-
-      for (const [bodyRegion, degrees] of Object.entries(
-        POOR_POSTURE_DEGREES,
-      )) {
-        const rule = await getScoringRule(
-          db,
-          methodologyVersion,
-          bodyRegion,
-          degrees,
-        );
-        await insertRow(db, "BodyRegionScore", {
+      // Shared by both posture samples below — same already-validated
+      // landmarks/degrees (see the doc comments above
+      // buildPoorPostureLandmarks/POOR_POSTURE_DEGREES), reused rather than
+      // hand-crafting a second angle set: the site map heatmap only needs
+      // a second real (non-null) colored task pin to demonstrate against,
+      // not a different band value, and CLAUDE.md is explicit that any new
+      // hand-edited keypoints must be re-validated offline against
+      // computeBodyAngles before use — reusing the proven set sidesteps
+      // that entirely.
+      async function createPoorPostureSample(task, capturedAt) {
+        const keypoints = buildPoorPostureLandmarks();
+        const postureSample = await insertRow(db, "PostureSample", {
           id: crypto.randomUUID(),
-          postureSampleId: postureSample.id,
-          bodyRegion,
-          score: rule.riskScore,
-          scoringRuleVersion: rule.methodologyVersion,
+          taskId: task.id,
+          capturedAt,
+          cameraAngle: "SAGITTAL",
+          keypoints: JSON.stringify(keypoints),
         });
+        for (const [bodyRegion, degrees] of Object.entries(
+          POOR_POSTURE_DEGREES,
+        )) {
+          const rule = await getScoringRule(
+            db,
+            methodologyVersion,
+            bodyRegion,
+            degrees,
+          );
+          await insertRow(db, "BodyRegionScore", {
+            id: crypto.randomUUID(),
+            postureSampleId: postureSample.id,
+            bodyRegion,
+            score: rule.riskScore,
+            scoringRuleVersion: rule.methodologyVersion,
+          });
+        }
+        return postureSample;
       }
+
+      await createPoorPostureSample(
+        fittingTask,
+        addMinutes(sessionStartedAt, 2),
+      );
+
+      // Second sample, at the hero workstation's other individually-pinned
+      // task, purely so the site map heatmap has more than one real
+      // (non-null) colored task pin to show — not part of the original M7
+      // demo narrative otherwise.
+      await createPoorPostureSample(
+        tasks["Fastener installation"],
+        addMinutes(sessionStartedAt, 6),
+      );
+
+      // Third sample, at the hero workstation's remaining (deliberately
+      // un-pinned) task. This one isn't a task pin itself, but the site
+      // map's workstation-level "mixed" marker (some tasks pinned, some
+      // not) derives its color from the *unplaced* tasks' ergonomic band
+      // specifically — never from the RiskAssessment, to avoid the map
+      // double-counting a task's risk both as its own pin and folded back
+      // into the workstation aggregate (see site-map-client.tsx). Without
+      // this sample, that unplaced-task band would be null (no data) and
+      // the hero workstation's own marker would render grey despite the
+      // workstation otherwise having a real HIGH-band assessment — giving
+      // it real data here means the map has at least one colored "mixed"
+      // marker to demonstrate that tier, not just the colored "full"
+      // marker (Press Brake Station) and grey ones (Panel Assembly
+      // Station 2's "not yet assessed", Weld Cell A's "no ergonomic data
+      // among its unplaced tasks").
+      await createPoorPostureSample(
+        tasks["Sub-assembly quality check"],
+        addMinutes(sessionStartedAt, 10),
+      );
+
       console.log(
-        `"Before" AssessmentSession + PostureSample seeded (TRUNK ${POOR_POSTURE_DEGREES.TRUNK.toFixed(1)}°, NECK ${POOR_POSTURE_DEGREES.NECK.toFixed(1)}° — both HIGH).`,
+        `"Before" AssessmentSession + PostureSamples seeded for "Manual panel fitting", "Fastener installation", and "Sub-assembly quality check" (TRUNK ${POOR_POSTURE_DEGREES.TRUNK.toFixed(1)}°, NECK ${POOR_POSTURE_DEGREES.NECK.toFixed(1)}° — both HIGH).`,
       );
     }
 

@@ -46,6 +46,7 @@ export const de: typeof en = {
     eyebrow: "Standort //",
     empty: "An diesem Standort sind noch keine Arbeitsplätze angelegt.",
     riskOverviewLink: "Risikoübersicht →",
+    siteMapLink: "Standortplan →",
     workerBriefingLink: "Information für die Arbeitnehmervertretung (PDF) →",
   },
   workstationPage: {
@@ -193,5 +194,35 @@ export const de: typeof en = {
     colDue: "Fällig",
     colStatus: "Status",
     viewLink: "Ansehen →",
+  },
+  siteMapPage: {
+    breadcrumbSites: "Standorte",
+    eyebrow: "Standortplan //",
+    heading: "Standortplan",
+    backToSite: "← Zurück zum Standort",
+    empty: "Noch keine Lagepläne hochgeladen.",
+    manageFloorPlansLink: "Lagepläne verwalten →",
+    categoryFilterHeading: "Nach Gefährdungskategorie filtern",
+    allCategoriesLabel: "Alle Kategorien",
+    legendHeading: "Legende",
+    legendWorkstationShape: "Arbeitsplatz (aggregiert)",
+    legendTaskShape: "Aufgabe (Einzelmessung)",
+    legendNotAssessedColor: "Noch nicht bewertet",
+    taskPopoverWorkstationPrefix: "Arbeitsplatz:",
+    taskPopoverBandPrefix: "Schlechteste Stufe:",
+    taskPopoverConcerningHeading: "Auffällige Körperregionen:",
+    taskPopoverNoConcerning: "Keine erhöhten/hohen Regionen",
+    taskPopoverViewLink: "Aufgabe ansehen →",
+    workstationPopoverBandPrefix: "Stufe:",
+    workstationPopoverNotAssessed: "Noch nicht bewertet",
+    workstationPopoverNoFindingsForCategory:
+      "Keine Feststellungen in dieser Kategorie für den aktiven Filter",
+    workstationPopoverOpenActionsPrefix: "Offene Maßnahmen:",
+    workstationPopoverViewLink: "Arbeitsplatz-Risikobewertung ansehen →",
+    workstationPopoverTasksPlacedSuffix: "Aufgaben platziert",
+    workstationPopoverUnplacedBandPrefix:
+      "Schlechteste ergonomische Stufe (verbleibende Aufgaben):",
+    workstationPopoverNoUnplacedData:
+      "Noch keine Haltungsdaten für die verbleibenden Aufgaben",
   },
 };

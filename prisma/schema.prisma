@@ -49,6 +49,7 @@ model Site {
   processes       Process[]
   riskAssessments RiskAssessment[]
   actions         Action[]
+  floorPlans      FloorPlan[]
 
   @@index([companyId])
 }
@@ -134,11 +135,12 @@ model Workstation {
   // model that already works via siteId — see the OrgUnit model doc
   // comment below. Never make this required or derive site from the org
   // tree; siteId stays the sole authorization-relevant column here.
-  site               Site                @relation(fields: [siteId], references: [id], onDelete: Restrict)
-  orgUnit            OrgUnit?            @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
+  site               Site                      @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  orgUnit            OrgUnit?                  @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
   tasks              Task[]
   assessmentSessions AssessmentSession[]
   riskAssessments    RiskAssessment[]
+  planPositions      WorkstationPlanPosition[]
 
   @@index([siteId])
   @@index([orgUnitId])
@@ -165,6 +167,7 @@ model Task {
   manualInputs       ManualInput[]
   assessmentSessions AssessmentSessionTask[]
   processTasks       ProcessTask[]
+  planPositions      TaskPlanPosition[]
 
   @@index([workstationId])
 }
@@ -729,4 +732,72 @@ model ActionStatusEvent {
   action Action @relation(fields: [actionId], references: [id], onDelete: Restrict)
 
   @@index([actionId])
+}
+
+/// An uploaded floor-plan image for a site (e.g. "Hall 2", "Ground floor").
+/// `storagePath` points at the actual image in Supabase Storage; `width`/
+/// `height` are the pixel dimensions of that image, which is what the
+/// normalized 0..1 coordinates on WorkstationPlanPosition/TaskPlanPosition
+/// are relative to.
+model FloorPlan {
+  id          String   @id @default(cuid())
+  siteId      String
+  name        String
+  storagePath String
+  width       Int
+  height      Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Restrict, matching every other relation off Site: a site's floor plans
+  // can't be wiped out as a side effect of deleting the site.
+  site                     Site                      @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  workstationPlanPositions WorkstationPlanPosition[]
+  taskPlanPositions        TaskPlanPosition[]
+
+  @@index([siteId])
+}
+
+/// A workstation is an area, not a point — a "packaging station" might span
+/// a pallet pickup spot, a wrapping table, and a stacking area meters apart.
+/// This is the fallback/aggregate pin shown on a floor plan when nobody has
+/// placed the workstation's individual tasks yet (see TaskPlanPosition,
+/// which is the finer-grained pin a heatmap actually wants). A workstation
+/// appears at most once per plan.
+model WorkstationPlanPosition {
+  id            String @id @default(cuid())
+  floorPlanId   String
+  workstationId String
+  x             Float
+  y             Float
+
+  // Cascade both ways: a pin is meaningless without the plan it's placed
+  // on, and a workstation's map pin has no reason to outlive the
+  // workstation — unlike the assessment chain above, there's no audit
+  // trail value in keeping an orphaned pin around.
+  floorPlan   FloorPlan   @relation(fields: [floorPlanId], references: [id], onDelete: Cascade)
+  workstation Workstation @relation(fields: [workstationId], references: [id], onDelete: Cascade)
+
+  @@unique([floorPlanId, workstationId])
+  @@index([floorPlanId])
+}
+
+/// Task-level pin on a floor plan. PostureSample already belongs to Task,
+/// not Workstation, so this is the pin granularity a movement heatmap
+/// actually needs — it can point at exactly which spot within a
+/// workstation drives risk, rather than only the workstation as a whole.
+/// A task appears at most once per plan.
+model TaskPlanPosition {
+  id          String @id @default(cuid())
+  floorPlanId String
+  taskId      String
+  x           Float
+  y           Float
+
+  // Cascade both ways, same reasoning as WorkstationPlanPosition.
+  floorPlan FloorPlan @relation(fields: [floorPlanId], references: [id], onDelete: Cascade)
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([floorPlanId, taskId])
+  @@index([floorPlanId])
 }

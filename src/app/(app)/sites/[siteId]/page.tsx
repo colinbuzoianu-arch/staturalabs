@@ -36,6 +36,12 @@ export default async function SiteWorkstationsPage({
           >
             {dict.riskOverviewLink}
           </Link>
+          <Link
+            href={`/sites/${site.id}/map`}
+            className="text-sm text-accent hover:underline"
+          >
+            {dict.siteMapLink}
+          </Link>
           {/* Plain <a>, not next/link: a real file download, same reasoning
               as the task/risk-assessment report links. */}
           <a

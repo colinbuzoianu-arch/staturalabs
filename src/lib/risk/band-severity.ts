@@ -28,3 +28,20 @@ export function worstRiskBand(bands: RiskBand[]): RiskBand | null {
     RISK_BAND_SEVERITY[band] > RISK_BAND_SEVERITY[worst] ? band : worst,
   );
 }
+
+// Fixed severity color scale for the site map heatmap (and any future
+// visual, band-colored view) — a display concern, kept next to
+// worstRiskBand/riskBandRank since all three exist purely to rank/present
+// a RiskBand, never to feed a scoring or matrix-lookup decision.
+export const riskBandColors: Record<RiskBand, string> = {
+  LOW: "#22c55e", // green-500
+  MODERATE: "#eab308", // yellow-500
+  ELEVATED: "#f97316", // orange-500
+  HIGH: "#ef4444", // red-500
+};
+
+// For a workstation/task with no band to report yet (no approved
+// assessment, no matching findings for a hazard-category filter, no scored
+// posture sample) — visually distinct from every real band, never reused
+// as a stand-in for LOW.
+export const NOT_ASSESSED_COLOR = "#9ca3af"; // gray-400

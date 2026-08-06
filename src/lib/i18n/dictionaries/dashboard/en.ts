@@ -57,6 +57,7 @@ export const en = {
     eyebrow: "Site //",
     empty: "No workstations at this site yet.",
     riskOverviewLink: "Risk overview →",
+    siteMapLink: "Site map →",
     workerBriefingLink: "Worker representative briefing (PDF) →",
   },
   workstationPage: {
@@ -199,5 +200,40 @@ export const en = {
     colDue: "Due",
     colStatus: "Status",
     viewLink: "View →",
+  },
+  // Passed as a prop into a Client Component (the interactive map overlay)
+  // — same constraint as administration's floorPlanPlacementPage: every
+  // value here must stay a plain string, never a function. RiskBand values
+  // themselves stay untranslated on the map too, same reasoning as
+  // workstationRiskPage/siteRiskOverviewPage above.
+  siteMapPage: {
+    breadcrumbSites: "Sites",
+    eyebrow: "Site map //",
+    heading: "Site map",
+    backToSite: "← Back to site",
+    empty: "No floor plans uploaded yet.",
+    manageFloorPlansLink: "Manage floor plans →",
+    categoryFilterHeading: "Filter by hazard category",
+    allCategoriesLabel: "All categories",
+    legendHeading: "Legend",
+    legendWorkstationShape: "Workstation (aggregate)",
+    legendTaskShape: "Task (individual measurement)",
+    legendNotAssessedColor: "Not yet assessed",
+    taskPopoverWorkstationPrefix: "Workstation:",
+    taskPopoverBandPrefix: "Worst band:",
+    taskPopoverConcerningHeading: "Concerning regions:",
+    taskPopoverNoConcerning: "No elevated/high regions",
+    taskPopoverViewLink: "View task →",
+    workstationPopoverBandPrefix: "Band:",
+    workstationPopoverNotAssessed: "Not yet assessed",
+    workstationPopoverNoFindingsForCategory:
+      "No findings in this category for the active filter",
+    workstationPopoverOpenActionsPrefix: "Open actions:",
+    workstationPopoverViewLink: "View workstation risk →",
+    workstationPopoverTasksPlacedSuffix: "tasks placed",
+    workstationPopoverUnplacedBandPrefix:
+      "Worst ergonomic band (remaining tasks):",
+    workstationPopoverNoUnplacedData:
+      "No posture data yet for the remaining tasks",
   },
 };

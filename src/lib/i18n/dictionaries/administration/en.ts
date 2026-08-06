@@ -82,6 +82,7 @@ export const en = {
     hazards: "Hazard catalog",
     riskAssessments: "Risk assessments",
     actions: "Actions",
+    floorPlans: "Floor plans",
   },
   orgUnitsPage: {
     eyebrow: "Org structure //",
@@ -271,5 +272,52 @@ export const en = {
     verificationOutcomeRequired: "Select a verification outcome",
     verificationEvidenceRequired:
       "Pick a re-assessment or write an override note explaining why there isn't one",
+  },
+  floorPlansPage: {
+    eyebrow: "Floor plans //",
+    heading: "Floor plans",
+    empty: "No floor plans uploaded yet.",
+    uploadHeading: "Upload floor plan",
+    nameLabel: "Name",
+    fileLabel: "Image (PNG, JPEG, or WEBP, max 10MB)",
+    upload: "Upload",
+    colName: "Name",
+    colDimensions: "Dimensions",
+    colWorkstationPins: "Workstation pins",
+    colTaskPins: "Task pins",
+    colCreatedAt: "Uploaded",
+    manage: "Manage placements",
+    deleteButton: "Delete",
+    deleteConfirm:
+      "Delete this floor plan? Workstation and task pins placed on it will be removed too.",
+    nameRequired: "Floor plan name is required",
+    fileRequired: "Choose an image file to upload",
+    invalidFileType: "Only PNG, JPEG, and WEBP images are allowed",
+    fileTooLarge: "File is too large — the limit is 10MB",
+    invalidImage: "Couldn't read this file as an image",
+  },
+  // Passed as a prop into a Client Component (the interactive placement UI)
+  // — every value here must stay a plain string, never a function, since
+  // functions can't cross the server/client boundary as props. Dynamic
+  // pieces (counts, entity names) are interpolated client-side around
+  // these fixed fragments instead of via message-formatter functions like
+  // common.unexpectedError above.
+  floorPlanPlacementPage: {
+    breadcrumbFloorPlans: "Floor plans",
+    eyebrow: "Placement //",
+    modeWorkstations: "Place workstations",
+    modeTasks: "Place tasks",
+    summaryWorkstationsPlaced: "workstations placed",
+    summaryTasksPlaced: "tasks placed",
+    workstationsHeading: "Workstations",
+    placedLabel: "Placed",
+    placeOnMap: "Place on map",
+    remove: "Remove",
+    placingInstructionPrefix: "Click on the plan to place",
+    cancelPlacing: "Cancel",
+    noTasks: "No tasks at this workstation.",
+    tasksPlacedSuffix: "tasks placed",
+    errorSaving: "Something went wrong while saving. Please try again.",
+    imageAltPrefix: "Floor plan:",
   },
 };
