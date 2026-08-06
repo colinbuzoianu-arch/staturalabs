@@ -6,5 +6,6 @@ export const de: typeof en = {
   },
   nav: {
     administration: "Verwaltung",
+    workplaceOverview: "Arbeitsplatzübersicht",
   },
 };

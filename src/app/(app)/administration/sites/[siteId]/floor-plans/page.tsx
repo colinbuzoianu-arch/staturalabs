@@ -131,9 +131,12 @@ export default async function FloorPlansPage({
 
       <section className="flex flex-col gap-4">
         <h2 className="font-heading text-lg font-bold">{dict.uploadHeading}</h2>
+        {/* No explicit encType: React sets it automatically for a function
+            action (and a file input forces multipart/form-data regardless)
+            — setting it here only trips React's dev-mode "will get
+            overridden" warning. */}
         <form
           action={uploadFloorPlanAction}
-          encType="multipart/form-data"
           className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-4"
         >
           <label className="flex flex-col gap-1 text-sm">

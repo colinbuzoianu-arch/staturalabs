@@ -4,5 +4,6 @@ export const en = {
   },
   nav: {
     administration: "Administration",
+    workplaceOverview: "Workplace overview",
   },
 };

@@ -67,9 +67,19 @@ export function AppHeader({
       </Link>
       <div className="flex items-center gap-4 text-foreground">
         {showAdministrationLink && (
-          <Link href="/administration" className="text-sm hover:text-accent">
-            {dict.nav.administration}
-          </Link>
+          <>
+            {/* The logo already links to /sites, but that's not an obvious
+                "go back" affordance once you're deep in /administration —
+                this makes switching between the two explicit in both
+                directions, not just administration -> workplace via the
+                logo. */}
+            <Link href="/sites" className="text-sm hover:text-accent">
+              {dict.nav.workplaceOverview}
+            </Link>
+            <Link href="/administration" className="text-sm hover:text-accent">
+              {dict.nav.administration}
+            </Link>
+          </>
         )}
         <LanguageSwitcher />
         <ThemeToggle theme={theme} onToggle={toggleTheme} />

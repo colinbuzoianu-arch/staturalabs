@@ -6,5 +6,6 @@ export const ro: typeof en = {
   },
   nav: {
     administration: "Administrare",
+    workplaceOverview: "Prezentare generală a locurilor de muncă",
   },
 };
