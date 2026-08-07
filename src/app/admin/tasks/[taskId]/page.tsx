@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PostureSampleSimulatorToggle } from "@/components/posture-sample-simulator-toggle";
+import { SimulatorCoordinator } from "@/components/simulator-coordinator";
 import { BodyRegion } from "@/generated/prisma/enums";
 import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 import { buildRegionResults } from "@/lib/capture/build-region-results";
@@ -126,44 +128,53 @@ export default async function TaskResultsPage({
 
       {samples.length === 0 && <p className="text-sm">{dict.empty}</p>}
 
-      {rows.map(({ sample, regions, error }) => (
-        <div key={sample.id} className="rounded border p-4">
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {sample.capturedAt.toISOString()} — cameraAngle:{" "}
-            {sample.cameraAngle} — sample {sample.id}
-          </p>
-
-          {error && (
-            <p className="mt-2 text-sm text-red-700 dark:text-red-400">
-              {dict.recomputeError(error)}
+      <SimulatorCoordinator>
+        {rows.map(({ sample, regions, error }) => (
+          <div key={sample.id} className="rounded border p-4">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              {sample.capturedAt.toISOString()} — cameraAngle:{" "}
+              {sample.cameraAngle} — sample {sample.id}
             </p>
-          )}
 
-          {regions && (
-            <table className="mt-2 w-full text-left text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="py-1 pr-4">{dict.colRegion}</th>
-                  <th className="py-1 pr-4">{dict.colStatus}</th>
-                  <th className="py-1">{dict.colDetail}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ALL_BODY_REGIONS.map((region) => {
-                  const result: RegionResult = regions[region];
-                  return (
-                    <tr key={region} className="border-b last:border-0">
-                      <td className="py-1 pr-4">{region}</td>
-                      <td className="py-1 pr-4">{result.status}</td>
-                      <td className="py-1">{describeRegionResult(result)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-      ))}
+            {error && (
+              <p className="mt-2 text-sm text-red-700 dark:text-red-400">
+                {dict.recomputeError(error)}
+              </p>
+            )}
+
+            {regions && (
+              <table className="mt-2 w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="py-1 pr-4">{dict.colRegion}</th>
+                    <th className="py-1 pr-4">{dict.colStatus}</th>
+                    <th className="py-1">{dict.colDetail}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ALL_BODY_REGIONS.map((region) => {
+                    const result: RegionResult = regions[region];
+                    return (
+                      <tr key={region} className="border-b last:border-0">
+                        <td className="py-1 pr-4">{region}</td>
+                        <td className="py-1 pr-4">{result.status}</td>
+                        <td className="py-1">{describeRegionResult(result)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+
+            {regions && (
+              <PostureSampleSimulatorToggle
+                sampleId={sample.id}
+                regionResults={regions}
+              />
+            )}
+          </div>
+        ))}
+      </SimulatorCoordinator>
     </div>
   );
 }

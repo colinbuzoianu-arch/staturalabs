@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { PostureSampleSimulatorToggle } from "@/components/posture-sample-simulator-toggle";
+import { SimulatorCoordinator } from "@/components/simulator-coordinator";
 import { BodyRegion } from "@/generated/prisma/enums";
 import { requireTaskAccess } from "@/lib/auth/require-access";
 import { buildRegionResults } from "@/lib/capture/build-region-results";
@@ -202,58 +204,67 @@ export default async function TaskHistoryPage({
           <p className="text-sm text-border">{dict.postureSamplesEmpty}</p>
         )}
 
-        {rows.map(({ sample, regions, error }) => (
-          <div
-            key={sample.id}
-            className="rounded-lg border border-border bg-surface p-5"
-          >
-            <p className="font-technical text-xs text-border">
-              {sample.capturedAt.toISOString()} — {dict.cameraAngleField}{" "}
-              {sample.cameraAngle}
-            </p>
-
-            {error && (
-              <p className="mt-2 text-sm text-accent">
-                {dict.recomputeError(error)}
+        <SimulatorCoordinator>
+          {rows.map(({ sample, regions, error }) => (
+            <div
+              key={sample.id}
+              className="rounded-lg border border-border bg-surface p-5"
+            >
+              <p className="font-technical text-xs text-border">
+                {sample.capturedAt.toISOString()} — {dict.cameraAngleField}{" "}
+                {sample.cameraAngle}
               </p>
-            )}
 
-            {regions && (
-              <div className="mt-3 overflow-x-auto">
-                <table className="w-full min-w-[480px] text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-border">
-                      <th className="py-1 pr-4 font-normal">
-                        {dict.tableRegion}
-                      </th>
-                      <th className="py-1 pr-4 font-normal">
-                        {dict.tableStatus}
-                      </th>
-                      <th className="py-1 font-normal">{dict.tableDetail}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="font-technical">
-                    {ALL_BODY_REGIONS.map((region) => {
-                      const result: RegionResult = regions[region];
-                      return (
-                        <tr
-                          key={region}
-                          className="border-b border-border/40 last:border-0"
-                        >
-                          <td className="py-1 pr-4">{region}</td>
-                          <td className="py-1 pr-4">{result.status}</td>
-                          <td className="py-1">
-                            {describeRegionResult(result)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        ))}
+              {error && (
+                <p className="mt-2 text-sm text-accent">
+                  {dict.recomputeError(error)}
+                </p>
+              )}
+
+              {regions && (
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full min-w-[480px] text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-border text-border">
+                        <th className="py-1 pr-4 font-normal">
+                          {dict.tableRegion}
+                        </th>
+                        <th className="py-1 pr-4 font-normal">
+                          {dict.tableStatus}
+                        </th>
+                        <th className="py-1 font-normal">{dict.tableDetail}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-technical">
+                      {ALL_BODY_REGIONS.map((region) => {
+                        const result: RegionResult = regions[region];
+                        return (
+                          <tr
+                            key={region}
+                            className="border-b border-border/40 last:border-0"
+                          >
+                            <td className="py-1 pr-4">{region}</td>
+                            <td className="py-1 pr-4">{result.status}</td>
+                            <td className="py-1">
+                              {describeRegionResult(result)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {regions && (
+                <PostureSampleSimulatorToggle
+                  sampleId={sample.id}
+                  regionResults={regions}
+                />
+              )}
+            </div>
+          ))}
+        </SimulatorCoordinator>
       </section>
     </div>
   );
