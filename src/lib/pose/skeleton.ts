@@ -1,3 +1,5 @@
+import * as THREE from "three";
+import type { BodyRegion } from "@/generated/prisma/enums";
 import type { PoseLandmark, PoseLandmarks } from "./angles";
 import { MIN_LANDMARK_VISIBILITY } from "./angles";
 
@@ -598,3 +600,162 @@ function normalize(v: Point2D): Point2D {
   const length = Math.hypot(v.x, v.y);
   return length === 0 ? { x: 0, y: 0 } : { x: v.x / length, y: v.y / length };
 }
+
+// ---------------------------------------------------------------------
+// 3D projection — MediaPipe's normalized image-space landmarks (x/y in
+// [0,1], z relative depth) to three.js Vector3 positions for a 3D
+// renderer. Still pure math: three.js's Vector3 is a plain math class, no
+// DOM/WebGL/Canvas dependency, so importing it here doesn't violate this
+// module's "no renderer" contract any more than importing a matrix-math
+// library would.
+//
+// Takes PoseLandmarks (the same type completeMissingLandmarks accepts)
+// rather than the raw Prisma `Json` PostureSample.keypoints is persisted
+// as — every call site in this app already casts that raw Json to
+// PoseLandmarks before calling into this module (see
+// `sample.keypoints as unknown as PoseLandmarks` in the task/admin/report
+// pages), and this function follows that same established boundary rather
+// than being the one function in the module that accepts untyped JSON.
+// SkeletonLandmark (this module's own completeMissingLandmarks output, and
+// forward-kinematics.ts's applyAngleAdjustments output) structurally
+// satisfies PoseLandmarks too — same x/y/z fields — so this same function
+// projects a raw capture, a gap-filled skeleton, or a what-if-adjusted
+// skeleton without a second overload.
+// ---------------------------------------------------------------------
+
+// Multiplies MediaPipe's [0,1]-normalized coordinates up to human-scale
+// scene units. A standing adult's head-to-heel span covers roughly 85% of
+// a well-framed capture's normalized height (~0.85), so scaling by 2 puts
+// a standing figure at roughly 1.7 scene units tall. Exported so a caller
+// that receives a drag position in this module's 3D scene-unit space (e.g.
+// posture-editor.tsx, converting Skeleton3D's onJointDrag output back to
+// MediaPipe space before handing it to drag-to-angle.ts) can invert this
+// exact transform rather than hand-copying the "2" as an untraceable magic
+// number that could silently drift out of sync with this one.
+export const THREE_D_SCALE = 2;
+
+// x: MediaPipe increases left-to-right, same as three.js's +x — no flip.
+// y: MediaPipe increases top-to-bottom (image convention); three.js's +y
+//    is up, so the sign flips.
+// z: MediaPipe's z is relative depth from the hip center, negative =
+//    closer to the camera; inverted here so "closer to camera" reads as
+//    +z, three.js's own toward-the-viewer convention (see CLAUDE.md's z
+//    caveat in angles.ts — z still isn't used for any scoring geometry,
+//    only for this visualization projection).
+export function landmarksTo3DPositions(
+  keypoints: PoseLandmarks,
+): THREE.Vector3[] {
+  return keypoints.map(
+    (landmark) =>
+      new THREE.Vector3(
+        landmark.x * THREE_D_SCALE,
+        -landmark.y * THREE_D_SCALE,
+        -landmark.z * THREE_D_SCALE,
+      ),
+  );
+}
+
+// ---------------------------------------------------------------------
+// BodyRegion -> bone segments (pairs of landmark indices) for a 3D
+// renderer to color by that region's risk band — the inverse of
+// skeleton-viewer.tsx's own BONE_REGIONS (bone -> region), rebuilt here
+// rather than imported from that client component since this module must
+// stay free of anything React/DOM. Only the 8 BodyRegion values
+// angles.ts's ComputedBodyRegion actually produces a reading for have
+// bones listed — every other BodyRegion has no formula and therefore
+// nothing to color-code (same "only what's scored" scope as
+// skeleton-viewer.tsx's own comment on this exact table).
+// ---------------------------------------------------------------------
+export const BODY_REGION_BONES: Partial<
+  Record<BodyRegion, ReadonlyArray<readonly [number, number]>>
+> = {
+  TRUNK: [
+    [LANDMARK_INDEX.LEFT_SHOULDER, LANDMARK_INDEX.LEFT_HIP],
+    [LANDMARK_INDEX.RIGHT_SHOULDER, LANDMARK_INDEX.RIGHT_HIP],
+    [LANDMARK_INDEX.LEFT_SHOULDER, LANDMARK_INDEX.RIGHT_SHOULDER],
+    [LANDMARK_INDEX.LEFT_HIP, LANDMARK_INDEX.RIGHT_HIP],
+  ],
+  // The two head-to-shoulder bones standing in for a neck line — same
+  // approximation POSE_CONNECTIONS' own comment documents.
+  NECK: [
+    [LANDMARK_INDEX.NOSE, LANDMARK_INDEX.LEFT_SHOULDER],
+    [LANDMARK_INDEX.NOSE, LANDMARK_INDEX.RIGHT_SHOULDER],
+  ],
+  SHOULDER_LEFT: [[LANDMARK_INDEX.LEFT_SHOULDER, LANDMARK_INDEX.LEFT_ELBOW]],
+  SHOULDER_RIGHT: [[LANDMARK_INDEX.RIGHT_SHOULDER, LANDMARK_INDEX.RIGHT_ELBOW]],
+  ELBOW_LEFT: [[LANDMARK_INDEX.LEFT_ELBOW, LANDMARK_INDEX.LEFT_WRIST]],
+  ELBOW_RIGHT: [[LANDMARK_INDEX.RIGHT_ELBOW, LANDMARK_INDEX.RIGHT_WRIST]],
+  // The upper leg (hip->knee), not the lower leg — knee posture affects
+  // the upper-leg segment's orientation, same convention
+  // skeleton-viewer.tsx's BONE_REGIONS uses for this region.
+  KNEE_LEFT: [[LANDMARK_INDEX.LEFT_HIP, LANDMARK_INDEX.LEFT_KNEE]],
+  KNEE_RIGHT: [[LANDMARK_INDEX.RIGHT_HIP, LANDMARK_INDEX.RIGHT_KNEE]],
+};
+
+// ---------------------------------------------------------------------
+// Draggable joint -> BodyRegion. Not every one of the 33 MediaPipe
+// landmarks is draggable in a 3D what-if view — only the ones that sit at
+// the vertex of a scored region's angle (matching
+// forward-kinematics.ts's SIMPLE_JOINT_CONFIG vertices exactly for
+// SHOULDER/ELBOW/KNEE, and NOSE as the head proxy for NECK, same as
+// applyNeckRotation pivoting on the nose/shoulder-midpoint relationship).
+// ---------------------------------------------------------------------
+
+// TRUNK has no landmark of its own to drag: neither computeBodyAngles
+// (angles.ts) nor applyTrunkRotation (forward-kinematics.ts) pivot on a
+// single named joint — both work from the hip midpoint and shoulder
+// midpoint. Reusing an existing shoulder's landmark index for TRUNK would
+// collide with that shoulder's own SHOULDER_LEFT/RIGHT drag entry below (a
+// landmark index can only map to one region here). A synthetic index one
+// past MediaPipe's real 0-32 range stands in for a virtual "chest" handle
+// at the shoulder midpoint instead — getVirtualChestPosition below
+// computes where a renderer should draw it, from the same projected
+// positions landmarksTo3DPositions returns.
+export const VIRTUAL_CHEST_LANDMARK_INDEX = 33;
+
+export function getVirtualChestPosition(
+  positions: readonly THREE.Vector3[],
+): THREE.Vector3 {
+  return positions[LANDMARK_INDEX.LEFT_SHOULDER]
+    .clone()
+    .add(positions[LANDMARK_INDEX.RIGHT_SHOULDER])
+    .multiplyScalar(0.5);
+}
+
+export const JOINT_REGIONS: Readonly<Record<number, BodyRegion>> = {
+  [LANDMARK_INDEX.LEFT_SHOULDER]: "SHOULDER_LEFT",
+  [LANDMARK_INDEX.RIGHT_SHOULDER]: "SHOULDER_RIGHT",
+  [LANDMARK_INDEX.LEFT_ELBOW]: "ELBOW_LEFT",
+  [LANDMARK_INDEX.RIGHT_ELBOW]: "ELBOW_RIGHT",
+  [LANDMARK_INDEX.LEFT_KNEE]: "KNEE_LEFT",
+  [LANDMARK_INDEX.RIGHT_KNEE]: "KNEE_RIGHT",
+  [LANDMARK_INDEX.NOSE]: "NECK",
+  [VIRTUAL_CHEST_LANDMARK_INDEX]: "TRUNK",
+};
+
+// ---------------------------------------------------------------------
+// Soft range-of-motion limits for interactive dragging in the 3D what-if
+// view, in the same flexion-from-neutral convention computeBodyAngles
+// reports (0° = upright/neutral). Distinct from two other, easily
+// confused things in this codebase:
+//   - FLEXION_CONSTRAINTS above, which clamps a landmark THIS module
+//     itself fabricated when filling a gap, not a user's live drag.
+//   - ScoringRule's own angleMin/angleMax bands, which are the actual
+//     scoring thresholds — these ANATOMICAL_LIMITS never feed a
+//     ScoringRule lookup and exist purely to stop a drag gesture from
+//     posing an anatomically impossible figure (e.g. an elbow bent past
+//     145°). Widening or narrowing a ScoringRule band must never be done
+//     by editing this table, and vice versa.
+// ---------------------------------------------------------------------
+export const ANATOMICAL_LIMITS: Partial<
+  Record<BodyRegion, { min: number; max: number }>
+> = {
+  TRUNK: { min: 0, max: 90 },
+  NECK: { min: -20, max: 60 },
+  SHOULDER_LEFT: { min: 0, max: 180 },
+  SHOULDER_RIGHT: { min: 0, max: 180 },
+  ELBOW_LEFT: { min: 0, max: 145 },
+  ELBOW_RIGHT: { min: 0, max: 145 },
+  KNEE_LEFT: { min: 0, max: 130 },
+  KNEE_RIGHT: { min: 0, max: 130 },
+};

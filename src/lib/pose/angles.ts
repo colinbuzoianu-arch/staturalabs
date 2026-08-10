@@ -60,12 +60,17 @@ function angleBetween(a: Point2D, b: Point2D): number {
 }
 
 // The angle at `vertex`, between rays toward `a` and toward `c` —
-// angle(a, vertex, c) in the formulas below.
-function includedAngle(a: Point2D, vertex: Point2D, c: Point2D): number {
+// angle(a, vertex, c) in the formulas below. Exported so drag-to-angle.ts
+// can compute a region's angle from a hypothetical (post-drag) landmark
+// position using this exact function, not a re-derived copy — see that
+// module's own comment for why identity here matters.
+export function includedAngle(a: Point2D, vertex: Point2D, c: Point2D): number {
   return angleBetween(vector(vertex, a), vector(vertex, c));
 }
 
-function flexionFrom180(includedDegrees: number): number {
+// Exported alongside includedAngle for the same reason — drag-to-angle.ts's
+// TRUNK/NECK formulas need this exact conversion, not a re-derived copy.
+export function flexionFrom180(includedDegrees: number): number {
   return 180 - includedDegrees;
 }
 

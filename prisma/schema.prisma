@@ -246,18 +246,58 @@ enum CameraAngle {
   OBLIQUE
 }
 
+/// Whether a PostureSample's keypoints have been reviewed/adjusted by a
+/// human yet. PENDING_REVIEW is the state every new sample is created in —
+/// the scoring pipeline (POST /api/posture-samples) always scores from the
+/// original `keypoints` and sets this on creation. VALIDATED means a
+/// reviewer has confirmed (optionally adjusting) the landmark positions;
+/// re-scoring from `validatedKeypoints` once that happens is a separate,
+/// not-yet-built server action. See PostureSample.validatedKeypoints for
+/// why the original `keypoints` column is never overwritten.
+enum ValidationStatus {
+  PENDING_REVIEW
+  VALIDATED
+}
+
 /// A single derived-pose snapshot captured while a task is performed.
 /// `keypoints` holds only joint positions/angles produced by client-side
 /// MediaPipe processing — never a raw video frame, and never data
-/// reusable to re-identify a person (§3.2, §4).
+/// reusable to re-identify a person (§3.2, §4). This column is NEVER
+/// overwritten once written: it stays the immutable audit-trail record of
+/// exactly what MediaPipe produced, even after a human review adjusts it.
+///
+/// `validatedKeypoints` holds a reviewer's adjusted landmark positions,
+/// separate from `keypoints` above. `validationStatus = VALIDATED`
+/// requires `validatedKeypoints`/`validatedAt`/`validatedByUserId` to all
+/// be set together — enforced by a HAND-ADDED CHECK constraint in
+/// migration SQL (`PostureSample_validation_completeness_check`, same
+/// technique as ManualInput_value_shape_check), added NOT VALID against
+/// pre-existing rows (see that migration's comments for why). While
+/// PENDING_REVIEW, a reviewer may save `validatedKeypoints` alone as a
+/// mid-adjustment draft — the CHECK only fires once `validationStatus`
+/// flips to VALIDATED. `validatedByUserId` references PlatformUser only, a
+/// plain @db.Uuid column not a DB-level FK — same pattern as
+/// RiskAssessment.assessorUserId.
+///
+/// Samples that predate this column were backfilled to VALIDATED
+/// explicitly in the migration that added it (they were already
+/// human-reviewed through the old capture confirmation flow) — treating
+/// them as PENDING_REVIEW would retroactively downgrade data already
+/// acted on. Those specific rows have no real validatedKeypoints/
+/// validatedAt/validatedByUserId (nothing to backfill them with), which is
+/// exactly what the CHECK's NOT VALID addition permanently exempts.
 model PostureSample {
-  id          String      @id @default(cuid())
-  taskId      String
-  capturedAt  DateTime
-  cameraAngle CameraAngle
-  frameIndex  Int?
-  keypoints   Json
-  createdAt   DateTime    @default(now())
+  id                 String            @id @default(cuid())
+  taskId             String
+  capturedAt         DateTime
+  cameraAngle        CameraAngle
+  frameIndex         Int?
+  keypoints          Json
+  validatedKeypoints Json?
+  validationStatus   ValidationStatus
+  validatedAt        DateTime?
+  validatedByUserId  String?           @db.Uuid
+  createdAt          DateTime          @default(now())
 
   task             Task              @relation(fields: [taskId], references: [id], onDelete: Restrict)
   bodyRegionScores BodyRegionScore[]

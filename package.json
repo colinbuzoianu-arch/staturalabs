@@ -29,7 +29,8 @@
     "pngjs": "^7.0.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "three": "^0.185.1"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.0",
@@ -38,6 +39,7 @@
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.185.4",
     "prisma": "^7.8.0",
     "tailwindcss": "^4",
     "typescript": "^5",

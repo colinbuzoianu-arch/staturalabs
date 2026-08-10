@@ -78,8 +78,11 @@ export default async function WorkstationRiskPage({
         return { task, sample: null, concerningCount: null as number | null };
       }
       try {
-        const regions = await buildRegionResults({
-          landmarks: sample.keypoints as unknown as PoseLandmarks,
+        const { regions } = await buildRegionResults({
+          keypoints: sample.keypoints as unknown as PoseLandmarks,
+          validatedKeypoints:
+            sample.validatedKeypoints as unknown as PoseLandmarks | null,
+          validationStatus: sample.validationStatus,
           cameraAngle: sample.cameraAngle,
           methodologyVersion,
         });

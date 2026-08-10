@@ -1,6 +1,10 @@
 import "server-only";
 
-import { BodyRegion, type CameraAngle } from "@/generated/prisma/enums";
+import {
+  BodyRegion,
+  type CameraAngle,
+  type ValidationStatus,
+} from "@/generated/prisma/enums";
 import {
   type ComputedBodyRegion,
   computeBodyAngles,
@@ -26,11 +30,26 @@ function isComputedRegion(region: BodyRegion): region is ComputedBodyRegion {
   return (COMPUTED_REGIONS as readonly BodyRegion[]).includes(region);
 }
 
-// Builds one RegionResult per BodyRegion from a set of landmarks — the
-// single source of truth for "what does this capture mean," shared by the
-// live capture endpoint (POST /api/posture-samples) and the admin task
-// results view (which recomputes from persisted `keypoints` rather than
-// storing a second, potentially-stale copy of this same judgment).
+export type BuildRegionResultsOutput = {
+  regions: Record<BodyRegion, RegionResult>;
+  /** Echoes params.validationStatus, so a UI rendering `regions` always knows in one place whether it's looking at a preliminary (PENDING_REVIEW) or final (VALIDATED) result, without separately tracking which landmarks fed the computation. */
+  validationStatus: ValidationStatus;
+};
+
+// Builds one RegionResult per BodyRegion — the single source of truth for
+// "what does this capture mean," shared by the live capture endpoint
+// (POST /api/posture-samples), the validation action
+// ((app)/tasks/[taskId]/actions.ts), and every read-only view that
+// recomputes from a persisted PostureSample rather than storing a second,
+// potentially-stale copy of this same judgment.
+//
+// Prefers `validatedKeypoints` over `keypoints` whenever the sample is
+// actually VALIDATED and has them — a validated sample's human-reviewed
+// posture is the current, authoritative one; the original capture stays
+// available (via `keypoints`, never overwritten — see PostureSample's own
+// schema comment) for audit, not for display once a validated correction
+// exists. A PENDING_REVIEW sample (or one with no validatedKeypoints yet)
+// always scores from the original `keypoints`, the "preliminary" view.
 //
 // Because this recomputes rather than reads a frozen snapshot, calling it
 // against an old PostureSample uses whatever ScoringRule rows and
@@ -45,11 +64,19 @@ function isComputedRegion(region: BodyRegion): region is ComputedBodyRegion {
 // that (a 422 in the API route; an inline error per sample in the admin
 // view).
 export async function buildRegionResults(params: {
-  landmarks: PoseLandmarks;
+  keypoints: PoseLandmarks;
+  /** The sample's validated landmarks, if it has any — independent of whether `validationStatus` is currently VALIDATED (see the module comment on prospective scoring during the validation action itself). */
+  validatedKeypoints?: PoseLandmarks | null;
+  validationStatus: ValidationStatus;
   cameraAngle: CameraAngle;
   methodologyVersion: string;
-}): Promise<Record<BodyRegion, RegionResult>> {
-  const angles = computeBodyAngles(params.landmarks, params.cameraAngle);
+}): Promise<BuildRegionResultsOutput> {
+  const landmarks =
+    params.validationStatus === "VALIDATED" && params.validatedKeypoints
+      ? params.validatedKeypoints
+      : params.keypoints;
+
+  const angles = computeBodyAngles(landmarks, params.cameraAngle);
   const regionResults = {} as Record<BodyRegion, RegionResult>;
 
   for (const region of Object.values(BodyRegion)) {
@@ -95,5 +122,5 @@ export async function buildRegionResults(params: {
         { status: "no-matching-rule", degrees: reading.degrees };
   }
 
-  return regionResults;
+  return { regions: regionResults, validationStatus: params.validationStatus };
 }

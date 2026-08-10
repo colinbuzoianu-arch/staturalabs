@@ -1,26 +1,30 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PostureSampleSimulatorToggle } from "@/components/posture-sample-simulator-toggle";
-import { SimulatorCoordinator } from "@/components/simulator-coordinator";
-import { BodyRegion } from "@/generated/prisma/enums";
+import { validatePostureSample } from "@/app/(app)/tasks/[taskId]/actions";
+import {
+  PostureSampleAccordion,
+  type PostureSampleAccordionItem,
+} from "@/components/posture-sample-accordion";
 import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 import { buildRegionResults } from "@/lib/capture/build-region-results";
-import { describeRegionResult } from "@/lib/capture/describe-region-result";
-import type { RegionResult } from "@/lib/capture/types";
 import { getAdminDictionary } from "@/lib/i18n/dictionaries/admin";
 import { getLocale } from "@/lib/i18n/get-locale";
 import type { PoseLandmarks } from "@/lib/pose/angles";
 import { prisma } from "@/lib/prisma";
+import { worstRiskBand } from "@/lib/risk/band-severity";
 import { getActiveMethodologyVersion } from "@/lib/scoring/methodology-version";
 
-const ALL_BODY_REGIONS = Object.values(BodyRegion);
-
+// Reviewed/adjusted through PostureEditor (an accordion of one per sample —
+// see posture-sample-accordion.tsx), same as the (app) dashboard's own task
+// page — the editor's region panel already shows the full per-region
+// breakdown buildRegionResults produces, so a separate static table next to
+// it would just be the same data twice.
 export default async function TaskResultsPage({
   params,
 }: {
   params: Promise<{ taskId: string }>;
 }) {
-  await requireSuperAdmin();
+  const adminUser = await requireSuperAdmin();
   const { taskId } = await params;
 
   const task = await prisma.task.findUnique({
@@ -36,6 +40,25 @@ export default async function TaskResultsPage({
     orderBy: { capturedAt: "desc" },
   });
 
+  // validatedByUserId is a plain UUID column, not a DB-level FK (see
+  // PostureSample's own schema comment) — resolved here via one batched
+  // lookup rather than per-sample.
+  const validatorIds = [
+    ...new Set(
+      samples.flatMap((s) =>
+        s.validatedByUserId ? [s.validatedByUserId] : [],
+      ),
+    ),
+  ];
+  const validators =
+    validatorIds.length > 0
+      ? await prisma.platformUser.findMany({
+          where: { id: { in: validatorIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+  const validatorNameById = new Map(validators.map((v) => [v.id, v.name]));
+
   const locale = await getLocale();
   const dict = getAdminDictionary(locale).taskResultsPage;
 
@@ -48,29 +71,64 @@ export default async function TaskResultsPage({
       err instanceof Error ? err.message : "No active methodology version";
   }
 
-  const rows = methodologyVersion
+  const items: PostureSampleAccordionItem[] = methodologyVersion
     ? await Promise.all(
-        samples.map(async (sample) => {
+        samples.map(async (sample): Promise<PostureSampleAccordionItem> => {
+          const base = {
+            id: sample.id,
+            capturedAt: sample.capturedAt,
+            cameraAngle: sample.cameraAngle,
+            keypoints: sample.keypoints,
+            validatedKeypoints: sample.validatedKeypoints,
+            validationStatus: sample.validationStatus,
+            validatedAt: sample.validatedAt,
+            validatedByName: sample.validatedByUserId
+              ? (validatorNameById.get(sample.validatedByUserId) ?? null)
+              : null,
+          };
           try {
-            const regions = await buildRegionResults({
-              landmarks: sample.keypoints as unknown as PoseLandmarks,
+            const { regions } = await buildRegionResults({
+              keypoints: sample.keypoints as unknown as PoseLandmarks,
+              validatedKeypoints:
+                sample.validatedKeypoints as unknown as PoseLandmarks | null,
+              validationStatus: sample.validationStatus,
               cameraAngle: sample.cameraAngle,
               methodologyVersion,
             });
-            return { sample, regions, error: null as string | null };
+            const worstBand = worstRiskBand(
+              Object.values(regions).flatMap((r) =>
+                r.status === "scored" ? [r.riskBand] : [],
+              ),
+            );
+            return { ...base, regionResults: regions, error: null, worstBand };
           } catch (err) {
             return {
-              sample,
-              regions: null,
+              ...base,
+              regionResults: null,
               error:
                 err instanceof Error
                   ? err.message
                   : "Could not compute body angles",
+              worstBand: null,
             };
           }
         }),
       )
-    : samples.map((sample) => ({ sample, regions: null, error: null }));
+    : samples.map((sample) => ({
+        id: sample.id,
+        capturedAt: sample.capturedAt,
+        cameraAngle: sample.cameraAngle,
+        keypoints: sample.keypoints,
+        validatedKeypoints: sample.validatedKeypoints,
+        validationStatus: sample.validationStatus,
+        validatedAt: sample.validatedAt,
+        validatedByName: sample.validatedByUserId
+          ? (validatorNameById.get(sample.validatedByUserId) ?? null)
+          : null,
+        regionResults: null,
+        error: null,
+        worstBand: null,
+      }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -128,55 +186,13 @@ export default async function TaskResultsPage({
 
       {samples.length === 0 && <p className="text-sm">{dict.empty}</p>}
 
-      <SimulatorCoordinator>
-        {rows.map(({ sample, regions, error }) => (
-          <div key={sample.id} className="rounded border p-4">
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              {sample.capturedAt.toISOString()} — cameraAngle:{" "}
-              {sample.cameraAngle} — sample {sample.id}
-            </p>
-
-            {error && (
-              <p className="mt-2 text-sm text-red-700 dark:text-red-400">
-                {dict.recomputeError(error)}
-              </p>
-            )}
-
-            {regions && (
-              <table className="mt-2 w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="py-1 pr-4">{dict.colRegion}</th>
-                    <th className="py-1 pr-4">{dict.colStatus}</th>
-                    <th className="py-1">{dict.colDetail}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ALL_BODY_REGIONS.map((region) => {
-                    const result: RegionResult = regions[region];
-                    return (
-                      <tr key={region} className="border-b last:border-0">
-                        <td className="py-1 pr-4">{region}</td>
-                        <td className="py-1 pr-4">{result.status}</td>
-                        <td className="py-1">{describeRegionResult(result)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-
-            {regions && (
-              <PostureSampleSimulatorToggle
-                sampleId={sample.id}
-                regionResults={regions}
-                keypoints={sample.keypoints as unknown as PoseLandmarks}
-                cameraAngle={sample.cameraAngle}
-              />
-            )}
-          </div>
-        ))}
-      </SimulatorCoordinator>
+      {items.length > 0 && (
+        <PostureSampleAccordion
+          items={items}
+          currentUserName={adminUser.name}
+          onValidate={validatePostureSample}
+        />
+      )}
     </div>
   );
 }

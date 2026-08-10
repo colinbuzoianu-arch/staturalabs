@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { PoseLandmark, PoseLandmarks } from "./angles";
 import {
+  ANATOMICAL_LIMITS,
+  BODY_REGION_BONES,
   classifyLandmarkConfidence,
   completeMissingLandmarks,
+  getVirtualChestPosition,
+  JOINT_REGIONS,
   LANDMARK_INDEX,
+  landmarksTo3DPositions,
   POSE_CONNECTIONS,
+  VIRTUAL_CHEST_LANDMARK_INDEX,
 } from "./skeleton";
 
 // Builds a full 33-entry landmarks array, same pattern as angles.test.ts's
@@ -319,5 +325,123 @@ describe("completeMissingLandmarks", () => {
     expect(result[LANDMARK_INDEX.LEFT_HIP].confidence).toBe("measured");
     expect(result[LANDMARK_INDEX.RIGHT_KNEE].x).toBeCloseTo(0.6, 10);
     expect(result[LANDMARK_INDEX.RIGHT_KNEE].y).toBeCloseTo(0.45, 10);
+  });
+});
+
+describe("landmarksTo3DPositions", () => {
+  it("keeps x unchanged, flips y, flips z, and scales by the 3D scale factor", () => {
+    const positions = landmarksTo3DPositions([
+      { x: 0.3, y: 0.4, z: -0.1, visibility: 1 },
+    ]);
+    expect(positions).toHaveLength(1);
+    expect(positions[0].x).toBeCloseTo(0.6, 10);
+    expect(positions[0].y).toBeCloseTo(-0.8, 10);
+    expect(positions[0].z).toBeCloseTo(0.2, 10);
+  });
+
+  it("preserves array length and index order 1:1 with the input landmarks", () => {
+    const landmarks: PoseLandmarks = Array.from({ length: 33 }, (_, i) => ({
+      x: i / 33,
+      y: 0.5,
+      z: 0,
+      visibility: 1,
+    }));
+    const positions = landmarksTo3DPositions(landmarks);
+    expect(positions).toHaveLength(33);
+    expect(positions[10].x).toBeCloseTo((10 / 33) * 2, 10);
+  });
+
+  it("accepts a completeMissingLandmarks result directly (SkeletonLandmark structurally satisfies PoseLandmark)", () => {
+    const landmarks = makeLandmarks(SYMMETRIC_TORSO);
+    const completed = completeMissingLandmarks(landmarks);
+    const positions = landmarksTo3DPositions(completed);
+    expect(positions).toHaveLength(33);
+  });
+});
+
+describe("getVirtualChestPosition", () => {
+  it("is the midpoint of the projected left/right shoulder positions", () => {
+    const landmarks = makeLandmarks({
+      LEFT_SHOULDER: { x: 0.4, y: 0.3 },
+      RIGHT_SHOULDER: { x: 0.6, y: 0.3 },
+    });
+    const positions = landmarksTo3DPositions(landmarks);
+    const chest = getVirtualChestPosition(positions);
+    expect(chest.x).toBeCloseTo(1.0, 10); // (0.4 + 0.6) / 2 * 2
+    expect(chest.y).toBeCloseTo(-0.6, 10); // -0.3 * 2
+  });
+});
+
+describe("BODY_REGION_BONES", () => {
+  it("only references real MediaPipe landmark indices (0-32)", () => {
+    for (const bones of Object.values(BODY_REGION_BONES)) {
+      for (const [a, b] of bones ?? []) {
+        expect(a).toBeGreaterThanOrEqual(0);
+        expect(a).toBeLessThanOrEqual(32);
+        expect(b).toBeGreaterThanOrEqual(0);
+        expect(b).toBeLessThanOrEqual(32);
+      }
+    }
+  });
+
+  it("covers exactly the 8 BodyRegion values computeBodyAngles produces readings for", () => {
+    expect(Object.keys(BODY_REGION_BONES).sort()).toEqual(
+      [
+        "TRUNK",
+        "NECK",
+        "SHOULDER_LEFT",
+        "SHOULDER_RIGHT",
+        "ELBOW_LEFT",
+        "ELBOW_RIGHT",
+        "KNEE_LEFT",
+        "KNEE_RIGHT",
+      ].sort(),
+    );
+  });
+});
+
+describe("JOINT_REGIONS", () => {
+  it("maps each draggable joint landmark to the region it controls", () => {
+    expect(JOINT_REGIONS[LANDMARK_INDEX.LEFT_ELBOW]).toBe("ELBOW_LEFT");
+    expect(JOINT_REGIONS[LANDMARK_INDEX.RIGHT_ELBOW]).toBe("ELBOW_RIGHT");
+    expect(JOINT_REGIONS[LANDMARK_INDEX.LEFT_SHOULDER]).toBe("SHOULDER_LEFT");
+    expect(JOINT_REGIONS[LANDMARK_INDEX.RIGHT_SHOULDER]).toBe("SHOULDER_RIGHT");
+    expect(JOINT_REGIONS[LANDMARK_INDEX.LEFT_KNEE]).toBe("KNEE_LEFT");
+    expect(JOINT_REGIONS[LANDMARK_INDEX.RIGHT_KNEE]).toBe("KNEE_RIGHT");
+    expect(JOINT_REGIONS[LANDMARK_INDEX.NOSE]).toBe("NECK");
+    expect(JOINT_REGIONS[VIRTUAL_CHEST_LANDMARK_INDEX]).toBe("TRUNK");
+  });
+
+  it("VIRTUAL_CHEST_LANDMARK_INDEX falls outside MediaPipe's real 0-32 landmark range", () => {
+    expect(VIRTUAL_CHEST_LANDMARK_INDEX).toBeGreaterThan(32);
+  });
+});
+
+describe("ANATOMICAL_LIMITS", () => {
+  it("covers exactly the 8 scored regions, each with min <= max", () => {
+    expect(Object.keys(ANATOMICAL_LIMITS).sort()).toEqual(
+      [
+        "TRUNK",
+        "NECK",
+        "SHOULDER_LEFT",
+        "SHOULDER_RIGHT",
+        "ELBOW_LEFT",
+        "ELBOW_RIGHT",
+        "KNEE_LEFT",
+        "KNEE_RIGHT",
+      ].sort(),
+    );
+    for (const limit of Object.values(ANATOMICAL_LIMITS)) {
+      expect(limit).toBeDefined();
+      expect(limit?.min).toBeLessThanOrEqual(limit?.max as number);
+    }
+  });
+
+  it("matches the spec's per-region degree bounds", () => {
+    expect(ANATOMICAL_LIMITS.TRUNK).toEqual({ min: 0, max: 90 });
+    expect(ANATOMICAL_LIMITS.NECK).toEqual({ min: -20, max: 60 });
+    expect(ANATOMICAL_LIMITS.SHOULDER_LEFT).toEqual({ min: 0, max: 180 });
+    expect(ANATOMICAL_LIMITS.ELBOW_LEFT).toEqual({ min: 0, max: 145 });
+    expect(ANATOMICAL_LIMITS.KNEE_LEFT).toEqual({ min: 0, max: 130 });
   });
 });

@@ -79,8 +79,11 @@ export async function getTaskReportData(
     ? await Promise.all(
         rawSamples.map(async (sample) => {
           try {
-            const regions = await buildRegionResults({
-              landmarks: sample.keypoints as unknown as PoseLandmarks,
+            const { regions } = await buildRegionResults({
+              keypoints: sample.keypoints as unknown as PoseLandmarks,
+              validatedKeypoints:
+                sample.validatedKeypoints as unknown as PoseLandmarks | null,
+              validationStatus: sample.validationStatus,
               cameraAngle: sample.cameraAngle,
               methodologyVersion,
             });
