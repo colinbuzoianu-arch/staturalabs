@@ -170,6 +170,8 @@ export default async function TaskResultsPage({
               <PostureSampleSimulatorToggle
                 sampleId={sample.id}
                 regionResults={regions}
+                keypoints={sample.keypoints as unknown as PoseLandmarks}
+                cameraAngle={sample.cameraAngle}
               />
             )}
           </div>

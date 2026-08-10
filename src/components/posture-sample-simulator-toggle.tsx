@@ -1,7 +1,8 @@
 "use client";
 
-import type { BodyRegion } from "@/generated/prisma/enums";
+import type { BodyRegion, CameraAngle } from "@/generated/prisma/enums";
 import type { RegionResult } from "@/lib/capture/types";
+import type { PoseLandmarks } from "@/lib/pose/angles";
 import { useSimulatorCoordinator } from "./simulator-coordinator";
 import { WhatIfSimulator } from "./what-if-simulator";
 
@@ -15,9 +16,13 @@ import { WhatIfSimulator } from "./what-if-simulator";
 export function PostureSampleSimulatorToggle({
   sampleId,
   regionResults,
+  keypoints,
+  cameraAngle,
 }: {
   sampleId: string;
   regionResults: Record<BodyRegion, RegionResult>;
+  keypoints: PoseLandmarks;
+  cameraAngle: CameraAngle;
 }) {
   const { openSampleId, toggle } = useSimulatorCoordinator();
   const isOpen = openSampleId === sampleId;
@@ -40,7 +45,11 @@ export function PostureSampleSimulatorToggle({
 
       {isOpen && (
         <div className="mt-3">
-          <WhatIfSimulator regionResults={regionResults} />
+          <WhatIfSimulator
+            regionResults={regionResults}
+            keypoints={keypoints}
+            cameraAngle={cameraAngle}
+          />
         </div>
       )}
     </div>

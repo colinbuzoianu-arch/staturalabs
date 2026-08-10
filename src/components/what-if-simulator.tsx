@@ -1,9 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { BodyRegion, RiskBand } from "@/generated/prisma/enums";
+import type {
+  BodyRegion,
+  CameraAngle,
+  RiskBand,
+} from "@/generated/prisma/enums";
 import { describeRegionResult } from "@/lib/capture/describe-region-result";
 import type { RegionResult } from "@/lib/capture/types";
+import type { PoseLandmarks } from "@/lib/pose/angles";
+import {
+  type AngleAdjustment,
+  applyAngleAdjustments,
+} from "@/lib/pose/forward-kinematics";
+import { completeMissingLandmarks } from "@/lib/pose/skeleton";
 import {
   NOT_ASSESSED_COLOR,
   riskBandColors,
@@ -11,6 +21,7 @@ import {
   worstRiskBand,
 } from "@/lib/risk/band-severity";
 import { type AngleRangeRule, matchScoringRule } from "@/lib/scoring/match";
+import { SkeletonViewer } from "./skeleton-viewer";
 
 // Hand-authored, not derived from the enum string — BodyRegion itself stays
 // untranslated everywhere else in this app (CLAUDE.md's i18n scope note),
@@ -413,12 +424,28 @@ function Stat({ label, value }: { label: string; value: number }) {
 // methodology version so a viewer never sees simulated numbers without it.
 export function WhatIfSimulator({
   regionResults,
+  keypoints,
+  cameraAngle,
 }: {
   regionResults: Record<BodyRegion, RegionResult>;
+  keypoints: PoseLandmarks;
+  cameraAngle: CameraAngle;
 }) {
   const [rulesState, setRulesState] = useState<RulesState>({
     status: "loading",
   });
+
+  // The expensive part (mirroring/proportional-estimation math, see
+  // skeleton.ts) — memoized against `keypoints` specifically, since it only
+  // depends on the *original* captured landmarks, never on the
+  // slider-adjusted ones. Forward-kinematics adjustments are applied fresh
+  // every render (cheap — just a handful of rotations) on top of this
+  // stable, once-per-sample result, not recomputed from scratch per slider
+  // change.
+  const completedLandmarks = useMemo(
+    () => completeMissingLandmarks(keypoints),
+    [keypoints],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -520,14 +547,66 @@ export function WhatIfSimulator({
     ([, result]) => result.status !== "scored",
   );
 
+  // Forward-kinematics adjustments — one per scored region, current vs.
+  // slider value, regardless of whether matchScoringRule found a band for
+  // it (an ambiguous-match error or "no threshold matched" still has a
+  // perfectly good angle to pose the skeleton at; only the *band* lookup
+  // failed, not the geometry). applyAngleAdjustments sorts and cascades
+  // these itself (TRUNK → NECK → SHOULDER → ELBOW → KNEE) and silently
+  // skips anything it has no FK behavior for.
+  const adjustments: AngleAdjustment[] = simulations.map((sim) => ({
+    bodyRegion: sim.region,
+    currentDegrees: sim.originalDegrees,
+    targetDegrees: sim.sliderValue,
+  }));
+  const adjustedLandmarks = applyAngleAdjustments(
+    completedLandmarks,
+    adjustments,
+  );
+
+  // Region → simulated band, for the skeleton's bone coloring — the
+  // *current slider* result, not the original measured band, so the
+  // figure's colors track the sliders live. Only regions with a resolved
+  // band (ok and matched) get a color; everything else falls through to
+  // SkeletonViewer's own neutral-grey default for an unmapped/unmatched
+  // region.
+  const highlightedRegions: Partial<Record<BodyRegion, RiskBand>> = {};
+  for (const sim of simulations) {
+    if (sim.ok && sim.band) highlightedRegions[sim.region] = sim.band;
+  }
+
+  const anyChanged = scoredEntries.some(
+    ([region, result]) =>
+      (sliderValues[region] ?? result.degrees) !== result.degrees,
+  );
+  const resetAll = () =>
+    setSliderValues(
+      Object.fromEntries(
+        scoredEntries.map(([region, result]) => [region, result.degrees]),
+      ),
+    );
+
   return (
     <div className="flex flex-col gap-4">
       <div className="rounded-lg border border-border bg-surface p-4 text-sm">
-        <p>
-          This simulates how the score changes at different posture angles. It
-          does not predict the effect of a physical intervention (e.g. raising a
-          table). Results are hypothetical — no data is saved.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <p>
+            This simulates how the score changes at different posture angles. It
+            does not predict the effect of a physical intervention (e.g. raising
+            a table). Results are hypothetical — no data is saved.
+          </p>
+          {/* Prominent and always visible (not buried in the slider list) —
+              flipping back to the measured posture is expected to be a
+              frequent action, not a one-off. */}
+          <button
+            type="button"
+            onClick={resetAll}
+            disabled={!anyChanged}
+            className="shrink-0 rounded-md bg-accent px-3 py-1.5 font-heading text-xs font-bold text-teal transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Reset to measured posture
+          </button>
+        </div>
         <p className="mt-2 font-technical text-xs text-border">
           Scoring methodology:{" "}
           {rulesState.status === "ready"
@@ -548,71 +627,84 @@ export function WhatIfSimulator({
         <SummaryPanel simulations={simulations} />
       )}
 
-      <div className="flex flex-col gap-3">
-        {scoredEntries.map(([region, result]) => {
-          if (rulesState.status === "loading") {
-            return (
-              <div
-                key={region}
-                className="rounded-lg border border-border bg-surface p-4"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="font-heading font-bold">
-                    {REGION_LABELS[region]}
-                  </span>
-                  <span className="font-technical text-xs text-border">
-                    measured {result.degrees.toFixed(1)}°
-                  </span>
+      <div className="flex flex-col gap-6 md:flex-row md:items-start">
+        {/* min-w guarantees a readable (>=400px tall, given the 3:5 aspect
+            ratio) figure even if flexbox would otherwise let this column
+            shrink below its 40% basis. */}
+        <div className="w-full shrink-0 md:w-[40%] md:min-w-[300px]">
+          <SkeletonViewer
+            landmarks={adjustedLandmarks}
+            cameraAngle={cameraAngle}
+            highlightedRegions={highlightedRegions}
+          />
+        </div>
+
+        <div className="flex w-full min-w-0 flex-col gap-3 md:w-[60%]">
+          {scoredEntries.map(([region, result]) => {
+            if (rulesState.status === "loading") {
+              return (
+                <div
+                  key={region}
+                  className="rounded-lg border border-border bg-surface p-4"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-heading font-bold">
+                      {REGION_LABELS[region]}
+                    </span>
+                    <span className="font-technical text-xs text-border">
+                      measured {result.degrees.toFixed(1)}°
+                    </span>
+                  </div>
+                  <p className="mt-2 font-technical text-xs text-border">
+                    Loading interactive range…
+                  </p>
                 </div>
-                <p className="mt-2 font-technical text-xs text-border">
-                  Loading interactive range…
-                </p>
-              </div>
-            );
-          }
+              );
+            }
 
-          if (rulesState.status === "error") {
-            return (
-              <div
-                key={region}
-                className="rounded-lg border border-border bg-surface p-4 opacity-60"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="font-heading font-bold">
-                    {REGION_LABELS[region]}
-                  </span>
-                  <span className="font-technical text-xs text-border">
-                    measured {result.degrees.toFixed(1)}°
-                  </span>
-                  <BandPill band={result.riskBand} />
+            if (rulesState.status === "error") {
+              return (
+                <div
+                  key={region}
+                  className="rounded-lg border border-border bg-surface p-4 opacity-60"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-heading font-bold">
+                      {REGION_LABELS[region]}
+                    </span>
+                    <span className="font-technical text-xs text-border">
+                      measured {result.degrees.toFixed(1)}°
+                    </span>
+                    <BandPill band={result.riskBand} />
+                  </div>
                 </div>
-              </div>
+              );
+            }
+
+            const sim = simulations.find((s) => s.region === region);
+            if (!sim) return null;
+
+            return (
+              <ScoredRegionRow
+                key={region}
+                sim={sim}
+                onChange={(degrees) =>
+                  setSliderValues((prev) => ({ ...prev, [region]: degrees }))
+                }
+                onReset={() =>
+                  setSliderValues((prev) => ({
+                    ...prev,
+                    [region]: result.degrees,
+                  }))
+                }
+              />
             );
-          }
+          })}
 
-          const sim = simulations.find((s) => s.region === region);
-          if (!sim) return null;
-
-          return (
-            <ScoredRegionRow
-              key={region}
-              sim={sim}
-              onChange={(degrees) =>
-                setSliderValues((prev) => ({ ...prev, [region]: degrees }))
-              }
-              onReset={() =>
-                setSliderValues((prev) => ({
-                  ...prev,
-                  [region]: result.degrees,
-                }))
-              }
-            />
-          );
-        })}
-
-        {nonScoredEntries.map(([region, result]) => (
-          <StatusRow key={region} region={region} result={result} />
-        ))}
+          {nonScoredEntries.map(([region, result]) => (
+            <StatusRow key={region} region={region} result={result} />
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -260,6 +260,8 @@ export default async function TaskHistoryPage({
                 <PostureSampleSimulatorToggle
                   sampleId={sample.id}
                   regionResults={regions}
+                  keypoints={sample.keypoints as unknown as PoseLandmarks}
+                  cameraAngle={sample.cameraAngle}
                 />
               )}
             </div>

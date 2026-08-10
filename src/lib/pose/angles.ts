@@ -198,7 +198,7 @@ const REQUIRED_CAMERA_ANGLE: Partial<
 // accuracy validation study (ERGO_COMPLIANCE_BY_DESIGN.md §5) has real
 // data on where visibility scores actually separate observed from
 // extrapolated landmarks.
-const MIN_LANDMARK_VISIBILITY = 0.5;
+export const MIN_LANDMARK_VISIBILITY = 0.5;
 
 // Given a full 33-point MediaPipe Pose Landmarker result and the
 // CameraAngle the sample was tagged with, returns flexion-from-neutral
