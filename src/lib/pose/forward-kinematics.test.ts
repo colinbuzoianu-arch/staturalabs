@@ -88,6 +88,13 @@ function midpointForTest(
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }
 
+function distanceForTest(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
 function includedAngleDegreesForTest(
   a: { x: number; y: number },
   vertex: { x: number; y: number },
@@ -367,5 +374,76 @@ describe("applyAngleAdjustments", () => {
         { bodyRegion: "NECK", currentDegrees: 0, targetDegrees: 20 },
       ]),
     ).toThrow(/profile/);
+  });
+
+  // Verifies the invariant skeleton-3d.tsx's own rigid drag constraints
+  // (Part A of this task) depend on: rotateLandmarks (rotatePoint applied
+  // identically to every landmark in a region's `distal`/TRUNK_DISTAL/
+  // NECK_DISTAL set, around one shared, unmoved pivot) is a pure rotation
+  // with no translation component, so it can never stretch or compress a
+  // bone — not just for distance-from-pivot (trivially true: rotation
+  // preserves distance to its own center), but for EVERY pairwise distance
+  // within the rotated set, including ones that don't involve the pivot at
+  // all (e.g. elbow-to-wrist under a SHOULDER rotation, where neither
+  // endpoint IS the pivot). A regression here — e.g. an accidental
+  // translation term, or a per-landmark rotation angle that drifted from
+  // the shared `deltaDegrees` — would show up as a bone length changing
+  // even though the rotation math still "looks" superficially plausible
+  // per-landmark, which is exactly the failure mode this test is for.
+  it("preserves every bone length across a combined TRUNK+NECK+SHOULDER+ELBOW+KNEE adjustment", () => {
+    const landmarks = makeSkeleton({
+      ...LEAN_TORSO,
+      NOSE: { x: 0.85, y: 0.15 },
+      LEFT_ELBOW: { x: 0.85, y: 0.45 },
+      LEFT_WRIST: { x: 0.9, y: 0.6 },
+      RIGHT_ELBOW: { x: 0.85, y: 0.45 },
+      RIGHT_WRIST: { x: 0.9, y: 0.6 },
+      LEFT_ANKLE: { x: 0.5, y: 1.1 },
+      RIGHT_ANKLE: { x: 0.5, y: 1.1 },
+    });
+
+    const bones: ReadonlyArray<
+      readonly [keyof typeof LANDMARK_INDEX, keyof typeof LANDMARK_INDEX]
+    > = [
+      ["LEFT_SHOULDER", "RIGHT_SHOULDER"],
+      ["LEFT_HIP", "RIGHT_HIP"],
+      ["LEFT_SHOULDER", "LEFT_HIP"],
+      ["RIGHT_SHOULDER", "RIGHT_HIP"],
+      ["LEFT_SHOULDER", "LEFT_ELBOW"],
+      ["LEFT_ELBOW", "LEFT_WRIST"],
+      ["RIGHT_SHOULDER", "RIGHT_ELBOW"],
+      ["RIGHT_ELBOW", "RIGHT_WRIST"],
+      ["LEFT_HIP", "LEFT_KNEE"],
+      ["LEFT_KNEE", "LEFT_ANKLE"],
+      ["RIGHT_HIP", "RIGHT_KNEE"],
+      ["RIGHT_KNEE", "RIGHT_ANKLE"],
+      ["NOSE", "LEFT_SHOULDER"],
+    ];
+    const lengthOf = (
+      set: SkeletonLandmark[],
+      [a, b]: readonly [
+        keyof typeof LANDMARK_INDEX,
+        keyof typeof LANDMARK_INDEX,
+      ],
+    ) => distanceForTest(set[LANDMARK_INDEX[a]], set[LANDMARK_INDEX[b]]);
+    const before = bones.map((bone) => lengthOf(landmarks, bone));
+
+    const adjustments: AngleAdjustment[] = [
+      {
+        bodyRegion: "TRUNK",
+        currentDegrees: trunkFlexionDegrees(landmarks),
+        targetDegrees: trunkFlexionDegrees(landmarks) + 15,
+      },
+      { bodyRegion: "NECK", currentDegrees: 0, targetDegrees: 10 },
+      { bodyRegion: "SHOULDER_LEFT", currentDegrees: 0, targetDegrees: 30 },
+      { bodyRegion: "ELBOW_LEFT", currentDegrees: 0, targetDegrees: 45 },
+      { bodyRegion: "KNEE_RIGHT", currentDegrees: 0, targetDegrees: 60 },
+    ];
+    const result = applyAngleAdjustments(landmarks, adjustments);
+    const after = bones.map((bone) => lengthOf(result, bone));
+
+    bones.forEach((_bone, i) => {
+      expect(after[i]).toBeCloseTo(before[i] as number, 10);
+    });
   });
 });

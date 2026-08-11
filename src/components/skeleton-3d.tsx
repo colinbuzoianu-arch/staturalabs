@@ -105,6 +105,15 @@ const MAX_ZOOM_DISTANCE = 8;
 // vector ops per iteration), run at most once per pointermove.
 const BISECTION_ITERATIONS = 16;
 const DRAG_EMIT_INTERVAL_MS = 1000 / 30;
+// Alternating-projection iterations for enforceRigidConstraints below — a
+// joint dragged under two simultaneous distance constraints (a shoulder,
+// against both the other shoulder and the same-side hip) can't generally
+// satisfy both exactly with one projection each; a handful of rounds
+// converges close enough for a soft, transient drag preview. Single-
+// constraint joints (elbow, knee, trunk, neck) already sit exactly on
+// their one sphere after the first round — the extra rounds are a no-op
+// for them, not wasted precision.
+const RIGID_CONSTRAINT_ITERATIONS = 4;
 
 // ---------------------------------------------------------------------
 // Confidence styling — mirrors skeleton-viewer.tsx's combineConfidence
@@ -315,6 +324,167 @@ function buildMeasurer(
     simple.toFlexion(angleAtDegrees(trial, parentPos, childPos));
 }
 
+// ---------------------------------------------------------------------
+// Rigid bone-length constraints for live dragging. A human skeleton has
+// fixed bone lengths — dragging a joint should rotate it around its pivot,
+// not translate it freely, or the torso/limb it's attached to visibly
+// stretches or compresses while the pointer moves. VISUALIZATION ONLY:
+// this never touches computeBodyAngles or a ScoringRule lookup, only the
+// LIVE, in-progress drag position rendered on every pointermove — the
+// angle actually reported/applied is still derived purely from landmark
+// positions, exactly as before. This exists specifically because that
+// live preview (rebuildScene's per-frame `override`, throttled separately
+// from the ~30fps callback to the parent — see handleDragMove below) was
+// otherwise showing an UNCONSTRAINED raw raycast position between the
+// periodic corrections forward-kinematics.ts's own rigid rotation
+// provides once the parent's state round-trips (see that file's own
+// bone-length-preservation test) — correct eventually, disproportionate
+// in between.
+// ---------------------------------------------------------------------
+type RigidConstraint = { pivot: THREE.Vector3; radius: number };
+
+function projectOntoSphere(
+  point: THREE.Vector3,
+  pivot: THREE.Vector3,
+  radius: number,
+): THREE.Vector3 {
+  const offset = point.clone().sub(pivot);
+  if (offset.lengthSq() === 0) {
+    // Degenerate: the candidate point coincides exactly with its own pivot
+    // (zero-length offset has no direction to preserve) — pick an
+    // arbitrary direction rather than normalizing a zero vector into NaN.
+    // Not expected from a real raycasted drag position; a defensive floor,
+    // not a case this drag interaction can actually produce.
+    return pivot.clone().add(new THREE.Vector3(radius, 0, 0));
+  }
+  return pivot.clone().add(offset.normalize().multiplyScalar(radius));
+}
+
+// Projects `point` onto every constraint's sphere in turn, repeated a few
+// times (RIGID_CONSTRAINT_ITERATIONS) so that a joint under TWO
+// simultaneous constraints (a shoulder: same-side hip AND the other
+// shoulder) converges close to satisfying both, rather than exactly
+// solving the generally two-point intersection of two spheres — this is
+// the LIVE-DRAG preview, not the committed pose (forward-kinematics.ts's
+// exact rigid rotation is what actually gets persisted once the drag
+// ends), so a cheap iterative approximation recomputed on every
+// pointermove is the right trade here, not a closed-form solve. A single-
+// constraint joint (elbow, knee, trunk, neck) already lands exactly on its
+// one sphere after the first round.
+function enforceRigidConstraints(
+  point: THREE.Vector3,
+  constraints: readonly RigidConstraint[],
+): THREE.Vector3 {
+  if (constraints.length === 0) return point;
+  let result = point.clone();
+  for (
+    let iteration = 0;
+    iteration < RIGID_CONSTRAINT_ITERATIONS;
+    iteration++
+  ) {
+    for (const { pivot, radius } of constraints) {
+      result = projectOntoSphere(result, pivot, radius);
+    }
+  }
+  return result;
+}
+
+// Builds the distance constraint(s) for `landmarkIndex`, from its CURRENT
+// (pre-drag) positions — captured once at drag start (see onPointerDown)
+// since every other landmark's rendered position stays fixed for the
+// duration of a single-joint drag (rebuildScene's override only ever
+// repositions the one dragged index). Mirrors buildMeasurer's own
+// per-region structure and pivot choices exactly, so the rigid constraint
+// and the angular clamp always agree on what's "fixed" versus "moving":
+//   - TRUNK (virtual chest): one constraint, pivot=hipMid — the same fixed
+//     vertex buildMeasurer's own TRUNK case measures from.
+//   - NECK (nose): one constraint, pivot=shoulderMid — same as buildMeasurer.
+//   - SHOULDER_LEFT/RIGHT: TWO constraints — same-side hip (torso length)
+//     AND the other shoulder (shoulder width), per the reported bug's own
+//     two symptoms ("shoulder-to-shoulder distance changes... same for
+//     hip-to-hip").
+//   - ELBOW_LEFT/RIGHT: one constraint, pivot=same-side shoulder (upper
+//     arm length) — matches buildMeasurer's own `parentIndex`.
+//   - KNEE_LEFT/RIGHT: one constraint, pivot=same-side hip (thigh length)
+//     — matches buildMeasurer's own `parentIndex`.
+function buildRigidConstraints(
+  landmarkIndex: number,
+  positions: readonly THREE.Vector3[],
+): readonly RigidConstraint[] {
+  if (landmarkIndex === VIRTUAL_CHEST_LANDMARK_INDEX) {
+    const hipMid = midpoint(
+      positions[LANDMARK_INDEX.LEFT_HIP],
+      positions[LANDMARK_INDEX.RIGHT_HIP],
+    );
+    const shoulderMid = getVirtualChestPosition(positions);
+    return [{ pivot: hipMid, radius: hipMid.distanceTo(shoulderMid) }];
+  }
+
+  if (landmarkIndex === LANDMARK_INDEX.NOSE) {
+    const shoulderMid = midpoint(
+      positions[LANDMARK_INDEX.LEFT_SHOULDER],
+      positions[LANDMARK_INDEX.RIGHT_SHOULDER],
+    );
+    return [
+      {
+        pivot: shoulderMid,
+        radius: shoulderMid.distanceTo(positions[LANDMARK_INDEX.NOSE]),
+      },
+    ];
+  }
+
+  if (
+    landmarkIndex === LANDMARK_INDEX.LEFT_SHOULDER ||
+    landmarkIndex === LANDMARK_INDEX.RIGHT_SHOULDER
+  ) {
+    const isLeft = landmarkIndex === LANDMARK_INDEX.LEFT_SHOULDER;
+    const hipIndex = isLeft
+      ? LANDMARK_INDEX.LEFT_HIP
+      : LANDMARK_INDEX.RIGHT_HIP;
+    const otherShoulderIndex = isLeft
+      ? LANDMARK_INDEX.RIGHT_SHOULDER
+      : LANDMARK_INDEX.LEFT_SHOULDER;
+    const shoulderPos = positions[landmarkIndex];
+    const hipPos = positions[hipIndex];
+    const otherShoulderPos = positions[otherShoulderIndex];
+    return [
+      { pivot: hipPos, radius: hipPos.distanceTo(shoulderPos) },
+      {
+        pivot: otherShoulderPos,
+        radius: otherShoulderPos.distanceTo(shoulderPos),
+      },
+    ];
+  }
+
+  if (
+    landmarkIndex === LANDMARK_INDEX.LEFT_ELBOW ||
+    landmarkIndex === LANDMARK_INDEX.RIGHT_ELBOW
+  ) {
+    const isLeft = landmarkIndex === LANDMARK_INDEX.LEFT_ELBOW;
+    const shoulderIndex = isLeft
+      ? LANDMARK_INDEX.LEFT_SHOULDER
+      : LANDMARK_INDEX.RIGHT_SHOULDER;
+    const shoulderPos = positions[shoulderIndex];
+    const elbowPos = positions[landmarkIndex];
+    return [{ pivot: shoulderPos, radius: shoulderPos.distanceTo(elbowPos) }];
+  }
+
+  if (
+    landmarkIndex === LANDMARK_INDEX.LEFT_KNEE ||
+    landmarkIndex === LANDMARK_INDEX.RIGHT_KNEE
+  ) {
+    const isLeft = landmarkIndex === LANDMARK_INDEX.LEFT_KNEE;
+    const hipIndex = isLeft
+      ? LANDMARK_INDEX.LEFT_HIP
+      : LANDMARK_INDEX.RIGHT_HIP;
+    const hipPos = positions[hipIndex];
+    const kneePos = positions[landmarkIndex];
+    return [{ pivot: hipPos, radius: hipPos.distanceTo(kneePos) }];
+  }
+
+  return [];
+}
+
 // Finds, via bisection along the straight-line path from `from` (the
 // joint's pre-drag position, assumed to already satisfy [min, max]) to
 // `to` (the raw drag candidate, which may not), the furthest point along
@@ -326,27 +496,47 @@ function buildMeasurer(
 // needs to know which role it's in. If `from` itself is already out of
 // range (e.g. ANATOMICAL_LIMITS tightened since the pose was posed), holds
 // at `from` rather than making things worse.
+//
+// `project`, if given, is applied to every candidate BEFORE `measure` sees
+// it — every returned point (and every point fed to `measure` along the
+// way) is one `project` already resolved, not something layered on
+// afterward. That matters: a straight lerp between two points that both
+// satisfy `project` (e.g. both already the correct bone length from a
+// pivot) does NOT generally stay at that same distance for points strictly
+// between them — projecting only the final answer would let intermediate
+// bisection steps evaluate `measure` against a point that's momentarily
+// the wrong bone length, and could return a final point that's off by the
+// same small (chord-vs-arc) amount. Passing `project` in here instead
+// keeps every candidate, at every step, exactly on the caller's rigid
+// constraint — see enforceRigidConstraints above, this function's only
+// current caller for it.
 function clampAlongDragPath(
   from: THREE.Vector3,
   to: THREE.Vector3,
   min: number,
   max: number,
   measure: FlexionMeasurer,
+  project?: (point: THREE.Vector3) => THREE.Vector3,
 ): THREE.Vector3 {
   const EPSILON = 1e-6;
+  const applyProject = (point: THREE.Vector3) =>
+    project ? project(point) : point;
   const inRange = (deg: number) => deg >= min - EPSILON && deg <= max + EPSILON;
-  if (inRange(measure(to))) return to;
-  if (!inRange(measure(from))) return from.clone();
+
+  const projectedTo = applyProject(to);
+  if (inRange(measure(projectedTo))) return projectedTo;
+  const projectedFrom = applyProject(from);
+  if (!inRange(measure(projectedFrom))) return projectedFrom;
 
   let lo = 0;
   let hi = 1;
   for (let i = 0; i < BISECTION_ITERATIONS; i++) {
     const mid = (lo + hi) / 2;
-    const point = from.clone().lerp(to, mid);
+    const point = applyProject(from.clone().lerp(to, mid));
     if (inRange(measure(point))) lo = mid;
     else hi = mid;
   }
-  return from.clone().lerp(to, lo);
+  return applyProject(from.clone().lerp(to, lo));
 }
 
 // ---------------------------------------------------------------------
@@ -374,6 +564,7 @@ type DragState = {
   measure: FlexionMeasurer | null;
   limits: { min: number; max: number } | null;
   lastEmitTime: number;
+  rigidConstraints: readonly RigidConstraint[];
 };
 
 type SceneState = {
@@ -810,6 +1001,16 @@ export function Skeleton3D({
       const hit = state.raycaster.ray.intersectPlane(drag.plane, rawPoint);
       if (!hit) return;
 
+      // Rigid bone-length projection always applies (see
+      // enforceRigidConstraints' own doc comment) — threaded into
+      // clampAlongDragPath as `project` when an angular clamp also applies,
+      // so every trial the bisection evaluates is already the correct
+      // bone length, not just the final answer; applied directly to the
+      // raw point otherwise (e.g. a landmark with no ANATOMICAL_LIMITS
+      // entry, or NECK's degenerate not-in-profile case where buildMeasurer
+      // returned null).
+      const rigidProject = (point: THREE.Vector3) =>
+        enforceRigidConstraints(point, drag.rigidConstraints);
       const clamped =
         drag.measure && drag.limits
           ? clampAlongDragPath(
@@ -818,8 +1019,9 @@ export function Skeleton3D({
               drag.limits.min,
               drag.limits.max,
               drag.measure,
+              rigidProject,
             )
-          : rawPoint;
+          : rigidProject(rawPoint);
 
       // Local visual feedback is immediate/unthrottled — only the
       // callback to the parent (which likely drives re-scoring) is
@@ -878,6 +1080,7 @@ export function Skeleton3D({
         measure: buildMeasurer(landmarkIndex, positions),
         limits,
         lastEmitTime: 0,
+        rigidConstraints: buildRigidConstraints(landmarkIndex, positions),
       };
 
       // Disabling OrbitControls here relies on our own pointerdown
@@ -894,9 +1097,31 @@ export function Skeleton3D({
       scheduleRender(state);
     };
 
-    const endDrag = (event: PointerEvent) => {
+    // Ends whatever drag is in progress, unconditionally — every path that
+    // can signal "this pointer interaction is over" (a clean pointerup on
+    // the canvas, pointercancel, losing pointer capture, the pointer
+    // leaving the canvas, or a pointerup anywhere in the document because
+    // it never reached the canvas at all) funnels through this one
+    // function, so there is exactly one implementation of the cleanup
+    // contract: (a) clear state.drag, (b) re-enable OrbitControls, (c)
+    // reset the cursor, (d) release pointer capture — every one of those
+    // unconditional, never gated behind a check that could itself fail and
+    // leave the drag stuck.
+    //
+    // Deliberately does NOT filter by the terminating event's pointerId
+    // (an earlier version required it to match drag.pointerId, which is
+    // exactly what let a stuck drag happen: browsers don't reliably fire
+    // pointerup with the same id pointerdown recorded — touch, pen, and
+    // lost-capture cases have all been observed to disagree). Pointer
+    // capture is released using drag.pointerId (recorded at drag start),
+    // never the terminating event's id, since several of these call sites
+    // (lostpointercapture, pointerleave, the document-level fallback) have
+    // no reliable "current" pointerId of their own to use instead — this
+    // component only ever tracks one drag at a time, so "a drag is active"
+    // is itself sufficient reason to end it.
+    const endDrag = () => {
       const drag = state.drag;
-      if (!drag || drag.pointerId !== event.pointerId) return;
+      if (!drag) return;
 
       // One final, unthrottled emit so the parent's state always lands
       // exactly on what was last shown, even if the ~30fps throttle
@@ -913,11 +1138,21 @@ export function Skeleton3D({
       state.drag = null;
       state.controls.enabled = true;
       canvas.style.cursor = "default";
-      if (canvas.hasPointerCapture(event.pointerId)) {
-        canvas.releasePointerCapture(event.pointerId);
+      if (canvas.hasPointerCapture(drag.pointerId)) {
+        canvas.releasePointerCapture(drag.pointerId);
       }
       applyHoverScale(state);
       scheduleRender(state);
+    };
+
+    // Catches the case where a pointerup never reaches the canvas at all
+    // (released outside its bounds without capture having been
+    // established) — a bubble-phase document listener still sees it
+    // regardless of which element the browser considers "under" the
+    // pointer at release time.
+    const documentEndDrag = () => {
+      if (!state.drag) return;
+      endDrag();
     };
 
     // Registered BEFORE constructing OrbitControls, deliberately — see the
@@ -926,6 +1161,15 @@ export function Skeleton3D({
     canvas.addEventListener("pointerdown", onPointerDown);
     canvas.addEventListener("pointerup", endDrag);
     canvas.addEventListener("pointercancel", endDrag);
+    // The definitive "this pointer interaction is over" signal when
+    // setPointerCapture fails or capture is broken out from under us (a
+    // context menu, an OS-level gesture, an alt-tab) — fires regardless of
+    // which pointerId caused it.
+    canvas.addEventListener("lostpointercapture", endDrag);
+    // Fallback for when the pointer leaves the canvas without a pointerup
+    // ever firing on it (possible when capture wasn't established).
+    canvas.addEventListener("pointerleave", endDrag);
+    document.addEventListener("pointerup", documentEndDrag);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableRotate = true;
@@ -973,6 +1217,9 @@ export function Skeleton3D({
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointerup", endDrag);
       canvas.removeEventListener("pointercancel", endDrag);
+      canvas.removeEventListener("lostpointercapture", endDrag);
+      canvas.removeEventListener("pointerleave", endDrag);
+      document.removeEventListener("pointerup", documentEndDrag);
       resizeObserver.disconnect();
       if (state.animationFrameId !== null)
         cancelAnimationFrame(state.animationFrameId);
