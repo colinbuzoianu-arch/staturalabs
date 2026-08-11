@@ -1,8 +1,8 @@
 import Link from "next/link";
 import {
-  PostureSampleAccordion,
-  type PostureSampleAccordionItem,
-} from "@/components/posture-sample-accordion";
+  PostureSampleSwitcher,
+  type PostureSampleSwitcherItem,
+} from "@/components/posture-sample-switcher";
 import { requireTaskAccess } from "@/lib/auth/require-access";
 import { buildRegionResults } from "@/lib/capture/build-region-results";
 import { describeManualInput } from "@/lib/capture/manual-input";
@@ -16,8 +16,8 @@ import { reopenPostureSampleForEdit, validatePostureSample } from "./actions";
 
 // A task's assessment history: the AssessmentSessions it was covered by,
 // and every raw PostureSample captured for it, reviewed/adjusted through
-// PostureEditor (an accordion of one per sample — see
-// posture-sample-accordion.tsx) rather than a separate read-only table:
+// PostureEditor (a chip switcher over one editor — see
+// posture-sample-switcher.tsx) rather than a separate read-only table:
 // the editor's own region panel already shows the full per-region
 // breakdown buildRegionResults produces, so a second, static table next to
 // it would just be the same data twice. Never shows anything
@@ -85,9 +85,9 @@ export default async function TaskHistoryPage({
       err instanceof Error ? err.message : "No active methodology version";
   }
 
-  const items: PostureSampleAccordionItem[] = methodologyVersion
+  const items: PostureSampleSwitcherItem[] = methodologyVersion
     ? await Promise.all(
-        samples.map(async (sample): Promise<PostureSampleAccordionItem> => {
+        samples.map(async (sample): Promise<PostureSampleSwitcherItem> => {
           const base = {
             id: sample.id,
             capturedAt: sample.capturedAt,
@@ -260,7 +260,7 @@ export default async function TaskHistoryPage({
         )}
 
         {items.length > 0 && (
-          <PostureSampleAccordion
+          <PostureSampleSwitcher
             items={items}
             currentUserName={user.name}
             onValidate={validatePostureSample}

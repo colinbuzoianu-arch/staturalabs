@@ -5,9 +5,9 @@ import {
   validatePostureSample,
 } from "@/app/(app)/tasks/[taskId]/actions";
 import {
-  PostureSampleAccordion,
-  type PostureSampleAccordionItem,
-} from "@/components/posture-sample-accordion";
+  PostureSampleSwitcher,
+  type PostureSampleSwitcherItem,
+} from "@/components/posture-sample-switcher";
 import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 import { buildRegionResults } from "@/lib/capture/build-region-results";
 import { getAdminDictionary } from "@/lib/i18n/dictionaries/admin";
@@ -17,9 +17,9 @@ import { prisma } from "@/lib/prisma";
 import { worstRiskBand } from "@/lib/risk/band-severity";
 import { getActiveMethodologyVersion } from "@/lib/scoring/methodology-version";
 
-// Reviewed/adjusted through PostureEditor (an accordion of one per sample —
-// see posture-sample-accordion.tsx), same as the (app) dashboard's own task
-// page — the editor's region panel already shows the full per-region
+// Reviewed/adjusted through PostureEditor (a chip switcher over one editor
+// — see posture-sample-switcher.tsx), same as the (app) dashboard's own
+// task page — the editor's region panel already shows the full per-region
 // breakdown buildRegionResults produces, so a separate static table next to
 // it would just be the same data twice.
 export default async function TaskResultsPage({
@@ -74,9 +74,9 @@ export default async function TaskResultsPage({
       err instanceof Error ? err.message : "No active methodology version";
   }
 
-  const items: PostureSampleAccordionItem[] = methodologyVersion
+  const items: PostureSampleSwitcherItem[] = methodologyVersion
     ? await Promise.all(
-        samples.map(async (sample): Promise<PostureSampleAccordionItem> => {
+        samples.map(async (sample): Promise<PostureSampleSwitcherItem> => {
           const base = {
             id: sample.id,
             capturedAt: sample.capturedAt,
@@ -190,7 +190,7 @@ export default async function TaskResultsPage({
       {samples.length === 0 && <p className="text-sm">{dict.empty}</p>}
 
       {items.length > 0 && (
-        <PostureSampleAccordion
+        <PostureSampleSwitcher
           items={items}
           currentUserName={adminUser.name}
           onValidate={validatePostureSample}
