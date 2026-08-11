@@ -357,7 +357,7 @@ function AngleNumberInput({
           commit();
         }
       }}
-      className="w-16 rounded border border-border bg-background px-1.5 py-0.5 text-right font-technical text-xs"
+      className="w-16 shrink-0 rounded border border-border bg-background px-1.5 py-0.5 text-right font-technical text-xs"
     />
   );
 }
@@ -475,7 +475,17 @@ function AngleSlider({
 
   return (
     <div
-      className="relative h-3 w-full shrink-0 rounded-full"
+      // flex-1 + min-w-0, NOT w-full: this div is a flex child alongside the
+      // fixed-width number input and degree sign in RegionRow's row. w-full
+      // sets this item's flex-basis to the WHOLE row's width regardless of
+      // those siblings — with default flex-shrink math that starves (or on
+      // a narrow enough row, entirely displaces) them, which is exactly
+      // what made the number input render "out of frame" and left the
+      // actual draggable slider area collapsed to a sliver too thin to
+      // grab. flex-1 correctly means "take the space left over after
+      // siblings claim theirs"; min-w-0 stops a flex item's default
+      // min-width:auto from fighting that shrink.
+      className="relative h-3 min-w-0 flex-1 rounded-full"
       style={{ background: gradient }}
     >
       <input

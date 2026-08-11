@@ -1040,11 +1040,22 @@ export function Skeleton3D({
       const now = performance.now();
       if (now - drag.lastEmitTime < DRAG_EMIT_INTERVAL_MS) return;
       drag.lastEmitTime = now;
-      onJointDragRef.current?.(drag.landmarkIndex, {
-        x: clamped.x,
-        y: clamped.y,
-        z: clamped.z,
-      });
+      // Same defensive wrap as endDrag's final emit, for the same reason
+      // (onJointDragRef can throw on a real, reachable condition) — not
+      // strictly required here for the stuck-drag bug specifically (this
+      // mid-drag emit never touches state.drag), but an uncaught throw
+      // from inside a "pointermove" listener is still an unhandled error
+      // on every remaining frame of the same drag, worth containing the
+      // same way.
+      try {
+        onJointDragRef.current?.(drag.landmarkIndex, {
+          x: clamped.x,
+          y: clamped.y,
+          z: clamped.z,
+        });
+      } catch (err) {
+        console.error("onJointDrag threw during drag move:", err);
+      }
     };
 
     const onPointerDown = (event: PointerEvent) => {
@@ -1125,14 +1136,28 @@ export function Skeleton3D({
 
       // One final, unthrottled emit so the parent's state always lands
       // exactly on what was last shown, even if the ~30fps throttle
-      // skipped the very last move.
+      // skipped the very last move. Wrapped in try/catch: onJointDragRef
+      // is arbitrary caller code (posture-editor.tsx's handleJointDrag,
+      // which cascades into computeAngleFromDrag — genuinely throws for a
+      // region whose other required landmarks have insufficient
+      // visibility, or NECK's "subject not in profile" degeneracy, both
+      // real conditions a sample with low-visibility body parts can hit).
+      // This function's entire contract is unconditional cleanup below; a
+      // throw here must never skip it — an uncaught exception at this
+      // point used to abort the rest of endDrag entirely, leaving
+      // state.drag stuck non-null and the joint following the pointer
+      // indefinitely, exactly the bug this function exists to prevent.
       const joint = state.joints.get(drag.landmarkIndex);
       if (joint) {
-        onJointDragRef.current?.(drag.landmarkIndex, {
-          x: joint.group.position.x,
-          y: joint.group.position.y,
-          z: joint.group.position.z,
-        });
+        try {
+          onJointDragRef.current?.(drag.landmarkIndex, {
+            x: joint.group.position.x,
+            y: joint.group.position.y,
+            z: joint.group.position.z,
+          });
+        } catch (err) {
+          console.error("onJointDrag threw during drag-end emit:", err);
+        }
       }
 
       state.drag = null;
