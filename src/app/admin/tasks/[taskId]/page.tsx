@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { validatePostureSample } from "@/app/(app)/tasks/[taskId]/actions";
+import {
+  reopenPostureSampleForEdit,
+  validatePostureSample,
+} from "@/app/(app)/tasks/[taskId]/actions";
 import {
   PostureSampleAccordion,
   type PostureSampleAccordionItem,
@@ -191,6 +194,7 @@ export default async function TaskResultsPage({
           items={items}
           currentUserName={adminUser.name}
           onValidate={validatePostureSample}
+          onReopen={reopenPostureSampleForEdit}
         />
       )}
     </div>

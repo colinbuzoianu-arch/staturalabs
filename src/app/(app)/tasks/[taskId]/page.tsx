@@ -12,7 +12,7 @@ import type { PoseLandmarks } from "@/lib/pose/angles";
 import { prisma } from "@/lib/prisma";
 import { worstRiskBand } from "@/lib/risk/band-severity";
 import { getActiveMethodologyVersion } from "@/lib/scoring/methodology-version";
-import { validatePostureSample } from "./actions";
+import { reopenPostureSampleForEdit, validatePostureSample } from "./actions";
 
 // A task's assessment history: the AssessmentSessions it was covered by,
 // and every raw PostureSample captured for it, reviewed/adjusted through
@@ -264,6 +264,7 @@ export default async function TaskHistoryPage({
             items={items}
             currentUserName={user.name}
             onValidate={validatePostureSample}
+            onReopen={reopenPostureSampleForEdit}
           />
         )}
       </section>

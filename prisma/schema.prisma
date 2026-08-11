@@ -250,10 +250,14 @@ enum CameraAngle {
 /// human yet. PENDING_REVIEW is the state every new sample is created in —
 /// the scoring pipeline (POST /api/posture-samples) always scores from the
 /// original `keypoints` and sets this on creation. VALIDATED means a
-/// reviewer has confirmed (optionally adjusting) the landmark positions;
-/// re-scoring from `validatedKeypoints` once that happens is a separate,
-/// not-yet-built server action. See PostureSample.validatedKeypoints for
-/// why the original `keypoints` column is never overwritten.
+/// reviewer has confirmed (optionally adjusting) the landmark positions,
+/// re-scored from `validatedKeypoints` by validatePostureSample
+/// ((app)/tasks/[taskId]/actions.ts). A VALIDATED sample isn't permanently
+/// frozen: reopenPostureSampleForEdit (same file) flips it back to
+/// PENDING_REVIEW so it can be re-validated — every such transition, in
+/// either direction, is recorded in PostureSampleValidationEvent (below),
+/// never silent. See PostureSample.validatedKeypoints for why the original
+/// `keypoints` column is never overwritten.
 enum ValidationStatus {
   PENDING_REVIEW
   VALIDATED
@@ -299,10 +303,34 @@ model PostureSample {
   validatedByUserId  String?           @db.Uuid
   createdAt          DateTime          @default(now())
 
-  task             Task              @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  task             Task                           @relation(fields: [taskId], references: [id], onDelete: Restrict)
   bodyRegionScores BodyRegionScore[]
+  validationEvents PostureSampleValidationEvent[]
 
   @@index([taskId])
+}
+
+/// Append-only validationStatus transition history (§3.6) — same shape and
+/// rationale as ActionStatusEvent: PENDING_REVIEW -> VALIDATED (a fresh
+/// validatePostureSample call) and VALIDATED -> PENDING_REVIEW (a
+/// reopenPostureSampleForEdit call) are both recorded here, with who did it
+/// and an optional note, so "this measurement was edited after being
+/// finalized" is always a real, attributable, queryable fact — never a
+/// silent overwrite. byUserId is a plain @db.Uuid column, not a DB-level FK
+/// to PlatformUser — same pattern as PostureSample.validatedByUserId and
+/// ActionStatusEvent.byUserId (§3.13).
+model PostureSampleValidationEvent {
+  id              String            @id @default(cuid())
+  postureSampleId String
+  fromStatus      ValidationStatus?
+  toStatus        ValidationStatus
+  byUserId        String            @db.Uuid
+  note            String?
+  createdAt       DateTime          @default(now())
+
+  postureSample PostureSample @relation(fields: [postureSampleId], references: [id], onDelete: Restrict)
+
+  @@index([postureSampleId])
 }
 
 /// One body-region risk score derived from a posture sample — one row per

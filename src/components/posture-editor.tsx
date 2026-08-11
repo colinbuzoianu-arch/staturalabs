@@ -78,6 +78,18 @@ export type PostureEditorProps = {
     regionResults: Record<BodyRegion, RegionResult>;
     validatedAt: Date | string;
   }>;
+  /**
+   * Server action: reopens an already-VALIDATED sample back to
+   * PENDING_REVIEW (reopenPostureSampleForEdit) so it can be edited and
+   * re-validated — every call is its own audited
+   * PostureSampleValidationEvent row, never a silent overwrite. Returns
+   * regionResults recomputed from the original camera capture (not the
+   * just-superseded validated posture), which this component uses to
+   * immediately rebuild the editing session — see handleReopen below.
+   */
+  onReopen: (note: string | null) => Promise<{
+    regionResults: Record<BodyRegion, RegionResult>;
+  }>;
 };
 
 // ---------------------------------------------------------------------
@@ -513,6 +525,78 @@ function RegionRow({
   );
 }
 
+// Local, uncontrolled-feeling reveal for the reopen action: a validated
+// sample is meant to feel final, so "Edit this measurement" doesn't
+// immediately act — it discloses an optional reason field and an explicit
+// confirm step, same progressive-disclosure spirit as this file's
+// hasAdjustments-gated explanatory paragraph below.
+function ReopenControl({
+  isSubmitting,
+  onReopen,
+}: {
+  isSubmitting: boolean;
+  onReopen: (note: string | null) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [note, setNote] = useState("");
+
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        className="self-start font-technical text-xs text-border underline hover:text-accent"
+      >
+        Edit this measurement
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded-md border border-border bg-surface p-3">
+      <label
+        htmlFor="reopen-note"
+        className="font-technical text-xs text-border"
+      >
+        This measurement was already validated — reopening it starts a new
+        review. Reason (optional):
+      </label>
+      <textarea
+        id="reopen-note"
+        value={note}
+        onChange={(event) => setNote(event.target.value)}
+        rows={2}
+        className="rounded border border-border bg-background px-2 py-1 font-technical text-sm"
+      />
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={isSubmitting}
+          onClick={() => {
+            onReopen(note.trim() ? note.trim() : null);
+            setExpanded(false);
+            setNote("");
+          }}
+          className="rounded-md bg-accent px-3 py-1.5 font-heading text-sm font-bold text-teal transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Confirm reopen
+        </button>
+        <button
+          type="button"
+          disabled={isSubmitting}
+          onClick={() => {
+            setExpanded(false);
+            setNote("");
+          }}
+          className="rounded-md border border-border px-3 py-1.5 font-heading text-sm font-bold text-foreground transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ValidationControls({
   validationStatus,
   validatedAt,
@@ -521,6 +605,7 @@ function ValidationControls({
   onValidateAdjusted,
   onAcceptMeasured,
   onResetAll,
+  onReopen,
 }: {
   validationStatus: ValidationStatus;
   validatedAt?: Date | string | null;
@@ -529,16 +614,22 @@ function ValidationControls({
   onValidateAdjusted: () => void;
   onAcceptMeasured: () => void;
   onResetAll: () => void;
+  onReopen: (note: string | null) => void;
 }) {
   if (validationStatus === "VALIDATED") {
     return (
-      <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface px-4 py-3">
-        <span className="font-heading font-bold text-accent">Validated ✓</span>
-        {validatedAt && (
-          <span className="font-technical text-xs text-border">
-            {new Date(validatedAt).toLocaleString()}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface px-4 py-3">
+          <span className="font-heading font-bold text-accent">
+            Validated ✓
           </span>
-        )}
+          {validatedAt && (
+            <span className="font-technical text-xs text-border">
+              {new Date(validatedAt).toLocaleString()}
+            </span>
+          )}
+        </div>
+        <ReopenControl isSubmitting={isSubmitting} onReopen={onReopen} />
       </div>
     );
   }
@@ -596,6 +687,7 @@ export function PostureEditor({
   validationStatus,
   validatedAt,
   onValidate,
+  onReopen,
 }: PostureEditorProps) {
   const rawKeypoints = useMemo(
     () => keypoints as unknown as PoseLandmarks,
@@ -612,24 +704,49 @@ export function PostureEditor({
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
-  // Set once onValidate resolves successfully — from then on this, not the
-  // (now stale) validationStatus/validatedAt/regionResults props, is the
-  // source of truth for display, until the parent re-renders with fresh
-  // props of its own (a page navigation/revalidation, which this local
-  // state then simply loses to since the props themselves will already
-  // agree with it).
-  const [validationResult, setValidationResult] = useState<{
-    regionResults: Record<BodyRegion, RegionResult>;
-    validatedAt: Date | string;
-  } | null>(null);
+  // Set once onValidate/onReopen resolves successfully — from then on this,
+  // not the (now stale) validationStatus/validatedAt/regionResults props,
+  // is the source of truth for display, until the parent re-renders with
+  // fresh props of its own (a page navigation/revalidation, which this
+  // local state then simply loses to since the props themselves will
+  // already agree with it). Tracks BOTH directions of the validationStatus
+  // state machine (validate and reopen), not just the validate-only shape
+  // this used to be — see handleValidate/handleReopen below.
+  const [statusOverride, setStatusOverride] = useState<
+    | {
+        direction: "validated";
+        regionResults: Record<BodyRegion, RegionResult>;
+        validatedAt: Date | string;
+      }
+    | { direction: "reopened"; regionResults: Record<BodyRegion, RegionResult> }
+    | null
+  >(null);
   const skeletonSize = useSkeletonDimensions();
 
-  const effectiveValidationStatus: ValidationStatus = validationResult
-    ? "VALIDATED"
-    : validationStatus;
-  const effectiveValidatedAt = validationResult?.validatedAt ?? validatedAt;
+  const effectiveValidationStatus: ValidationStatus =
+    statusOverride?.direction === "validated"
+      ? "VALIDATED"
+      : statusOverride?.direction === "reopened"
+        ? "PENDING_REVIEW"
+        : validationStatus;
+  const effectiveValidatedAt =
+    statusOverride?.direction === "validated"
+      ? statusOverride.validatedAt
+      : validatedAt;
   const effectiveRegionResults =
-    validationResult?.regionResults ?? regionResults;
+    statusOverride?.direction === "validated"
+      ? statusOverride.regionResults
+      : regionResults;
+  // The interactive (non-validated) branch's "Measured" baseline — reading
+  // straight from the `regionResults` prop would show the just-superseded
+  // VALIDATED posture's results for a moment after reopening, until a real
+  // page navigation refreshes it (see handleReopen's own comment); this
+  // swaps in the raw-capture regionResults reopenPostureSampleForEdit
+  // already returned instead.
+  const effectiveOriginalRegionResults =
+    statusOverride?.direction === "reopened"
+      ? statusOverride.regionResults
+      : regionResults;
   const isValidated = effectiveValidationStatus === "VALIDATED";
 
   // Fetches the active rule set once (GET /api/scoring-rules, the same
@@ -769,12 +886,61 @@ export function PostureEditor({
       );
       const result = await onValidate(payload);
       if (resetToOriginal) updateEditor(resetAll(editor));
-      setValidationResult(result);
+      setStatusOverride({
+        direction: "validated",
+        regionResults: result.regionResults,
+        validatedAt: result.validatedAt,
+      });
     } catch (err) {
       setValidationError(
         err instanceof Error
           ? err.message
           : "Could not validate this posture sample",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Reopens a VALIDATED sample and immediately rebuilds the editing session
+  // from the freshly-recomputed (raw-capture) regionResults onReopen
+  // returns — the same createPostureEditor + resumeFromValidatedKeypoints
+  // pipeline the mount effect runs, just re-run in place instead of waiting
+  // for a prop refresh. Without this, "Measured" would keep showing the
+  // just-superseded validated posture (this component's own originalAngles/
+  // originalBands, fixed at mount time) until a real page navigation caught
+  // up — acceptable for the accordion's collapsed summary elsewhere in this
+  // codebase, but not for the surface someone is about to actively re-edit.
+  // Resuming from rawValidatedKeypoints (the last validated pose, still
+  // present — reopenPostureSampleForEdit deliberately doesn't clear it)
+  // rather than starting the edit over from the raw capture.
+  const handleReopen = async (note: string | null) => {
+    setIsSubmitting(true);
+    setValidationError(null);
+    try {
+      const result = await onReopen(note);
+      let nextEditor = createPostureEditor(
+        rawKeypoints,
+        result.regionResults,
+        editor.rules,
+      );
+      if (rawValidatedKeypoints) {
+        nextEditor = resumeFromValidatedKeypoints(
+          nextEditor,
+          rawValidatedKeypoints,
+          editor.rules,
+        );
+      }
+      updateEditor(nextEditor);
+      setStatusOverride({
+        direction: "reopened",
+        regionResults: result.regionResults,
+      });
+    } catch (err) {
+      setValidationError(
+        err instanceof Error
+          ? err.message
+          : "Could not reopen this posture sample",
       );
     } finally {
       setIsSubmitting(false);
@@ -813,7 +979,7 @@ export function PostureEditor({
                     key={region}
                     idPrefix={postureSampleId}
                     region={region}
-                    originalResult={regionResults[region]}
+                    originalResult={effectiveOriginalRegionResults[region]}
                     delta={getRegionDelta(editor, region)}
                     onAngleCommit={(degrees) =>
                       handleAngleCommit(region, degrees)
@@ -850,6 +1016,7 @@ export function PostureEditor({
           }
           onAcceptMeasured={() => runValidation(editor.originalKeypoints, true)}
           onResetAll={handleResetAll}
+          onReopen={handleReopen}
         />
       </div>
     </div>

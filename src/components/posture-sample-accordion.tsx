@@ -114,6 +114,7 @@ export function PostureSampleAccordion({
   items,
   currentUserName,
   onValidate,
+  onReopen,
 }: {
   items: readonly PostureSampleAccordionItem[];
   /** The signed-in user's own name — used only for the LOCAL "just validated" override below, so the collapsed badge can correctly say "by <you>" immediately, before the next server round-trip re-resolves it from the DB. */
@@ -125,21 +126,36 @@ export function PostureSampleAccordion({
     regionResults: Record<BodyRegion, RegionResult>;
     validatedAt: Date | string;
   }>;
+  onReopen: (
+    postureSampleId: string,
+    note: string | null,
+  ) => Promise<{
+    regionResults: Record<BodyRegion, RegionResult>;
+  }>;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(
     items[0]?.id ?? null,
   );
 
-  // PostureEditor already updates ITS OWN display the instant onValidate
-  // resolves (see that component's own validationResult state) — but this
-  // accordion's COLLAPSED summary is built from server-passed props, which
-  // won't reflect a just-completed validation until the next page
-  // navigation/revalidation. Without this, collapsing a sample right after
-  // validating it would show a stale "Pending review" badge. Keyed by
-  // sample id so multiple samples validated in one session (unlikely, but
-  // not prevented) each get their own override.
-  const [validatedOverrides, setValidatedOverrides] = useState<
-    Record<string, { validatedAt: Date | string; worstBand: RiskBand | null }>
+  // PostureEditor already updates ITS OWN display the instant onValidate/
+  // onReopen resolves (see that component's own statusOverride state) —
+  // but this accordion's COLLAPSED summary is built from server-passed
+  // props, which won't reflect a just-completed validate/reopen until the
+  // next page navigation/revalidation. Without this, collapsing a sample
+  // right after acting on it would show a stale badge. Keyed by sample id
+  // so multiple samples acted on in one session each get their own
+  // override; one map for both directions since a sample only ever has one
+  // current override at a time.
+  const [overrides, setOverrides] = useState<
+    Record<
+      string,
+      | {
+          status: "VALIDATED";
+          validatedAt: Date | string;
+          worstBand: RiskBand | null;
+        }
+      | { status: "PENDING_REVIEW"; worstBand: RiskBand | null }
+    >
   >({});
 
   const handleValidate = async (
@@ -148,9 +164,23 @@ export function PostureSampleAccordion({
   ) => {
     const result = await onValidate(postureSampleId, validatedKeypoints);
     const worstBand = worstBandFromRegions(result.regionResults);
-    setValidatedOverrides((prev) => ({
+    setOverrides((prev) => ({
       ...prev,
-      [postureSampleId]: { validatedAt: result.validatedAt, worstBand },
+      [postureSampleId]: {
+        status: "VALIDATED",
+        validatedAt: result.validatedAt,
+        worstBand,
+      },
+    }));
+    return result;
+  };
+
+  const handleReopen = async (postureSampleId: string, note: string | null) => {
+    const result = await onReopen(postureSampleId, note);
+    const worstBand = worstBandFromRegions(result.regionResults);
+    setOverrides((prev) => ({
+      ...prev,
+      [postureSampleId]: { status: "PENDING_REVIEW", worstBand },
     }));
     return result;
   };
@@ -159,15 +189,18 @@ export function PostureSampleAccordion({
     <div className="flex flex-col gap-3">
       {items.map((item) => {
         const isExpanded = item.id === expandedId;
-        const override = validatedOverrides[item.id];
-        const validationStatus: ValidationStatus = override
-          ? "VALIDATED"
-          : item.validationStatus;
-        const validatedAt = override?.validatedAt ?? item.validatedAt;
-        const validatedByName = override
-          ? currentUserName
-          : item.validatedByName;
-        const worstBand = override?.worstBand ?? item.worstBand;
+        const override = overrides[item.id];
+        const validationStatus: ValidationStatus =
+          override?.status ?? item.validationStatus;
+        const validatedAt =
+          override?.status === "VALIDATED"
+            ? override.validatedAt
+            : item.validatedAt;
+        const validatedByName =
+          override?.status === "VALIDATED"
+            ? currentUserName
+            : item.validatedByName;
+        const worstBand = override ? override.worstBand : item.worstBand;
 
         return (
           <div
@@ -216,6 +249,7 @@ export function PostureSampleAccordion({
                     onValidate={(validatedKeypoints) =>
                       handleValidate(item.id, validatedKeypoints)
                     }
+                    onReopen={(note) => handleReopen(item.id, note)}
                   />
                 )}
               </div>
