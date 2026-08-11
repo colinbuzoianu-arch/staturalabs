@@ -874,8 +874,19 @@ export function landmarksTo3DPositions(
 // stay free of anything React/DOM. Only the 8 BodyRegion values
 // angles.ts's ComputedBodyRegion actually produces a reading for have
 // bones listed — every other BodyRegion has no formula and therefore
-// nothing to color-code (same "only what's scored" scope as
-// skeleton-viewer.tsx's own comment on this exact table).
+// nothing of its OWN to color-code (same "only what's scored" scope as
+// skeleton-viewer.tsx's own comment on this exact table) — EXCEPT that
+// ELBOW_LEFT/RIGHT's own bone was always [elbow, wrist], i.e. the forearm
+// segment, and KNEE_LEFT/RIGHT's now includes [knee, ankle], i.e. the
+// shin: the joint that's actually scored (elbow flexion, knee flexion)
+// visually "owns" the segment leading away from it toward the next,
+// unscored joint (wrist, ankle) — the same convention SHOULDER_LEFT/RIGHT
+// already established for the upper arm. FOREARM_LEFT/RIGHT itself
+// deliberately has no entry here: it isn't a second, independent region
+// to color — it's the exact bone ELBOW_LEFT/RIGHT already colors, under a
+// different anatomical name. Giving FOREARM its own (always-empty, since
+// it has no ScoringRule) entry would just mean the same pixels have two
+// competing region owners.
 // ---------------------------------------------------------------------
 export const BODY_REGION_BONES: Partial<
   Record<BodyRegion, ReadonlyArray<readonly [number, number]>>
@@ -894,13 +905,24 @@ export const BODY_REGION_BONES: Partial<
   ],
   SHOULDER_LEFT: [[LANDMARK_INDEX.LEFT_SHOULDER, LANDMARK_INDEX.LEFT_ELBOW]],
   SHOULDER_RIGHT: [[LANDMARK_INDEX.RIGHT_SHOULDER, LANDMARK_INDEX.RIGHT_ELBOW]],
+  // The forearm segment — see this table's own top comment for why
+  // FOREARM_LEFT/RIGHT has no entry of its own.
   ELBOW_LEFT: [[LANDMARK_INDEX.LEFT_ELBOW, LANDMARK_INDEX.LEFT_WRIST]],
   ELBOW_RIGHT: [[LANDMARK_INDEX.RIGHT_ELBOW, LANDMARK_INDEX.RIGHT_WRIST]],
-  // The upper leg (hip->knee), not the lower leg — knee posture affects
-  // the upper-leg segment's orientation, same convention
-  // skeleton-viewer.tsx's BONE_REGIONS uses for this region.
-  KNEE_LEFT: [[LANDMARK_INDEX.LEFT_HIP, LANDMARK_INDEX.LEFT_KNEE]],
-  KNEE_RIGHT: [[LANDMARK_INDEX.RIGHT_HIP, LANDMARK_INDEX.RIGHT_KNEE]],
+  // The upper leg (hip->knee) — knee posture affects the upper-leg
+  // segment's orientation, same convention skeleton-viewer.tsx's
+  // BONE_REGIONS uses for this region — AND the shin (knee->ankle), same
+  // "owns the segment leading toward the next unscored joint" convention
+  // as ELBOW's forearm above. ANKLE_LEFT/RIGHT has no entry of its own
+  // for the same reason FOREARM doesn't.
+  KNEE_LEFT: [
+    [LANDMARK_INDEX.LEFT_HIP, LANDMARK_INDEX.LEFT_KNEE],
+    [LANDMARK_INDEX.LEFT_KNEE, LANDMARK_INDEX.LEFT_ANKLE],
+  ],
+  KNEE_RIGHT: [
+    [LANDMARK_INDEX.RIGHT_HIP, LANDMARK_INDEX.RIGHT_KNEE],
+    [LANDMARK_INDEX.RIGHT_KNEE, LANDMARK_INDEX.RIGHT_ANKLE],
+  ],
 };
 
 // ---------------------------------------------------------------------
@@ -942,6 +964,101 @@ export const JOINT_REGIONS: Readonly<Record<number, BodyRegion>> = {
   [LANDMARK_INDEX.RIGHT_KNEE]: "KNEE_RIGHT",
   [LANDMARK_INDEX.NOSE]: "NECK",
   [VIRTUAL_CHEST_LANDMARK_INDEX]: "TRUNK",
+};
+
+// One past VIRTUAL_CHEST_LANDMARK_INDEX — a second synthetic handle, same
+// reasoning: HIP is one BodyRegion covering both real hip landmarks
+// bilaterally (like TRUNK/NECK), so there's no single real landmark to
+// hang a drag handle on without colliding with something else. Unlike
+// TRUNK, dragging this handle is never an angle edit (see the
+// "position-only regions" section below) — it directly translates both
+// real hip landmarks by the same delta, keeping hip width constant.
+export const VIRTUAL_HIP_LANDMARK_INDEX = 34;
+
+export function getVirtualHipPosition(
+  positions: readonly THREE.Vector3[],
+): THREE.Vector3 {
+  return positions[LANDMARK_INDEX.LEFT_HIP]
+    .clone()
+    .add(positions[LANDMARK_INDEX.RIGHT_HIP])
+    .multiplyScalar(0.5);
+}
+
+// ---------------------------------------------------------------------
+// Position-only draggable regions. WRIST_LEFT/RIGHT, ANKLE_LEFT/RIGHT,
+// and HIP have no independent scoring formula and never will without a
+// real capability change:
+//   - WRIST: needs MediaPipe's Hand Landmarker (a different model this
+//     app doesn't run), not just a formula — see angles.ts's own "Known
+//     limitations".
+//   - ANKLE: a genuinely separate ankle measurement (dorsiflexion) is the
+//     same category of gap as forearm pronation below — a rotation this
+//     single 2D camera structurally can't observe.
+//   - FOREARM (not listed here — see BODY_REGION_BONES' own comment on
+//     why it needs no entry of its own at all): its only real ergonomic
+//     measurement distinct from ELBOW_LEFT/RIGHT is pronation/supination
+//     — a rotation around the forearm's own long axis, unmeasurable from
+//     one 2D camera.
+//   - HIP: the only three landmarks available for a hip-vertex angle are
+//     shoulder-hip-knee — TRUNK's own triangle. Any convention applied to
+//     those same three points is either identical to TRUNK or a fixed
+//     180-minus-TRUNK — not independent information, just TRUNK renamed.
+//
+// Rather than leave these permanently "not yet supported," each still
+// becomes a real, draggable part of the skeleton — deliberately no more
+// granular than "this body part has a position relative to the rest of
+// the body": no per-finger/per-toe tracking, no invented angle standing
+// in for a rotation this camera can't see. Dragging one directly
+// repositions it (and, for wrist/ankle, the small decorative cluster
+// POSE_CONNECTIONS already draws hanging off it — see
+// POSITION_ONLY_CLUSTER below) rather than computing an angle;
+// posture-editor.ts's applyPositionDrag is the only consumer.
+// ---------------------------------------------------------------------
+export const POSITION_ONLY_REGIONS: Readonly<Record<number, BodyRegion>> = {
+  [LANDMARK_INDEX.LEFT_WRIST]: "WRIST_LEFT",
+  [LANDMARK_INDEX.RIGHT_WRIST]: "WRIST_RIGHT",
+  [LANDMARK_INDEX.LEFT_ANKLE]: "ANKLE_LEFT",
+  [LANDMARK_INDEX.RIGHT_ANKLE]: "ANKLE_RIGHT",
+  [VIRTUAL_HIP_LANDMARK_INDEX]: "HIP",
+};
+
+// For each position-only joint, the real landmark indices that translate
+// together with it by the same delta when dragged — "the whole hand"
+// (wrist plus the three hand-detail landmarks POSE_CONNECTIONS draws off
+// it) moves as one rigid unit, not individually articulated fingers;
+// likewise "the whole foot" (ankle plus heel plus toe). The dragged joint
+// itself is always included (a no-op inclusion for wrist/ankle, which are
+// real landmarks; load-bearing for the virtual hip handle, which isn't a
+// real landmark at all — both actual hips ARE the cluster).
+export const POSITION_ONLY_CLUSTER: Readonly<
+  Record<number, readonly number[]>
+> = {
+  [LANDMARK_INDEX.LEFT_WRIST]: [
+    LANDMARK_INDEX.LEFT_WRIST,
+    LANDMARK_INDEX.LEFT_PINKY,
+    LANDMARK_INDEX.LEFT_INDEX,
+    LANDMARK_INDEX.LEFT_THUMB,
+  ],
+  [LANDMARK_INDEX.RIGHT_WRIST]: [
+    LANDMARK_INDEX.RIGHT_WRIST,
+    LANDMARK_INDEX.RIGHT_PINKY,
+    LANDMARK_INDEX.RIGHT_INDEX,
+    LANDMARK_INDEX.RIGHT_THUMB,
+  ],
+  [LANDMARK_INDEX.LEFT_ANKLE]: [
+    LANDMARK_INDEX.LEFT_ANKLE,
+    LANDMARK_INDEX.LEFT_HEEL,
+    LANDMARK_INDEX.LEFT_FOOT_INDEX,
+  ],
+  [LANDMARK_INDEX.RIGHT_ANKLE]: [
+    LANDMARK_INDEX.RIGHT_ANKLE,
+    LANDMARK_INDEX.RIGHT_HEEL,
+    LANDMARK_INDEX.RIGHT_FOOT_INDEX,
+  ],
+  [VIRTUAL_HIP_LANDMARK_INDEX]: [
+    LANDMARK_INDEX.LEFT_HIP,
+    LANDMARK_INDEX.RIGHT_HIP,
+  ],
 };
 
 // ---------------------------------------------------------------------

@@ -4,13 +4,18 @@ import type { RegionResult } from "@/lib/capture/types";
 import { LANDMARK_INDEX, type PoseLandmark } from "./angles";
 import {
   applyJointDrag,
+  applyPositionDrag,
   createPostureEditor,
   getRegionDelta,
   resetAll,
   resetRegion,
   type ScoringRuleRow,
 } from "./posture-editor";
-import { VIRTUAL_CHEST_LANDMARK_INDEX } from "./skeleton";
+import {
+  LANDMARK_INDEX as FULL_LANDMARK_INDEX,
+  VIRTUAL_CHEST_LANDMARK_INDEX,
+  VIRTUAL_HIP_LANDMARK_INDEX,
+} from "./skeleton";
 
 // A "standing, arms at sides, facing right" neutral pose where every one
 // of the 8 computable regions reads ~0° — same shape as
@@ -406,5 +411,235 @@ describe("getRegionDelta", () => {
       currentBand: null,
       isAdjusted: false,
     });
+  });
+});
+
+describe("applyPositionDrag", () => {
+  it("zero movement leaves the state unchanged", () => {
+    const { state } = setup();
+    const wristIndex = LANDMARK_INDEX.LEFT_WRIST;
+    const current = state.currentKeypoints[wristIndex];
+    const next = applyPositionDrag(state, wristIndex, {
+      x: current.x,
+      y: current.y,
+    });
+    expect(next).toBe(state);
+  });
+
+  it("dragging a wrist translates its whole cluster (wrist + pinky/index/thumb) by the same delta and marks only WRIST_LEFT adjusted", () => {
+    const { state } = setup();
+    const wristIndex = LANDMARK_INDEX.LEFT_WRIST;
+    const before = state.currentKeypoints[wristIndex];
+    const target = { x: before.x + 0.1, y: before.y - 0.05 };
+
+    const next = applyPositionDrag(state, wristIndex, target);
+
+    expect(next).not.toBe(state);
+    expect(next.adjustedRegions.has("WRIST_LEFT")).toBe(true);
+    expect(next.positionAdjustments.get("WRIST_LEFT")).toEqual(target);
+
+    for (const memberIndex of [
+      LANDMARK_INDEX.LEFT_WRIST,
+      FULL_LANDMARK_INDEX.LEFT_PINKY,
+      FULL_LANDMARK_INDEX.LEFT_INDEX,
+      FULL_LANDMARK_INDEX.LEFT_THUMB,
+    ]) {
+      expect(next.currentKeypoints[memberIndex].x).toBeCloseTo(
+        state.currentKeypoints[memberIndex].x + 0.1,
+        10,
+      );
+      expect(next.currentKeypoints[memberIndex].y).toBeCloseTo(
+        state.currentKeypoints[memberIndex].y - 0.05,
+        10,
+      );
+    }
+
+    // ELBOW_LEFT's own formula reads the wrist directly (shoulder, elbow,
+    // wrist), so moving the wrist DOES change what ELBOW_LEFT currently
+    // reads — real, not a bug. SHOULDER_LEFT's formula (hip, shoulder,
+    // elbow) has no wrist in it at all, so it's a genuinely unaffected
+    // region to assert against.
+    expect(next.currentAngles.get("SHOULDER_LEFT")).toBeCloseTo(0, 5);
+    expect(next.adjustedRegions.has("SHOULDER_LEFT")).toBe(false);
+    expect(next.adjustedRegions.has("ELBOW_LEFT")).toBe(false);
+  });
+
+  it("has no angle/band data of its own — getRegionDelta reports nulls even after a drag, but isAdjusted is true", () => {
+    const { state } = setup();
+    const wristIndex = LANDMARK_INDEX.LEFT_WRIST;
+    const before = state.currentKeypoints[wristIndex];
+    const next = applyPositionDrag(state, wristIndex, {
+      x: before.x + 0.1,
+      y: before.y,
+    });
+    const delta = getRegionDelta(next, "WRIST_LEFT");
+    expect(delta.originalAngle).toBeNull();
+    expect(delta.currentAngle).toBeNull();
+    expect(delta.originalBand).toBeNull();
+    expect(delta.currentBand).toBeNull();
+    expect(delta.isAdjusted).toBe(true);
+  });
+
+  it("dragging the virtual hip handle moves both real hip landmarks and can change TRUNK/SHOULDER/KNEE, which read the hip's current position directly — this is correct, not a bug", () => {
+    const { state } = setup();
+    const leftHipBefore = state.currentKeypoints[LANDMARK_INDEX.LEFT_HIP];
+    const rightHipBefore = state.currentKeypoints[LANDMARK_INDEX.RIGHT_HIP];
+    const hipMidBefore = {
+      x: (leftHipBefore.x + rightHipBefore.x) / 2,
+      y: (leftHipBefore.y + rightHipBefore.y) / 2,
+    };
+    const target = { x: hipMidBefore.x + 0.1, y: hipMidBefore.y };
+
+    const next = applyPositionDrag(state, VIRTUAL_HIP_LANDMARK_INDEX, target);
+
+    expect(next.adjustedRegions.has("HIP")).toBe(true);
+    expect(next.currentKeypoints[LANDMARK_INDEX.LEFT_HIP].x).toBeCloseTo(
+      leftHipBefore.x + 0.1,
+      10,
+    );
+    expect(next.currentKeypoints[LANDMARK_INDEX.RIGHT_HIP].x).toBeCloseTo(
+      rightHipBefore.x + 0.1,
+      10,
+    );
+    // Hip width (distance between the two real hip landmarks) is preserved
+    // — both moved by the identical delta.
+    const widthBefore = Math.hypot(
+      rightHipBefore.x - leftHipBefore.x,
+      rightHipBefore.y - leftHipBefore.y,
+    );
+    const widthAfter = Math.hypot(
+      next.currentKeypoints[LANDMARK_INDEX.RIGHT_HIP].x -
+        next.currentKeypoints[LANDMARK_INDEX.LEFT_HIP].x,
+      next.currentKeypoints[LANDMARK_INDEX.RIGHT_HIP].y -
+        next.currentKeypoints[LANDMARK_INDEX.LEFT_HIP].y,
+    );
+    expect(widthAfter).toBeCloseTo(widthBefore, 10);
+
+    // TRUNK reads the hip directly (shoulder-hip-knee) — moving the hip
+    // sideways while shoulder/knee stay put changes it from the neutral 0°.
+    expect(next.currentAngles.get("TRUNK")).not.toBeCloseTo(0, 1);
+    // The hip move itself is not what gets recorded as a TRUNK adjustment —
+    // only the region the user actually dragged is.
+    expect(next.adjustedRegions.has("TRUNK")).toBe(false);
+  });
+
+  it("throws for a landmark index that isn't a position-only joint", () => {
+    const { state } = setup();
+    expect(() =>
+      applyPositionDrag(state, LANDMARK_INDEX.LEFT_ELBOW, { x: 0.6, y: 0.4 }),
+    ).toThrow(/does not control any position-only BodyRegion/);
+  });
+});
+
+describe("resetRegion / resetAll with position-only regions", () => {
+  it("resetRegion undoes just the position-only adjustment, leaving an angle adjustment on a different (kinematically unrelated) region intact", () => {
+    const { state } = setup();
+    const wristIndex = LANDMARK_INDEX.LEFT_WRIST;
+    const wristBefore = state.currentKeypoints[wristIndex];
+
+    // RIGHT_KNEE's own formula (rightHip, rightKnee, rightAnkle) and its FK
+    // cascade (the right leg only) share no landmark with the left wrist —
+    // unlike ELBOW_LEFT, whose own formula reads the wrist directly, this
+    // pairing has no cross-talk in either direction, so the two adjustments
+    // below can be asserted independently without the wrist's own move
+    // perturbing what "the surviving angle adjustment" even means.
+    const afterKnee = applyJointDrag(state, LANDMARK_INDEX.RIGHT_KNEE, {
+      x: 0.65,
+      y: 0.8,
+    });
+    const afterBoth = applyPositionDrag(afterKnee, wristIndex, {
+      x: wristBefore.x + 0.1,
+      y: wristBefore.y,
+    });
+    expect(afterBoth.adjustedRegions.has("KNEE_RIGHT")).toBe(true);
+    expect(afterBoth.adjustedRegions.has("WRIST_LEFT")).toBe(true);
+    const kneeAngleBeforeReset = afterBoth.currentAngles.get("KNEE_RIGHT");
+
+    const reset = resetRegion(afterBoth, "WRIST_LEFT");
+    expect(reset.adjustedRegions.has("WRIST_LEFT")).toBe(false);
+    expect(reset.positionAdjustments.has("WRIST_LEFT")).toBe(false);
+    expect(reset.currentKeypoints[wristIndex].x).toBeCloseTo(
+      state.originalKeypoints[wristIndex].x,
+      10,
+    );
+    expect(reset.currentKeypoints[wristIndex].y).toBeCloseTo(
+      state.originalKeypoints[wristIndex].y,
+      10,
+    );
+
+    // The knee adjustment survives, unchanged.
+    expect(reset.adjustedRegions.has("KNEE_RIGHT")).toBe(true);
+    expect(reset.currentAngles.get("KNEE_RIGHT")).toBeCloseTo(
+      kneeAngleBeforeReset as number,
+      5,
+    );
+  });
+
+  it("resetting an angle region while a position-only region stays moved leaves the moved joint exactly where the reviewer put it, not wherever the reverted rotation would have carried it", () => {
+    const { state } = setup();
+    const wristIndex = LANDMARK_INDEX.LEFT_WRIST;
+
+    // Move the trunk first (rotates the whole upper body, including the
+    // wrist, around the hip), THEN manually reposition the wrist to an
+    // explicit absolute target.
+    const afterTrunk = applyJointDrag(
+      state,
+      VIRTUAL_CHEST_LANDMARK_INDEX,
+      CHEST_DRAG_45,
+    );
+    const explicitWristTarget = { x: 0.9, y: 0.9 };
+    const afterWrist = applyPositionDrag(
+      afterTrunk,
+      wristIndex,
+      explicitWristTarget,
+    );
+    expect(afterWrist.currentKeypoints[wristIndex].x).toBeCloseTo(
+      explicitWristTarget.x,
+      10,
+    );
+
+    // Now reset TRUNK — the wrist should stay exactly at the reviewer's
+    // explicit target, not snap to wherever the un-rotated FK chain would
+    // have put it.
+    const reset = resetRegion(afterWrist, "TRUNK");
+    expect(reset.adjustedRegions.has("TRUNK")).toBe(false);
+    expect(reset.adjustedRegions.has("WRIST_LEFT")).toBe(true);
+    expect(reset.currentKeypoints[wristIndex].x).toBeCloseTo(
+      explicitWristTarget.x,
+      10,
+    );
+    expect(reset.currentKeypoints[wristIndex].y).toBeCloseTo(
+      explicitWristTarget.y,
+      10,
+    );
+  });
+
+  it("resetAll clears position-only adjustments along with angle adjustments", () => {
+    const { state } = setup();
+    const wristIndex = LANDMARK_INDEX.LEFT_WRIST;
+    const wristBefore = state.currentKeypoints[wristIndex];
+
+    const afterElbow = applyJointDrag(
+      state,
+      LANDMARK_INDEX.LEFT_ELBOW,
+      ELBOW_DRAG_90,
+    );
+    const afterBoth = applyPositionDrag(afterElbow, wristIndex, {
+      x: wristBefore.x + 0.1,
+      y: wristBefore.y + 0.1,
+    });
+    expect(afterBoth.adjustedRegions.size).toBe(2);
+
+    const reset = resetAll(afterBoth);
+    expect(reset.adjustedRegions.size).toBe(0);
+    expect(reset.positionAdjustments.size).toBe(0);
+    expect(reset.currentKeypoints[wristIndex].x).toBeCloseTo(
+      state.originalKeypoints[wristIndex].x,
+      10,
+    );
+    expect(reset.currentKeypoints[wristIndex].y).toBeCloseTo(
+      state.originalKeypoints[wristIndex].y,
+      10,
+    );
   });
 });

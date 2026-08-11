@@ -214,18 +214,30 @@ export const MIN_LANDMARK_VISIBILITY = 0.5;
 // ScoringRule yet, so this deliberately does not compute them rather than
 // guess a joint triple with nothing to validate it against.
 //
-// Pure function: no camera, capture, or persistence concerns. Angles are
-// computed directly from the landmarks array and cameraAngle passed in.
-export function computeBodyAngles(
+// Pure per-region geometry — NO gates at all (no camera-angle check, no
+// visibility check). Exported so drag-to-angle.ts's manual-review pathway
+// (which deliberately bypasses computeBodyAngles' camera-angle gate
+// already — see that module's own compliance note — and, as of this
+// function existing, its visibility gate too) can compute a region's
+// current angle directly, without needing computeBodyAngles' own gates to
+// have already passed for it. computeBodyAngles below calls this too, once
+// ITS gates decide the result should be reported — so there is exactly one
+// implementation of each formula, never two copies that could drift; this
+// function's own behavior is byte-for-byte what computeBodyAngles already
+// computed inline before this extraction (see angles.test.ts, unchanged).
+//
+// Can throw for NECK's genuine facing-direction degeneracy
+// (signedNeckFlexion's own throw) — a real data anomaly, not something
+// either gate is meant to catch, and already true of computeBodyAngles
+// before this extraction (it just couldn't happen for a region the
+// visibility gate had already rejected, since compute() was never called;
+// a caller invoking this function directly for NECK specifically should
+// still expect that same throw).
+export function computeRawBodyAngle(
+  region: ComputedBodyRegion,
   landmarks: PoseLandmarks,
-  cameraAngle: CameraAngle,
-): BodyAngles {
-  // Returns the full PoseLandmark (visibility included), not just Point2D —
-  // the geometry helpers above only read x/y so this is still a drop-in
-  // Point2D wherever they're called, but the visibility gate below needs
-  // the field they'd otherwise erase.
+): number {
   const at = (index: number): PoseLandmark => landmarks[index];
-
   const nose = at(LANDMARK_INDEX.NOSE);
   const leftEar = at(LANDMARK_INDEX.LEFT_EAR);
   const rightEar = at(LANDMARK_INDEX.RIGHT_EAR);
@@ -241,6 +253,85 @@ export function computeBodyAngles(
   const rightKnee = at(LANDMARK_INDEX.RIGHT_KNEE);
   const leftAnkle = at(LANDMARK_INDEX.LEFT_ANKLE);
   const rightAnkle = at(LANDMARK_INDEX.RIGHT_ANKLE);
+
+  switch (region) {
+    // TRUNK: 180 - average(angle(shoulder, hip, knee)) — vertex at the hip.
+    case BodyRegion.TRUNK:
+      return flexionFrom180(
+        (includedAngle(leftShoulder, leftHip, leftKnee) +
+          includedAngle(rightShoulder, rightHip, rightKnee)) /
+          2,
+      );
+
+    // NECK: 180 - average(angle(ear, shoulder, hip)) — vertex at the
+    // shoulder — then signed per signedNeckFlexion above.
+    case BodyRegion.NECK: {
+      const neckIncludedAvg =
+        (includedAngle(leftEar, leftShoulder, leftHip) +
+          includedAngle(rightEar, rightShoulder, rightHip)) /
+        2;
+      return signedNeckFlexion(flexionFrom180(neckIncludedAvg), {
+        nose,
+        leftShoulder,
+        rightShoulder,
+        leftEar,
+        rightEar,
+        leftHip,
+        rightHip,
+      });
+    }
+
+    // SHOULDER_LEFT/RIGHT: angle(hip, shoulder, elbow) — vertex at the
+    // shoulder — already 0° at neutral (arm at side), no 180-minus.
+    case BodyRegion.SHOULDER_LEFT:
+      return includedAngle(leftHip, leftShoulder, leftElbow);
+    case BodyRegion.SHOULDER_RIGHT:
+      return includedAngle(rightHip, rightShoulder, rightElbow);
+
+    // ELBOW_LEFT/RIGHT: 180 - angle(shoulder, elbow, wrist) — vertex at
+    // the elbow.
+    case BodyRegion.ELBOW_LEFT:
+      return flexionFrom180(includedAngle(leftShoulder, leftElbow, leftWrist));
+    case BodyRegion.ELBOW_RIGHT:
+      return flexionFrom180(
+        includedAngle(rightShoulder, rightElbow, rightWrist),
+      );
+
+    // KNEE_LEFT/RIGHT: 180 - angle(hip, knee, ankle) — vertex at the knee.
+    case BodyRegion.KNEE_LEFT:
+      return flexionFrom180(includedAngle(leftHip, leftKnee, leftAnkle));
+    case BodyRegion.KNEE_RIGHT:
+      return flexionFrom180(includedAngle(rightHip, rightKnee, rightAnkle));
+  }
+}
+
+// Pure function: no camera, capture, or persistence concerns. Angles are
+// computed directly from the landmarks array and cameraAngle passed in.
+export function computeBodyAngles(
+  landmarks: PoseLandmarks,
+  cameraAngle: CameraAngle,
+): BodyAngles {
+  // Returns the full PoseLandmark (visibility included), not just Point2D —
+  // the geometry helpers above only read x/y so this is still a drop-in
+  // Point2D wherever they're called, but the visibility gate below needs
+  // the field they'd otherwise erase.
+  const at = (index: number): PoseLandmark => landmarks[index];
+
+  const leftShoulder = at(LANDMARK_INDEX.LEFT_SHOULDER);
+  const rightShoulder = at(LANDMARK_INDEX.RIGHT_SHOULDER);
+  const leftElbow = at(LANDMARK_INDEX.LEFT_ELBOW);
+  const rightElbow = at(LANDMARK_INDEX.RIGHT_ELBOW);
+  const leftHip = at(LANDMARK_INDEX.LEFT_HIP);
+  const rightHip = at(LANDMARK_INDEX.RIGHT_HIP);
+  const leftKnee = at(LANDMARK_INDEX.LEFT_KNEE);
+  const rightKnee = at(LANDMARK_INDEX.RIGHT_KNEE);
+  const leftAnkle = at(LANDMARK_INDEX.LEFT_ANKLE);
+  const rightAnkle = at(LANDMARK_INDEX.RIGHT_ANKLE);
+  const nose = at(LANDMARK_INDEX.NOSE);
+  const leftEar = at(LANDMARK_INDEX.LEFT_EAR);
+  const rightEar = at(LANDMARK_INDEX.RIGHT_EAR);
+  const leftWrist = at(LANDMARK_INDEX.LEFT_WRIST);
+  const rightWrist = at(LANDMARK_INDEX.RIGHT_WRIST);
 
   // Which named landmarks each region's formula actually reads — matches
   // the geometry below exactly, not the general "8 regions" list. TRUNK and
@@ -307,10 +398,7 @@ export function computeBodyAngles(
   // has already rejected the region. Visibility rejects the *whole* region
   // if *any* required landmark fails — no partial/best-effort reading off
   // the landmarks that did pass.
-  const reading = (
-    region: ComputedBodyRegion,
-    compute: () => number,
-  ): BodyAngleReading => {
+  const reading = (region: ComputedBodyRegion): BodyAngleReading => {
     const required = REQUIRED_CAMERA_ANGLE[region];
     if (required && !required.includes(cameraAngle)) {
       return {
@@ -333,62 +421,24 @@ export function computeBodyAngles(
       return { ok: false, reason: "INSUFFICIENT_VISIBILITY", failedLandmarks };
     }
 
-    return { ok: true, degrees: compute() };
+    // computeRawBodyAngle is only ever invoked here once both gates above
+    // have already passed for `region` — same lazy-evaluation contract the
+    // inline compute() closures this replaced always had (NECK's throw
+    // path is still only reachable for a region visibility didn't already
+    // reject).
+    return { ok: true, degrees: computeRawBodyAngle(region, landmarks) };
   };
 
   return {
-    // TRUNK: 180 - average(angle(shoulder, hip, knee)) — vertex at the hip.
-    [BodyRegion.TRUNK]: reading(BodyRegion.TRUNK, () =>
-      flexionFrom180(
-        (includedAngle(leftShoulder, leftHip, leftKnee) +
-          includedAngle(rightShoulder, rightHip, rightKnee)) /
-          2,
-      ),
-    ),
-
-    // NECK: 180 - average(angle(ear, shoulder, hip)) — vertex at the
-    // shoulder — then signed per signedNeckFlexion above.
-    [BodyRegion.NECK]: reading(BodyRegion.NECK, () => {
-      const neckIncludedAvg =
-        (includedAngle(leftEar, leftShoulder, leftHip) +
-          includedAngle(rightEar, rightShoulder, rightHip)) /
-        2;
-      return signedNeckFlexion(flexionFrom180(neckIncludedAvg), {
-        nose,
-        leftShoulder,
-        rightShoulder,
-        leftEar,
-        rightEar,
-        leftHip,
-        rightHip,
-      });
-    }),
-
-    // SHOULDER_LEFT/RIGHT: angle(hip, shoulder, elbow) — vertex at the
-    // shoulder — already 0° at neutral (arm at side), no 180-minus. Not
-    // camera-angle-gated — see the REQUIRED_CAMERA_ANGLE comment for why.
-    [BodyRegion.SHOULDER_LEFT]: reading(BodyRegion.SHOULDER_LEFT, () =>
-      includedAngle(leftHip, leftShoulder, leftElbow),
-    ),
-    [BodyRegion.SHOULDER_RIGHT]: reading(BodyRegion.SHOULDER_RIGHT, () =>
-      includedAngle(rightHip, rightShoulder, rightElbow),
-    ),
-
-    // ELBOW_LEFT/RIGHT: 180 - angle(shoulder, elbow, wrist) — vertex at the
-    // elbow. Gated to SAGITTAL, same as TRUNK/NECK/KNEE.
-    [BodyRegion.ELBOW_LEFT]: reading(BodyRegion.ELBOW_LEFT, () =>
-      flexionFrom180(includedAngle(leftShoulder, leftElbow, leftWrist)),
-    ),
-    [BodyRegion.ELBOW_RIGHT]: reading(BodyRegion.ELBOW_RIGHT, () =>
-      flexionFrom180(includedAngle(rightShoulder, rightElbow, rightWrist)),
-    ),
-
-    // KNEE_LEFT/RIGHT: 180 - angle(hip, knee, ankle) — vertex at the knee.
-    [BodyRegion.KNEE_LEFT]: reading(BodyRegion.KNEE_LEFT, () =>
-      flexionFrom180(includedAngle(leftHip, leftKnee, leftAnkle)),
-    ),
-    [BodyRegion.KNEE_RIGHT]: reading(BodyRegion.KNEE_RIGHT, () =>
-      flexionFrom180(includedAngle(rightHip, rightKnee, rightAnkle)),
-    ),
+    [BodyRegion.TRUNK]: reading(BodyRegion.TRUNK),
+    [BodyRegion.NECK]: reading(BodyRegion.NECK),
+    // Not camera-angle-gated — see the REQUIRED_CAMERA_ANGLE comment for
+    // why SHOULDER_LEFT/RIGHT have no entry there.
+    [BodyRegion.SHOULDER_LEFT]: reading(BodyRegion.SHOULDER_LEFT),
+    [BodyRegion.SHOULDER_RIGHT]: reading(BodyRegion.SHOULDER_RIGHT),
+    [BodyRegion.ELBOW_LEFT]: reading(BodyRegion.ELBOW_LEFT),
+    [BodyRegion.ELBOW_RIGHT]: reading(BodyRegion.ELBOW_RIGHT),
+    [BodyRegion.KNEE_LEFT]: reading(BodyRegion.KNEE_LEFT),
+    [BodyRegion.KNEE_RIGHT]: reading(BodyRegion.KNEE_RIGHT),
   };
 }

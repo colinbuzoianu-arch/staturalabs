@@ -73,16 +73,40 @@ describe("computeAllAngles", () => {
     expect(ungated.get("TRUNK")).toBeCloseTo(0, 5);
   });
 
-  it("still omits a region whose required landmark has insufficient visibility", () => {
+  it("does NOT omit a region whose required landmark has insufficient visibility — the actual fix", () => {
+    // An earlier version of this function kept computeBodyAngles' own
+    // visibility gate even though it already bypassed the camera-angle
+    // one, reasoning that a landmark nobody actually observed "still
+    // can't produce a real angle no matter who's reviewing it." That
+    // reasoning predates completeMissingLandmarks' completeness guarantee
+    // (skeleton.ts) — every landmark now has a real, on-screen position
+    // regardless of MediaPipe's own confidence in it — and keeping the
+    // gate here meant TRUNK/SHOULDER/KNEE became permanently un-editable
+    // on any capture with a low-visibility hip (confirmed directly: every
+    // drag/type attempt silently no-opped in posture-editor.ts's
+    // applyResolvedAngle, since there was never a real "current angle" to
+    // compute a delta from). Both gates are bypassed now.
     const landmarks = neutralLandmarks({
       [LANDMARK_INDEX.LEFT_KNEE]: { x: 0.5, y: 0.9, visibility: 0.1 },
+      [LANDMARK_INDEX.LEFT_HIP]: { x: 0.5, y: 0.7, visibility: 0.05 },
     });
     const angles = computeAllAngles(landmarks);
-    // TRUNK reads both knees; KNEE_LEFT reads the left knee directly.
-    expect(angles.has("TRUNK")).toBe(false);
-    expect(angles.has("KNEE_LEFT")).toBe(false);
-    // Unrelated regions are unaffected.
-    expect(angles.has("ELBOW_LEFT")).toBe(true);
+    expect(angles.size).toBe(8);
+    // TRUNK reads both knees+hips; KNEE_LEFT/SHOULDER_LEFT read the left
+    // hip directly — all still compute a real value despite the low
+    // visibility on LEFT_KNEE/LEFT_HIP.
+    expect(angles.get("TRUNK")).toBeCloseTo(0, 5);
+    expect(angles.get("KNEE_LEFT")).toBeCloseTo(0, 5);
+    expect(angles.get("SHOULDER_LEFT")).toBeCloseTo(0, 5);
+  });
+
+  it("NECK still throws its own genuine facing-direction degeneracy, unrelated to either gate", () => {
+    // The one throw computeAllAngles can still produce — a real data
+    // anomaly (signedNeckFlexion can't guess a sign), not a gate.
+    const landmarks = neutralLandmarks({
+      [LANDMARK_INDEX.NOSE]: { x: 0.5, y: 0.3 }, // nose.x === shoulderMid.x
+    });
+    expect(() => computeAllAngles(landmarks)).toThrow(/profile/i);
   });
 });
 

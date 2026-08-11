@@ -10,8 +10,39 @@ import {
 import {
   ANATOMICAL_LIMITS,
   completeMissingLandmarks,
+  LANDMARK_INDEX,
+  POSITION_ONLY_CLUSTER,
+  POSITION_ONLY_REGIONS,
   type SkeletonLandmark,
+  VIRTUAL_HIP_LANDMARK_INDEX,
 } from "./skeleton";
+
+// Reverse of POSITION_ONLY_REGIONS (BodyRegion -> landmark index), built
+// once — every function below that receives a BodyRegion and needs to know
+// WHICH landmark/cluster it drives needs this direction, same reasoning
+// skeleton-3d.tsx's own BONE_REGION_LOOKUP inverts BODY_REGION_BONES for.
+const REGION_TO_POSITION_LANDMARK = new Map<BodyRegion, number>();
+for (const [index, region] of Object.entries(POSITION_ONLY_REGIONS)) {
+  REGION_TO_POSITION_LANDMARK.set(region, Number(index));
+}
+const POSITION_ONLY_REGION_SET = new Set<BodyRegion>(
+  Object.values(POSITION_ONLY_REGIONS),
+);
+
+// The dragged joint's own current position — a real landmark for wrist/
+// ankle, or the midpoint of both real hips for the virtual hip handle
+// (which isn't a real landmark in `keypoints` at all).
+function positionOnlyAnchor(
+  keypoints: readonly SkeletonLandmark[],
+  landmarkIndex: number,
+): { x: number; y: number } {
+  if (landmarkIndex === VIRTUAL_HIP_LANDMARK_INDEX) {
+    const left = keypoints[LANDMARK_INDEX.LEFT_HIP];
+    const right = keypoints[LANDMARK_INDEX.RIGHT_HIP];
+    return { x: (left.x + right.x) / 2, y: (left.y + right.y) / 2 };
+  }
+  return keypoints[landmarkIndex];
+}
 
 // Pure state manager for an interactive posture-editing session — no
 // React, no DOM. A caller (a hook, a reducer, whatever UI layer wires this
@@ -46,8 +77,19 @@ export interface PostureEditorState {
   originalBands: Map<BodyRegion, RiskBand>;
   /** Bands matched live from currentAngles against `rules` — recomputed after every adjustment. */
   currentBands: Map<BodyRegion, RiskBand>;
-  /** Which regions the user has changed from their original angle, this session. */
+  /** Which regions the user has changed from their original angle (or, for a position-only region, its original position), this session. */
   adjustedRegions: Set<BodyRegion>;
+  /**
+   * For each currently-adjusted POSITION_ONLY_REGIONS region, the dragged
+   * joint's own absolute current position (its anchor — see
+   * positionOnlyAnchor) — angle-based regions never appear here.
+   * currentKeypoints already reflects this same move; this is what lets
+   * rebuildFromKeptRegions replay a kept position-only adjustment when
+   * resetting a DIFFERENT region without needing to reverse-engineer it
+   * from currentKeypoints (which an intervening angle-region reset would
+   * have already rebuilt from scratch by then).
+   */
+  positionAdjustments: Map<BodyRegion, { x: number; y: number }>;
   /** The active methodology's rule set, fixed for the life of the session. */
   rules: ScoringRuleRow[];
 }
@@ -114,6 +156,7 @@ export function createPostureEditor(
     originalBands,
     currentBands,
     adjustedRegions: new Set(),
+    positionAdjustments: new Map(),
     rules,
   };
 }
@@ -132,8 +175,18 @@ export function createPostureEditor(
 // needs the delta relative to where currentKeypoints actually is right
 // now, not relative to session start. Falls back to targetDegrees itself
 // (a true zero-delta) only in the defensive case where this region somehow
-// has no current entry yet — shouldn't happen in practice since
-// createPostureEditor always seeds every computable region.
+// has no current entry yet — this genuinely shouldn't happen now:
+// computeAllAngles (drag-to-angle.ts) always returns all 8 computable
+// regions unconditionally (no visibility gate), so createPostureEditor
+// really does seed every one of them. It used to be reachable whenever a
+// region's reference landmark (e.g. a low-visibility hip, for TRUNK/
+// SHOULDER/KNEE) failed computeAllAngles' now-removed visibility gate —
+// this fallback silently made `targetDegrees === currentDegreesForRegion`
+// compare a value against itself, so EVERY edit attempt for that region
+// looked like a no-op forever, which is what made it effectively
+// impossible to drag or type into (confirmed directly — see
+// drag-to-angle.test.ts). Left in place as a genuine defensive fallback,
+// not a live code path.
 //
 // A call that resolves to exactly the region's current angle (the user
 // picked up a joint and put it back exactly where it was, or typed the
@@ -207,6 +260,63 @@ export function applyAngleInput(
   return applyResolvedAngle(state, bodyRegion, clampedDegrees);
 }
 
+// Input method 3: dragging a POSITION-ONLY joint (WRIST_LEFT/RIGHT,
+// ANKLE_LEFT/RIGHT, HIP — see skeleton.ts's own POSITION_ONLY_REGIONS
+// comment for why these have no angle formula at all, and never will
+// without a real capability change). No FK rotation, no angle to resolve
+// — this directly translates the dragged joint's whole
+// POSITION_ONLY_CLUSTER (e.g. wrist plus the rest of "the whole hand") by
+// the same delta, then recomputes every OTHER region's angle/band, same
+// as applyResolvedAngle: a position-only edit can still change what an
+// ANGLE-based region reads (moving the hip changes what TRUNK/SHOULDER/
+// KNEE's own formulas see, since they read the hip's current position
+// directly), which is correct — not a bug to guard against.
+export function applyPositionDrag(
+  state: PostureEditorState,
+  landmarkIndex: number,
+  newPosition: { x: number; y: number },
+): PostureEditorState {
+  const bodyRegion = POSITION_ONLY_REGIONS[landmarkIndex];
+  if (!bodyRegion) {
+    throw new Error(
+      `Landmark index ${landmarkIndex} does not control any position-only BodyRegion (see POSITION_ONLY_REGIONS)`,
+    );
+  }
+
+  const anchor = positionOnlyAnchor(state.currentKeypoints, landmarkIndex);
+  const delta = { x: newPosition.x - anchor.x, y: newPosition.y - anchor.y };
+  // Genuine no-op — same spirit as applyResolvedAngle's own "the user put
+  // it back exactly where it was" case.
+  if (delta.x === 0 && delta.y === 0) return state;
+
+  const nextKeypoints = [...state.currentKeypoints];
+  for (const memberIndex of POSITION_ONLY_CLUSTER[landmarkIndex] ?? []) {
+    const member = nextKeypoints[memberIndex];
+    nextKeypoints[memberIndex] = {
+      ...member,
+      x: member.x + delta.x,
+      y: member.y + delta.y,
+    };
+  }
+
+  const nextAngles = computeAllAngles(nextKeypoints);
+  const nextBands = bandsFromAngles(nextAngles, state.rules);
+
+  const nextAdjustedRegions = new Set(state.adjustedRegions);
+  nextAdjustedRegions.add(bodyRegion);
+  const nextPositionAdjustments = new Map(state.positionAdjustments);
+  nextPositionAdjustments.set(bodyRegion, newPosition);
+
+  return {
+    ...state,
+    currentKeypoints: nextKeypoints,
+    currentAngles: nextAngles,
+    currentBands: nextBands,
+    adjustedRegions: nextAdjustedRegions,
+    positionAdjustments: nextPositionAdjustments,
+  };
+}
+
 // Rebuilds currentKeypoints/currentAngles/currentBands from
 // originalKeypoints by replaying only the adjustments in `keepRegions`
 // (each targeting whatever angle that region is CURRENTLY showing, i.e.
@@ -224,10 +334,19 @@ function rebuildFromKeptRegions(
   state: PostureEditorState,
   keepRegions: ReadonlySet<BodyRegion>,
 ): PostureEditorState {
+  const keepAngleRegions: BodyRegion[] = [];
+  const keepPositionRegions: BodyRegion[] = [];
+  for (const region of keepRegions) {
+    (POSITION_ONLY_REGION_SET.has(region)
+      ? keepPositionRegions
+      : keepAngleRegions
+    ).push(region);
+  }
+
   const originalRegionAngles = computeAllAngles(state.originalKeypoints);
 
   const adjustments: AngleAdjustment[] = [];
-  for (const region of keepRegions) {
+  for (const region of keepAngleRegions) {
     const targetDegrees = state.currentAngles.get(region);
     const baselineDegrees = originalRegionAngles.get(region);
     if (targetDegrees === undefined || baselineDegrees === undefined) continue;
@@ -238,14 +357,47 @@ function rebuildFromKeptRegions(
     });
   }
 
-  const nextKeypoints =
+  const nextKeypoints: SkeletonLandmark[] =
     adjustments.length > 0
       ? applyAngleAdjustments(state.originalKeypoints, adjustments)
-      : state.originalKeypoints;
-  const nextAngles =
-    adjustments.length > 0
-      ? computeAllAngles(nextKeypoints)
-      : originalRegionAngles;
+      : [...state.originalKeypoints];
+
+  // Position-only adjustments are replayed AFTER angle adjustments,
+  // always relative to originalKeypoints' own anchor position — a manual
+  // reposition is the reviewer's final word on where that point is, not
+  // something that should compound with wherever an angle rotation would
+  // otherwise have carried it (e.g. resetting SHOULDER_LEFT while keeping
+  // a moved WRIST_LEFT: the wrist ends up exactly where the reviewer put
+  // it, not wherever the now-reverted shoulder rotation would have swung
+  // it to).
+  const nextPositionAdjustments = new Map<
+    BodyRegion,
+    { x: number; y: number }
+  >();
+  for (const region of keepPositionRegions) {
+    const target = state.positionAdjustments.get(region);
+    const landmarkIndex = REGION_TO_POSITION_LANDMARK.get(region);
+    if (target === undefined || landmarkIndex === undefined) continue;
+    const originalAnchor = positionOnlyAnchor(
+      state.originalKeypoints,
+      landmarkIndex,
+    );
+    const delta = {
+      x: target.x - originalAnchor.x,
+      y: target.y - originalAnchor.y,
+    };
+    for (const memberIndex of POSITION_ONLY_CLUSTER[landmarkIndex] ?? []) {
+      const originalMember = state.originalKeypoints[memberIndex];
+      nextKeypoints[memberIndex] = {
+        ...originalMember,
+        x: originalMember.x + delta.x,
+        y: originalMember.y + delta.y,
+      };
+    }
+    nextPositionAdjustments.set(region, target);
+  }
+
+  const nextAngles = computeAllAngles(nextKeypoints);
   const nextBands = bandsFromAngles(nextAngles, state.rules);
 
   return {
@@ -254,6 +406,7 @@ function rebuildFromKeptRegions(
     currentAngles: nextAngles,
     currentBands: nextBands,
     adjustedRegions: new Set(keepRegions),
+    positionAdjustments: nextPositionAdjustments,
   };
 }
 

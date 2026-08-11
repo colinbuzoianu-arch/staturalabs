@@ -14,6 +14,7 @@ import { computeAllAngles } from "@/lib/pose/drag-to-angle";
 import {
   applyAngleInput,
   applyJointDrag,
+  applyPositionDrag,
   createPostureEditor,
   getRegionDelta,
   type PostureEditorState,
@@ -26,6 +27,7 @@ import {
   ANATOMICAL_LIMITS,
   completeMissingLandmarks,
   JOINT_REGIONS,
+  POSITION_ONLY_REGIONS,
   type SkeletonLandmark,
   type SkeletonLandmarkConfidence,
   THREE_D_SCALE,
@@ -93,13 +95,19 @@ export type PostureEditorProps = {
 };
 
 // ---------------------------------------------------------------------
-// Region metadata — every BodyRegion, in display order, and which 8 are
-// actually editable (computable + draggable, per JOINT_REGIONS). The other
-// 9 (HIP, UPPER_ARM_*, FOREARM_*, WRIST_*, ANKLE_*) have no formula
-// anywhere in this codebase yet — computeBodyAngles doesn't produce a
-// reading for them and JOINT_REGIONS has no drag handle for them either,
-// so they render as a permanently muted "not yet supported" row, never
-// draggable, never angle-editable.
+// Region metadata — every BodyRegion, in display order, and which kind of
+// row each one renders as:
+//   - 8 angle-based, scored regions (JOINT_REGIONS): TRUNK, NECK,
+//     SHOULDER_LEFT/RIGHT, ELBOW_LEFT/RIGHT, KNEE_LEFT/RIGHT — RegionRow,
+//     with a slider.
+//   - 5 position-only regions (skeleton.ts's POSITION_ONLY_REGIONS — see
+//     that export's own comment for the full rationale): WRIST_LEFT/RIGHT,
+//     ANKLE_LEFT/RIGHT, HIP — PositionOnlyRegionRow, draggable but no
+//     angle/slider/score.
+//   - 4 regions with no row of their own at all (UPPER_ARM_LEFT/RIGHT,
+//     FOREARM_LEFT/RIGHT) — SharedMeasurementRegionRow: they're already
+//     the exact bone segments SHOULDER/ELBOW color (skeleton.ts's
+//     BODY_REGION_BONES), not a second thing to independently edit.
 // ---------------------------------------------------------------------
 const REGION_ORDER: readonly BodyRegion[] = [
   "TRUNK",
@@ -145,8 +153,16 @@ const REGION_LABELS: Record<BodyRegion, string> = {
   ANKLE_RIGHT: "Right Ankle",
 };
 
-const EDITABLE_REGIONS = new Set<BodyRegion>(Object.values(JOINT_REGIONS));
-const DRAGGABLE_JOINTS = Object.keys(JOINT_REGIONS).map(Number);
+const ANGLE_EDITABLE_REGIONS = new Set<BodyRegion>(
+  Object.values(JOINT_REGIONS),
+);
+const POSITION_ONLY_REGION_SET = new Set<BodyRegion>(
+  Object.values(POSITION_ONLY_REGIONS),
+);
+const DRAGGABLE_JOINTS = [
+  ...Object.keys(JOINT_REGIONS).map(Number),
+  ...Object.keys(POSITION_ONLY_REGIONS).map(Number),
+];
 
 const DESKTOP_SKELETON_SIZE = { width: 500, height: 600 };
 const MOBILE_MAX_SKELETON_SIZE = 480;
@@ -534,12 +550,85 @@ function ValidatedRegionRow({
   );
 }
 
-function UnsupportedRegionRow({ region }: { region: BodyRegion }) {
+// UPPER_ARM_LEFT/RIGHT and FOREARM_LEFT/RIGHT aren't separately editable
+// regions with their own row/slider — they're already the exact bone
+// segments SHOULDER_LEFT/RIGHT and ELBOW_LEFT/RIGHT color (see
+// skeleton.ts's BODY_REGION_BONES' own comment for why: a real, separate
+// upper-arm/forearm measurement would be rotation around the limb's own
+// long axis — humeral rotation, forearm pronation/supination — which a
+// single 2D camera can't observe). Naming which joint actually drives each
+// one here, rather than a bare "not yet supported", makes that an
+// intentional design boundary visible in the UI, not a gap that reads like
+// unfinished work.
+const SHARED_MEASUREMENT_SOURCE: Partial<Record<BodyRegion, string>> = {
+  UPPER_ARM_LEFT: "Left Shoulder",
+  UPPER_ARM_RIGHT: "Right Shoulder",
+  FOREARM_LEFT: "Left Elbow",
+  FOREARM_RIGHT: "Right Elbow",
+};
+
+function SharedMeasurementRegionRow({ region }: { region: BodyRegion }) {
+  const source = SHARED_MEASUREMENT_SOURCE[region];
   return (
     <div className="flex items-center justify-between rounded-lg border border-border/50 bg-surface/50 p-3 opacity-60">
       <span className="font-heading font-bold">{REGION_LABELS[region]}</span>
       <span className="font-technical text-xs text-border">
-        not yet supported
+        {source
+          ? `no separate measurement — see ${source}`
+          : "not yet supported"}
+      </span>
+    </div>
+  );
+}
+
+// WRIST_LEFT/RIGHT, ANKLE_LEFT/RIGHT, and HIP (skeleton.ts's
+// POSITION_ONLY_REGIONS — see that export's own comment for the full
+// rationale) are real, functional, draggable parts of the skeleton with
+// no independent angle or score: "the whole hand"/"the whole foot"/"the
+// pelvis" gets a position relative to the rest of the body, deliberately
+// no more granular than that. This row is the position-only equivalent of
+// RegionRow below — same isAdjusted/reset affordance, no slider or angle
+// input since there's no angle to show one for.
+function PositionOnlyRegionRow({
+  region,
+  isAdjusted,
+  onReset,
+}: {
+  region: BodyRegion;
+  isAdjusted: boolean;
+  onReset: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="font-heading font-bold">
+            {REGION_LABELS[region]}
+          </span>
+          {isAdjusted && (
+            <span
+              className="flex items-center gap-1 rounded-full bg-accent/15 px-2 py-0.5 font-technical text-[11px] font-bold text-accent"
+              title="Repositioned from the camera-measured position"
+            >
+              <span aria-hidden="true">✎</span> Adjusted
+            </span>
+          )}
+        </div>
+        {isAdjusted && (
+          <button
+            type="button"
+            onClick={onReset}
+            aria-label={`Reset ${REGION_LABELS[region]} to measured position`}
+            title="Reset to measured position"
+            className="rounded px-1.5 py-0.5 font-technical text-sm text-border hover:text-accent"
+          >
+            ↩
+          </button>
+        )}
+      </div>
+      <span className="font-technical text-xs text-border">
+        Position only — drag on the skeleton to reposition. No independent
+        ergonomic score for this region.
       </span>
     </div>
   );
@@ -1013,6 +1102,18 @@ export function PostureEditor({
     newPosition: { x: number; y: number; z: number },
   ) => {
     const mediaPipePosition = threeScenePositionToMediaPipe(newPosition);
+    // Two entirely different resolutions depending on which kind of joint
+    // was dragged (skeleton-3d.tsx itself doesn't distinguish them — see
+    // that component's own regionForJoint, which checks JOINT_REGIONS and
+    // POSITION_ONLY_REGIONS together purely for hover/halo/rigid-
+    // constraint purposes): an angle-based joint resolves to a BodyRegion
+    // angle via computeAngleFromDrag/applyJointDrag; a position-only one
+    // (skeleton.ts's POSITION_ONLY_REGIONS) has no angle at all —
+    // applyPositionDrag just translates it (and its cluster) directly.
+    if (Object.hasOwn(POSITION_ONLY_REGIONS, landmarkIndex)) {
+      updateEditor(applyPositionDrag(editor, landmarkIndex, mediaPipePosition));
+      return;
+    }
     updateEditor(applyJointDrag(editor, landmarkIndex, mediaPipePosition));
   };
 
@@ -1136,24 +1237,37 @@ export function PostureEditor({
                   result={effectiveRegionResults[region]}
                 />
               ))
-            : REGION_ORDER.map((region) =>
-                EDITABLE_REGIONS.has(region) ? (
-                  <RegionRow
-                    key={region}
-                    idPrefix={postureSampleId}
-                    region={region}
-                    originalResult={effectiveOriginalRegionResults[region]}
-                    delta={getRegionDelta(editor, region)}
-                    rules={editor.rules}
-                    onAngleCommit={(degrees) =>
-                      handleAngleCommit(region, degrees)
-                    }
-                    onReset={() => handleResetRegion(region)}
-                  />
-                ) : (
-                  <UnsupportedRegionRow key={region} region={region} />
-                ),
-              )}
+            : REGION_ORDER.map((region) => {
+                if (ANGLE_EDITABLE_REGIONS.has(region)) {
+                  return (
+                    <RegionRow
+                      key={region}
+                      idPrefix={postureSampleId}
+                      region={region}
+                      originalResult={effectiveOriginalRegionResults[region]}
+                      delta={getRegionDelta(editor, region)}
+                      rules={editor.rules}
+                      onAngleCommit={(degrees) =>
+                        handleAngleCommit(region, degrees)
+                      }
+                      onReset={() => handleResetRegion(region)}
+                    />
+                  );
+                }
+                if (POSITION_ONLY_REGION_SET.has(region)) {
+                  return (
+                    <PositionOnlyRegionRow
+                      key={region}
+                      region={region}
+                      isAdjusted={editor.adjustedRegions.has(region)}
+                      onReset={() => handleResetRegion(region)}
+                    />
+                  );
+                }
+                return (
+                  <SharedMeasurementRegionRow key={region} region={region} />
+                );
+              })}
         </div>
       </div>
 

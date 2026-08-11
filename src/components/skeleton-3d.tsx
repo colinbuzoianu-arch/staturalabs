@@ -18,12 +18,15 @@ import {
   ANATOMICAL_LIMITS,
   BODY_REGION_BONES,
   getVirtualChestPosition,
+  getVirtualHipPosition,
   JOINT_REGIONS,
   LANDMARK_INDEX,
   landmarksTo3DPositions,
   POSE_CONNECTIONS,
+  POSITION_ONLY_REGIONS,
   type SkeletonLandmarkConfidence,
   VIRTUAL_CHEST_LANDMARK_INDEX,
+  VIRTUAL_HIP_LANDMARK_INDEX,
 } from "@/lib/pose/skeleton";
 import { NOT_ASSESSED_COLOR, riskBandColors } from "@/lib/risk/band-severity";
 
@@ -168,6 +171,16 @@ function chestConfidence(
   return left === "missing" || right === "missing" ? "missing" : "measured";
 }
 
+// Same reasoning as chestConfidence — the virtual hip handle has no
+// MediaPipe visibility of its own, only drawable when both real hips are.
+function hipHandleConfidence(
+  confidenceMap: ReadonlyMap<number, SkeletonLandmarkConfidence>,
+): SkeletonLandmarkConfidence {
+  const left = getConfidence(confidenceMap, LANDMARK_INDEX.LEFT_HIP);
+  const right = getConfidence(confidenceMap, LANDMARK_INDEX.RIGHT_HIP);
+  return left === "missing" || right === "missing" ? "missing" : "measured";
+}
+
 function boneKey(a: number, b: number): string {
   return a < b ? `${a}-${b}` : `${b}-${a}`;
 }
@@ -186,14 +199,21 @@ for (const [region, bones] of Object.entries(BODY_REGION_BONES) as Array<
   }
 }
 
-// JOINT_REGIONS is typed Record<number, BodyRegion> (every numeric key
-// "promises" a BodyRegion) even though only 8 of the 34 possible indices
-// actually have an entry — safe runtime lookup needs an explicit
-// hasOwnProperty check rather than trusting that type for indices outside
-// its real key set (no noUncheckedIndexedAccess in this project's
-// tsconfig).
+// JOINT_REGIONS/POSITION_ONLY_REGIONS are typed Record<number, BodyRegion>
+// (every numeric key "promises" a BodyRegion) even though only a handful
+// of the possible indices actually have an entry — safe runtime lookup
+// needs an explicit hasOwnProperty check rather than trusting that type
+// for indices outside their real key sets (no noUncheckedIndexedAccess in
+// this project's tsconfig). Checked together since both kinds of joint
+// need the same halo/hover/drag AFFORDANCE here — only the ANGULAR clamp
+// (buildMeasurer/ANATOMICAL_LIMITS, checked separately below) actually
+// distinguishes them; this component doesn't otherwise care which kind of
+// edit a drag will resolve to.
 function regionForJoint(index: number): BodyRegion | undefined {
-  return Object.hasOwn(JOINT_REGIONS, index) ? JOINT_REGIONS[index] : undefined;
+  if (Object.hasOwn(JOINT_REGIONS, index)) return JOINT_REGIONS[index];
+  if (Object.hasOwn(POSITION_ONLY_REGIONS, index))
+    return POSITION_ONLY_REGIONS[index];
+  return undefined;
 }
 
 // ---------------------------------------------------------------------
@@ -407,6 +427,22 @@ function enforceRigidConstraints(
 //     arm length) — matches buildMeasurer's own `parentIndex`.
 //   - KNEE_LEFT/RIGHT: one constraint, pivot=same-side hip (thigh length)
 //     — matches buildMeasurer's own `parentIndex`.
+//   - WRIST_LEFT/RIGHT: one constraint, pivot=same-side elbow (forearm
+//     length) — buildMeasurer has no entry for these at all (they're
+//     POSITION_ONLY_REGIONS, no angle, no angular clamp), but the SAME
+//     "don't stretch the bone while dragging" problem this whole system
+//     exists for applies just as much to a position-only joint as an
+//     angle-based one — "the whole hand" still orbits the elbow at a
+//     fixed forearm length, it just doesn't ALSO resolve to a scored
+//     angle the way ELBOW_LEFT/RIGHT's own drag does.
+//   - ANKLE_LEFT/RIGHT: one constraint, pivot=same-side knee (shin
+//     length) — same reasoning as wrist, mirrored for the leg.
+//   - HIP (virtual): deliberately NO constraint (falls through to the
+//     empty array below) — unlike every joint above, it isn't orbiting a
+//     more-proximal joint; it doesn't stretch a shared bone the same way
+//     a random anatomical drag limit would apply to (see
+//     posture-editor.ts's own applyPositionDrag for how a hip move
+//     recomputes downstream regions).
 function buildRigidConstraints(
   landmarkIndex: number,
   positions: readonly THREE.Vector3[],
@@ -482,6 +518,35 @@ function buildRigidConstraints(
     return [{ pivot: hipPos, radius: hipPos.distanceTo(kneePos) }];
   }
 
+  if (
+    landmarkIndex === LANDMARK_INDEX.LEFT_WRIST ||
+    landmarkIndex === LANDMARK_INDEX.RIGHT_WRIST
+  ) {
+    const isLeft = landmarkIndex === LANDMARK_INDEX.LEFT_WRIST;
+    const elbowIndex = isLeft
+      ? LANDMARK_INDEX.LEFT_ELBOW
+      : LANDMARK_INDEX.RIGHT_ELBOW;
+    const elbowPos = positions[elbowIndex];
+    const wristPos = positions[landmarkIndex];
+    return [{ pivot: elbowPos, radius: elbowPos.distanceTo(wristPos) }];
+  }
+
+  if (
+    landmarkIndex === LANDMARK_INDEX.LEFT_ANKLE ||
+    landmarkIndex === LANDMARK_INDEX.RIGHT_ANKLE
+  ) {
+    const isLeft = landmarkIndex === LANDMARK_INDEX.LEFT_ANKLE;
+    const kneeIndex = isLeft
+      ? LANDMARK_INDEX.LEFT_KNEE
+      : LANDMARK_INDEX.RIGHT_KNEE;
+    const kneePos = positions[kneeIndex];
+    const anklePos = positions[landmarkIndex];
+    return [{ pivot: kneePos, radius: kneePos.distanceTo(anklePos) }];
+  }
+
+  // HIP (virtual) and anything else falls through to no constraint — see
+  // this function's own doc comment above for why HIP specifically is
+  // deliberately unconstrained.
   return [];
 }
 
@@ -707,8 +772,11 @@ function rebuildScene(
   override?: { index: number; position: THREE.Vector3 },
 ) {
   const basePositions = landmarksTo3DPositions(data.keypoints);
+  const isVirtualOverride =
+    override?.index === VIRTUAL_CHEST_LANDMARK_INDEX ||
+    override?.index === VIRTUAL_HIP_LANDMARK_INDEX;
   const positions =
-    override && override.index !== VIRTUAL_CHEST_LANDMARK_INDEX
+    override && !isVirtualOverride
       ? basePositions.map((p, i) =>
           i === override.index ? override.position : p,
         )
@@ -717,6 +785,10 @@ function rebuildScene(
     override && override.index === VIRTUAL_CHEST_LANDMARK_INDEX
       ? override.position
       : getVirtualChestPosition(positions);
+  const hipHandlePosition =
+    override && override.index === VIRTUAL_HIP_LANDMARK_INDEX
+      ? override.position
+      : getVirtualHipPosition(positions);
 
   const draggableSet = new Set(data.draggableJoints);
 
@@ -796,6 +868,30 @@ function rebuildScene(
         regionBands: data.regionBands,
         isHovered: state.hoveredIndex === VIRTUAL_CHEST_LANDMARK_INDEX,
         isDragging: state.drag?.landmarkIndex === VIRTUAL_CHEST_LANDMARK_INDEX,
+      });
+    }
+  }
+
+  // Virtual hip (HIP position-only drag handle) — same "only shown when
+  // draggable" reasoning as the chest handle above. region: "HIP" never
+  // resolves to a band (HIP has no ScoringRule, ever — see
+  // skeleton.ts's own POSITION_ONLY_REGIONS comment), so this always
+  // renders at NOT_ASSESSED_COLOR — expected, not a bug.
+  const hipHandleJoint = state.joints.get(VIRTUAL_HIP_LANDMARK_INDEX);
+  if (hipHandleJoint) {
+    const hipHandleDraggable = draggableSet.has(VIRTUAL_HIP_LANDMARK_INDEX);
+    if (!hipHandleDraggable) {
+      hipHandleJoint.group.visible = false;
+    } else {
+      updateJointVisual(hipHandleJoint, {
+        position: hipHandlePosition,
+        confidence: hipHandleConfidence(data.confidenceMap),
+        isDraggable: true,
+        isHead: false,
+        region: "HIP",
+        regionBands: data.regionBands,
+        isHovered: state.hoveredIndex === VIRTUAL_HIP_LANDMARK_INDEX,
+        isDragging: state.drag?.landmarkIndex === VIRTUAL_HIP_LANDMARK_INDEX,
       });
     }
   }
@@ -913,6 +1009,7 @@ export function Skeleton3D({
     const allJointIndices = [
       ...Array.from({ length: 33 }, (_, i) => i),
       VIRTUAL_CHEST_LANDMARK_INDEX,
+      VIRTUAL_HIP_LANDMARK_INDEX,
     ];
     for (const index of allJointIndices) {
       const core = new THREE.Mesh(
@@ -928,9 +1025,10 @@ export function Skeleton3D({
       group.add(core);
 
       // A halo (glow shell) only for joints that could ever be draggable —
-      // built once per index from JOINT_REGIONS' static key set, then
-      // shown/hidden per-render based on the actual draggableJoints prop
-      // (see updateJointVisual), never recreated.
+      // built once per index from JOINT_REGIONS/POSITION_ONLY_REGIONS'
+      // static key sets (regionForJoint checks both), then shown/hidden
+      // per-render based on the actual draggableJoints prop (see
+      // updateJointVisual), never recreated.
       let halo: THREE.Mesh | null = null;
       if (regionForJoint(index) !== undefined) {
         halo = new THREE.Mesh(

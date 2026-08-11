@@ -1,7 +1,7 @@
-import { type BodyRegion, CameraAngle } from "@/generated/prisma/enums";
+import { BodyRegion } from "@/generated/prisma/enums";
 import {
   type ComputedBodyRegion,
-  computeBodyAngles,
+  computeRawBodyAngle,
   flexionFrom180,
   includedAngle,
   LANDMARK_INDEX,
@@ -46,38 +46,60 @@ function regionForJoint(index: number): BodyRegion | undefined {
   return Object.hasOwn(JOINT_REGIONS, index) ? JOINT_REGIONS[index] : undefined;
 }
 
-// Every CameraAngle value, tried in order wherever this module needs to
-// compute a region's angle "for manual review" rather than "for automated
-// scoring" — see computeAllAngles below for the full rationale. A region's
-// computed degrees never depend on which CameraAngle was passed (that only
-// gates whether computeBodyAngles reports the reading at all, never the
-// geometry itself), so trying every value and keeping the first passing
-// reading is exactly equivalent to "no camera-angle gate," without a
-// second, drift-prone copy of computeBodyAngles' own 8-region formula.
-const ALL_CAMERA_ANGLES: readonly CameraAngle[] = Object.values(CameraAngle);
+// The same 8 regions computeBodyAngles produces a reading for — the only
+// ones computeRawBodyAngle has a formula for at all.
+const COMPUTED_REGIONS: readonly ComputedBodyRegion[] = [
+  BodyRegion.TRUNK,
+  BodyRegion.NECK,
+  BodyRegion.SHOULDER_LEFT,
+  BodyRegion.SHOULDER_RIGHT,
+  BodyRegion.ELBOW_LEFT,
+  BodyRegion.ELBOW_RIGHT,
+  BodyRegion.KNEE_LEFT,
+  BodyRegion.KNEE_RIGHT,
+];
 
 // Given a complete set of (possibly user-adjusted) landmarks, computes
-// every currently-computable region's angle — the same 8 regions
-// computeBodyAngles produces a reading for — without computeBodyAngles' own
-// camera-angle gate. A human reviewing the rendered skeleton (or actively
+// every one of the 8 regions' angles directly via computeRawBodyAngle —
+// bypassing BOTH of computeBodyAngles' gates (camera-angle AND
+// visibility), not just the camera-angle one an earlier version of this
+// function's own comment described.
+//
+// Camera-angle: a human reviewing the rendered skeleton (or actively
 // dragging a joint on it) is already making the "is this a usable view"
 // judgment visually; re-applying that gate here would only hide a real,
-// visible angle from the editor. The *visibility* gate is NOT bypassed: a
-// landmark that genuinely wasn't observed still can't produce a real angle
-// no matter who's reviewing it, so a region missing from the returned map
-// means a required landmark had insufficient visibility, not that it was
-// filtered by camera angle.
+// visible angle from the editor.
+//
+// Visibility: an EARLIER version of this function kept this gate,
+// reasoning that "a landmark that genuinely wasn't observed still can't
+// produce a real angle no matter who's reviewing it." That reasoning
+// predates completeMissingLandmarks' own completeness guarantee
+// (skeleton.ts) — every landmark this function ever sees now has a real,
+// on-screen, human-judgeable position (original, extrapolated, or a
+// documented last-resort fallback), never a true absence. Keeping the
+// visibility gate here on TOP of that meant a region whose reference
+// landmark (e.g. a low-visibility hip) the reviewer can plainly SEE on
+// screen could never actually be dragged or typed into — every attempt
+// silently failed as a spurious no-op in posture-editor.ts's
+// applyResolvedAngle (its `?? targetDegrees` fallback for "no current
+// value" compared the new target against itself), which is what made
+// TRUNK/SHOULDER/KNEE effectively permanently stuck on any capture with a
+// low-visibility hip — confirmed directly, not just reasoned about (see
+// this function's own test file). The scoring pipeline's own gate
+// (computeBodyAngles, called from POST /api/posture-samples and
+// validatePostureSample) is completely unaffected — this function has
+// never been part of that path.
+//
+// NECK can still throw here (computeRawBodyAngle's own facing-direction
+// degeneracy, signedNeckFlexion) — a genuine data anomaly, not a gate,
+// and already true before this change whenever NECK's visibility gate
+// happened to pass.
 export function computeAllAngles(
   landmarks: PoseLandmarks,
 ): Map<BodyRegion, number> {
   const result = new Map<BodyRegion, number>();
-  for (const cameraAngle of ALL_CAMERA_ANGLES) {
-    const angles = computeBodyAngles(landmarks, cameraAngle);
-    for (const region of Object.keys(angles) as ComputedBodyRegion[]) {
-      if (result.has(region)) continue;
-      const reading = angles[region];
-      if (reading.ok) result.set(region, reading.degrees);
-    }
+  for (const region of COMPUTED_REGIONS) {
+    result.set(region, computeRawBodyAngle(region, landmarks));
   }
   return result;
 }
@@ -185,21 +207,25 @@ export function computeAngleFromDrag(
     // vertex computeBodyAngles' own per-side formula uses (matches
     // forward-kinematics.ts's SIMPLE_JOINT_CONFIG.vertex), so rather than
     // re-deriving the formula, this patches ONE landmark into a copy of
-    // the array and calls the real, unmodified computeBodyAngles (via
-    // computeAllAngles, for the same ungated-for-manual-review reasoning
-    // that function documents) — true identity, not just "the same math."
+    // the array and calls computeRawBodyAngle directly for just this one
+    // region — true identity with computeBodyAngles' own geometry (same
+    // function, both call it), not just "the same math." Deliberately
+    // NOT computeAllAngles(patched).get(bodyRegion): that would compute
+    // all 8 regions to read just one, and NECK's own facing-direction
+    // degeneracy could then throw while we only actually needed (say)
+    // ELBOW_LEFT — an unrelated region's edge case failing a drag that
+    // has nothing to do with it.
     const patched = landmarks.map((landmark, index) =>
       index === draggedLandmarkIndex
         ? { ...landmark, x: newPosition.x, y: newPosition.y }
         : landmark,
     );
-    const degrees = computeAllAngles(patched).get(bodyRegion);
-    if (degrees === undefined) {
-      throw new Error(
-        `Could not compute ${bodyRegion} angle after the drag — a required landmark has insufficient visibility`,
-      );
-    }
-    rawDegrees = degrees;
+    // bodyRegion is provably one of the 6 SHOULDER/ELBOW/KNEE values here
+    // (TRUNK and NECK were already handled in the branches above), all of
+    // which are valid ComputedBodyRegion values — computeRawBodyAngle's
+    // parameter type just can't see that from this function's own control
+    // flow.
+    rawDegrees = computeRawBodyAngle(bodyRegion as ComputedBodyRegion, patched);
   }
 
   const { angleDegrees, clamped } = clampToLimits(bodyRegion, rawDegrees);
