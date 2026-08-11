@@ -105,3 +105,57 @@
     scroll-behavior: smooth;
   }
 }
+
+/*
+  AngleSlider (posture-editor.tsx) track/thumb styling. Tailwind has no
+  utility classes for range-input pseudo-elements
+  (::-webkit-slider-runnable-track / ::-moz-range-track /
+  ::-webkit-slider-thumb / ::-moz-range-thumb), so this is genuinely custom
+  CSS, not a Tailwind gap worked around unnecessarily. The colored band
+  gradient itself is NOT here — it's set as an inline `background` per
+  instance from live ScoringRule data (buildTrackGradient in
+  posture-editor.tsx) on the wrapping <div> behind this input, since it
+  depends on runtime data a static class can't express. This class only
+  makes the <input type="range"> itself invisible except for its thumb, so
+  that gradient shows through.
+*/
+.angle-slider {
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  height: 100%;
+}
+.angle-slider::-webkit-slider-runnable-track {
+  appearance: none;
+  background: transparent;
+  height: 100%;
+}
+.angle-slider::-moz-range-track {
+  background: transparent;
+  height: 100%;
+}
+.angle-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 2px solid var(--color-teal);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  /* (wrapper track height 12px - thumb height 18px) / 2 — Chrome/Edge/
+     Safari don't auto-center a thumb against an appearance:none track the
+     way Firefox's ::-moz-range-thumb does below, so this needs to be
+     computed by hand and kept in sync with the h-3 (12px) wrapper div in
+     AngleSlider's own JSX if that height ever changes. */
+  margin-top: -3px;
+}
+.angle-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 2px solid var(--color-teal);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+}

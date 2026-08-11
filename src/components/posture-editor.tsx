@@ -362,6 +362,136 @@ function AngleNumberInput({
   );
 }
 
+// Builds a hard-stop CSS linear-gradient covering [min, max] and colored by
+// `rules` (already filtered to one BodyRegion) — the visual band map a
+// reviewer drags across. Deliberately per-row REPEATED color stops (same
+// color at a segment's start AND end percentage) rather than a smooth
+// blend: ScoringRule bands are discrete, not a continuous scale, so the
+// gradient should look like colored zones with sharp edges, not a fade.
+// ScoringRule has no cameraAngle column (see prisma/schema.prisma) — the
+// camera-angle gate lives in computeBodyAngles, deciding whether a region
+// is readable at all, not in the rule lookup itself — so this only filters
+// by bodyRegion, matching every other rule-matching call site in this file
+// (bandsFromAngles above) and in posture-editor.ts.
+//
+// A gap between rule ranges (or the union of ranges not covering the full
+// [min, max] anatomical range) renders NOT_ASSESSED_COLOR, same meaning
+// BandDot/ValidatedRegionRow already give that color elsewhere in this
+// file: "no ScoringRule covers this angle." matchScoringRule's own
+// ambiguous-overlap case is a data-integrity bug it already throws loudly
+// on elsewhere in this app (posture-editor.ts's applyResolvedAngle path);
+// this purely-visual gradient doesn't re-throw for it, since a slightly
+// wrong preview color is a much smaller problem than crashing the editor —
+// it just paints whichever rule sorts first at that angle.
+function buildTrackGradient(
+  rules: readonly ScoringRuleRow[],
+  region: BodyRegion,
+  min: number,
+  max: number,
+): string {
+  const span = max - min;
+  if (span <= 0) return NOT_ASSESSED_COLOR;
+
+  const regionRules = rules
+    .filter((rule) => rule.bodyRegion === region)
+    .map((rule) => ({
+      start: Math.max(min, rule.angleMin ?? min),
+      end: Math.min(max, rule.angleMax ?? max),
+      color: riskBandColors[rule.riskBand],
+    }))
+    .filter((r) => r.end > r.start)
+    .sort((a, b) => a.start - b.start);
+
+  if (regionRules.length === 0) return NOT_ASSESSED_COLOR;
+
+  const segments: { start: number; end: number; color: string }[] = [];
+  let cursor = min;
+  for (const rule of regionRules) {
+    if (rule.start > cursor) {
+      segments.push({
+        start: cursor,
+        end: rule.start,
+        color: NOT_ASSESSED_COLOR,
+      });
+    }
+    segments.push(rule);
+    cursor = Math.max(cursor, rule.end);
+  }
+  if (cursor < max) {
+    segments.push({ start: cursor, end: max, color: NOT_ASSESSED_COLOR });
+  }
+
+  const stops = segments.flatMap((segment) => {
+    const startPct = ((segment.start - min) / span) * 100;
+    const endPct = ((segment.end - min) / span) * 100;
+    return [`${segment.color} ${startPct}%`, `${segment.color} ${endPct}%`];
+  });
+
+  return `linear-gradient(to right, ${stops.join(", ")})`;
+}
+
+// Primary angle input — a colored range slider whose track literally shows
+// the scoring bands (e.g. ELBOW's HIGH-below-20/LOW-20-100/HIGH-above-100
+// non-monotonic rule set naturally renders red-green-red, explaining the
+// scoring visually instead of requiring the reviewer to remember it).
+// Fires onChange on every native `input` event — React's onChange for a
+// range input already IS the continuous drag event, not a release-only
+// `change` — so the caller (RegionRow -> handleAngleCommit -> applyAngleInput,
+// both pure O(1) lookups) re-scores live as the thumb moves, matching the
+// number input's separate commit-on-blur behavior for the secondary field
+// next to it.
+//
+// Styling approach: the colored gradient is painted on a wrapping <div>;
+// the <input type="range"> itself sits on top with its own track made
+// transparent (`.angle-slider` in globals.css — appearance:none plus the
+// ::-webkit-slider-runnable-track/::-moz-range-track transparent overrides)
+// so the div's gradient shows through. Chosen over styling the gradient
+// directly onto ::-webkit-slider-runnable-track/::-moz-range-track because
+// those two pseudo-elements don't share a syntax (one is a background
+// shorthand context, the other isn't) and would mean computing the same
+// gradient string twice for two different property names; a plain
+// `background` on a div behind a transparent input needs it computed once.
+function AngleSlider({
+  region,
+  value,
+  min,
+  max,
+  rules,
+  onChange,
+}: {
+  region: BodyRegion;
+  value: number | null;
+  min: number;
+  max: number;
+  rules: readonly ScoringRuleRow[];
+  onChange: (degrees: number) => void;
+}) {
+  const gradient = useMemo(
+    () => buildTrackGradient(rules, region, min, max),
+    [rules, region, min, max],
+  );
+  const sliderValue =
+    value === null ? min : Math.min(max, Math.max(min, value));
+
+  return (
+    <div
+      className="relative h-3 w-full shrink-0 rounded-full"
+      style={{ background: gradient }}
+    >
+      <input
+        type="range"
+        aria-label={`${REGION_LABELS[region]} angle`}
+        min={min}
+        max={max}
+        step={0.5}
+        value={sliderValue}
+        onChange={(event) => onChange(Number.parseFloat(event.target.value))}
+        className="angle-slider absolute inset-0 h-full w-full"
+      />
+    </div>
+  );
+}
+
 // Read-only summary shown once a sample is validated (locally, right after
 // a successful onValidate call, or because it already was on mount) —
 // there's no more editing at that point, so this replaces the interactive
@@ -410,6 +540,7 @@ function RegionRow({
   region,
   originalResult,
   delta,
+  rules,
   onAngleCommit,
   onReset,
 }: {
@@ -417,6 +548,7 @@ function RegionRow({
   region: BodyRegion;
   originalResult: RegionResult;
   delta: RegionDelta;
+  rules: readonly ScoringRuleRow[];
   onAngleCommit: (degrees: number) => void;
   onReset: () => void;
 }) {
@@ -503,22 +635,43 @@ function RegionRow({
         )}
       </div>
 
-      <div className="flex items-center gap-2">
-        <label
-          className="font-technical text-xs text-border"
-          htmlFor={`${idPrefix}-angle-${region}`}
-        >
-          Set angle
-        </label>
-        <AngleNumberInput
-          id={`${idPrefix}-angle-${region}`}
-          value={delta.currentAngle}
-          min={limits?.min}
-          max={limits?.max}
-          onCommit={onAngleCommit}
-        />
-        <span className="font-technical text-xs text-border" aria-hidden="true">
-          °
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-2">
+          {/* limits is always defined here in practice — RegionRow only
+              ever renders for EDITABLE_REGIONS (JOINT_REGIONS' keys), which
+              is exactly ANATOMICAL_LIMITS' key set — but the fallback keeps
+              this branch type-safe against ANATOMICAL_LIMITS' Partial type
+              without threading a non-null assertion through. */}
+          <AngleSlider
+            region={region}
+            value={delta.currentAngle}
+            min={limits?.min ?? 0}
+            max={limits?.max ?? 180}
+            rules={rules}
+            onChange={onAngleCommit}
+          />
+          <label className="sr-only" htmlFor={`${idPrefix}-angle-${region}`}>
+            {REGION_LABELS[region]} angle, exact value
+          </label>
+          <AngleNumberInput
+            id={`${idPrefix}-angle-${region}`}
+            value={delta.currentAngle}
+            min={limits?.min}
+            max={limits?.max}
+            onCommit={onAngleCommit}
+          />
+          <span
+            className="font-technical text-xs text-border"
+            aria-hidden="true"
+          >
+            °
+          </span>
+        </div>
+        <span className="flex items-center gap-1.5 font-technical text-xs">
+          <BandDot band={delta.currentBand} />
+          {delta.currentAngle !== null
+            ? `${delta.currentAngle.toFixed(1)}° — ${delta.currentBand ?? "no threshold matched"}`
+            : "—"}
         </span>
       </div>
     </div>
@@ -981,6 +1134,7 @@ export function PostureEditor({
                     region={region}
                     originalResult={effectiveOriginalRegionResults[region]}
                     delta={getRegionDelta(editor, region)}
+                    rules={editor.rules}
                     onAngleCommit={(degrees) =>
                       handleAngleCommit(region, degrees)
                     }
