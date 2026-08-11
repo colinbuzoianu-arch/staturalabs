@@ -103,15 +103,32 @@ describe("classifyLandmarkConfidence", () => {
     ).toBe("missing");
   });
 
-  it("missing: clearly off-screen even with high reported visibility", () => {
+  it("estimated: off-screen but plausible, with real visibility — MediaPipe extrapolating a joint that walked out of frame", () => {
+    // A prior version of this function treated ANY off-screen coordinate as
+    // "missing" outright, regardless of visibility — too aggressive, and
+    // exactly what produced the partial/gappy skeletons this fix addresses
+    // (e.g. hips below the bottom edge during a deep bend, reported with
+    // low-but-real visibility, not MediaPipe's degenerate near-origin
+    // fallback). Off-screen alone is no longer sufficient for "missing".
     expect(
       classifyLandmarkConfidence({ x: 0.5, y: 1.4, z: 0, visibility: 0.95 }),
-    ).toBe("missing");
+    ).toBe("estimated");
   });
 
-  it("missing: off-screen on the negative side", () => {
+  it("estimated: off-screen on the negative side, with real visibility", () => {
     expect(
       classifyLandmarkConfidence({ x: -0.2, y: 0.5, z: 0, visibility: 0.9 }),
+    ).toBe("estimated");
+  });
+
+  it("missing: off-screen AND near-origin AND near-zero visibility — the true degenerate case, wherever it happens to fall relative to the frame boundary", () => {
+    expect(
+      classifyLandmarkConfidence({
+        x: -0.005,
+        y: -0.005,
+        z: 0,
+        visibility: 0.01,
+      }),
     ).toBe("missing");
   });
 
@@ -325,6 +342,130 @@ describe("completeMissingLandmarks", () => {
     expect(result[LANDMARK_INDEX.LEFT_HIP].confidence).toBe("measured");
     expect(result[LANDMARK_INDEX.RIGHT_KNEE].x).toBeCloseTo(0.6, 10);
     expect(result[LANDMARK_INDEX.RIGHT_KNEE].y).toBeCloseTo(0.45, 10);
+  });
+
+  it("cross-reflects a degenerate shoulder from its opposite side, unblocking that side's proportional chain", () => {
+    // LEFT_SHOULDER itself is genuinely degenerate (MISSING fixture), but
+    // RIGHT_SHOULDER and both hips are fine — shoulderMid/hipMid are still
+    // computable (from RIGHT_SHOULDER alone). Mirroring can't fill
+    // LEFT_SHOULDER (MIRROR_PAIRS deliberately excludes SHOULDER/HIP — see
+    // that table's own comment); the cross-reflection pass should instead.
+    // LEFT_ELBOW is also missing, with no measured value of its own, to
+    // prove the resolved shoulder actually unblocks the proportional chain
+    // that depends on it (previously LEFT_ELBOW would have stayed
+    // "missing" forever in this exact scenario). RIGHT_ELBOW is ALSO
+    // marked missing (not left at makeLandmarks' own default placeholder)
+    // — otherwise the mirror pass would resolve LEFT_ELBOW from that
+    // placeholder before the proportional chain this test means to
+    // exercise ever gets a turn.
+    const landmarks = makeLandmarks({
+      LEFT_SHOULDER: MISSING,
+      RIGHT_SHOULDER: { x: 0.5, y: 0.3 },
+      LEFT_HIP: { x: 0.5, y: 0.6 },
+      RIGHT_HIP: { x: 0.5, y: 0.6 },
+      LEFT_ELBOW: MISSING,
+      RIGHT_ELBOW: MISSING,
+    });
+    const result = completeMissingLandmarks(landmarks);
+
+    const shoulder = result[LANDMARK_INDEX.LEFT_SHOULDER];
+    expect(shoulder.confidence).toBe("inferred");
+    // Reflected across the vertical line through hipMid (x=0.5) from
+    // RIGHT_SHOULDER (0.5, 0.3) — RIGHT_SHOULDER already sits ON that
+    // line, so the reflection is a no-op landing right back on it. That's
+    // expected for this perfectly-symmetric fixture; the point of this
+    // test is that it resolves to a real position at all, not "missing".
+    expect(shoulder.x).toBeCloseTo(0.5, 5);
+    expect(shoulder.y).toBeCloseTo(0.3, 5);
+
+    // The proportional chain for LEFT_ELBOW (parent: LEFT_SHOULDER) now
+    // has a real parent to work from.
+    const elbow = result[LANDMARK_INDEX.LEFT_ELBOW];
+    expect(elbow.confidence).toBe("inferred");
+    const stature = 0.3 / 0.288;
+    const upperArmLength = 0.186 * stature;
+    expect(elbow.x).toBeCloseTo(0.5, 5);
+    expect(elbow.y).toBeCloseTo(0.3 + upperArmLength, 5);
+  });
+
+  it("cross-reflects a degenerate hip from its opposite side", () => {
+    const landmarks = makeLandmarks({
+      LEFT_SHOULDER: { x: 0.5, y: 0.3 },
+      RIGHT_SHOULDER: { x: 0.5, y: 0.3 },
+      LEFT_HIP: MISSING,
+      RIGHT_HIP: { x: 0.5, y: 0.6 },
+    });
+    const result = completeMissingLandmarks(landmarks);
+    const hip = result[LANDMARK_INDEX.LEFT_HIP];
+    expect(hip.confidence).toBe("inferred");
+    expect(hip.x).toBeCloseTo(0.5, 5);
+    expect(hip.y).toBeCloseTo(0.6, 5);
+  });
+
+  it("falls back to a canonical position above the shoulder midpoint for a still-missing NOSE", () => {
+    // NOSE has no mirror partner (not in MIRROR_PAIRS) and no proportional
+    // chain (not in PROPORTIONAL_CHAINS) — nothing in passes 1-4 can ever
+    // resolve it. Only the final completeness fallback does.
+    const landmarks = makeLandmarks({
+      ...SYMMETRIC_TORSO,
+      NOSE: MISSING,
+    });
+    const result = completeMissingLandmarks(landmarks);
+    const nose = result[LANDMARK_INDEX.NOSE];
+    expect(nose.confidence).toBe("inferred");
+
+    const stature = 0.3 / 0.288;
+    const headOffset = 0.182 * stature;
+    // Torso is perfectly vertical (shoulder above hip, down = +y), so the
+    // head should land straight up from the shoulder midpoint.
+    expect(nose.x).toBeCloseTo(0.5, 5);
+    expect(nose.y).toBeCloseTo(0.3 - headOffset, 5);
+  });
+
+  it("defaults a still-missing decorative foot landmark to its resolved ankle position", () => {
+    // LEFT_HEEL/LEFT_FOOT_INDEX have a mirror pair but no proportional
+    // chain — if the ankle itself is fine but both feet-cluster points are
+    // degenerate on BOTH sides (mirroring has nothing to mirror from
+    // either — RIGHT_HEEL/RIGHT_FOOT_INDEX marked missing too, not left at
+    // makeLandmarks' own default placeholder, which the mirror pass would
+    // otherwise resolve LEFT_* from first), the final fallback should
+    // still place them rather than leave a gap.
+    const landmarks = makeLandmarks({
+      ...SYMMETRIC_TORSO,
+      LEFT_ANKLE: { x: 0.5, y: 0.95 },
+      LEFT_HEEL: MISSING,
+      LEFT_FOOT_INDEX: MISSING,
+      RIGHT_HEEL: MISSING,
+      RIGHT_FOOT_INDEX: MISSING,
+    });
+    const result = completeMissingLandmarks(landmarks);
+    const heel = result[LANDMARK_INDEX.LEFT_HEEL];
+    const footIndex = result[LANDMARK_INDEX.LEFT_FOOT_INDEX];
+    expect(heel.confidence).toBe("inferred");
+    expect(footIndex.confidence).toBe("inferred");
+    expect(heel.x).toBeCloseTo(0.5, 10);
+    expect(heel.y).toBeCloseTo(0.95, 10);
+    expect(footIndex.x).toBeCloseTo(0.5, 10);
+    expect(footIndex.y).toBeCloseTo(0.95, 10);
+  });
+
+  it("guarantees a complete skeleton — no landmark is ever 'missing' in the output as long as at least one shoulder and one hip are usable", () => {
+    // Worst case short of losing the torso midline entirely: EVERY
+    // landmark is genuinely degenerate (MISSING) except one shoulder and
+    // one hip — almost nothing was actually tracked, yet the completeness
+    // guarantee should still hold for all 33.
+    const overrides = Object.fromEntries(
+      Object.keys(LANDMARK_INDEX).map((name) => [name, MISSING]),
+    ) as Record<keyof typeof LANDMARK_INDEX, typeof MISSING>;
+    const landmarks = makeLandmarks({
+      ...overrides,
+      LEFT_SHOULDER: { x: 0.5, y: 0.3 },
+      RIGHT_HIP: { x: 0.5, y: 0.6 },
+    });
+    const result = completeMissingLandmarks(landmarks);
+    expect(result).toHaveLength(33);
+    const stillMissing = result.filter((p) => p.confidence === "missing");
+    expect(stillMissing).toHaveLength(0);
   });
 });
 

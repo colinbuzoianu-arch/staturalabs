@@ -41,7 +41,7 @@ import { NOT_ASSESSED_COLOR, riskBandColors } from "@/lib/risk/band-severity";
 export type Skeleton3DProps = {
   /** The landmark array to render — either an original capture or an FK-adjusted pose. Same PoseLandmarks shape landmarksTo3DPositions accepts. */
   keypoints: PoseLandmarks;
-  /** Per-landmark confidence, keyed by MediaPipe landmark index (0-32) — typically built from classifyLandmarkConfidence or a completeMissingLandmarks result. An index with no entry is treated as "missing" (never drawn), the safe default. */
+  /** Per-landmark confidence, keyed by MediaPipe landmark index (0-32) — typically built from classifyLandmarkConfidence or a completeMissingLandmarks result. An index with no entry is treated as "missing", the safe default — rendered faintly (low opacity, wireframe) rather than hidden, since a real skeleton should always look complete; see updateJointVisual/combineConfidence. */
   confidenceMap: ReadonlyMap<number, SkeletonLandmarkConfidence>;
   /** Which band each scored BodyRegion currently has, for bone/joint coloring. A region absent from the map (or mapped to null) renders NOT_ASSESSED_COLOR. */
   regionBands: ReadonlyMap<BodyRegion, RiskBand | null>;
@@ -82,6 +82,14 @@ const HOVER_SCALE = 1.2;
 const MEASURED_OPACITY = 1;
 const ESTIMATED_OPACITY = 0.5;
 const INFERRED_OPACITY = 0.3;
+// completeMissingLandmarks (skeleton.ts) now guarantees its output never
+// actually carries "missing" confidence except in the one documented case
+// (no torso midline at all — both shoulders AND both hips degenerate). This
+// is purely a safety net for that residual case: render the joint/bone
+// faintly rather than hiding it outright, so the figure is always at least
+// visually complete even when the underlying data genuinely couldn't place
+// something.
+const MISSING_OPACITY = 0.15;
 
 const DRAG_HIGHLIGHT_COLOR = 0xffe066; // yellow/white highlight while a joint is actively being dragged
 const DRAGGABLE_HALO_COLOR = 0x22d3ee; // cyan halo marking a joint as interactive, independent of its region color
@@ -106,7 +114,7 @@ const DRAG_EMIT_INTERVAL_MS = 1000 / 30;
 // nothing exported for this, and duplicating a few lines beats importing
 // across renderer boundaries.
 // ---------------------------------------------------------------------
-type ConfidenceStyle = "measured" | "estimated" | "inferred" | "skip";
+type ConfidenceStyle = "measured" | "estimated" | "inferred";
 
 function getConfidence(
   confidenceMap: ReadonlyMap<number, SkeletonLandmarkConfidence>,
@@ -115,11 +123,19 @@ function getConfidence(
   return confidenceMap.get(index) ?? "missing";
 }
 
+// A bone with a "missing" endpoint used to be skipped (not drawn) entirely
+// — now drawn "inferred" (the faintest, most-dashed tier already in this
+// file) instead, same "always visually complete, never a gap" contract
+// completeMissingLandmarks' own final fallback pass now guarantees at the
+// data level. This function itself can still receive "missing" (see
+// getConfidence's fallback above, and the one residual case
+// completeMissingLandmarks documents), so it's the one place that still
+// has to decide what to do with it — draw faintly, never hide.
 function combineConfidence(
   a: SkeletonLandmarkConfidence,
   b: SkeletonLandmarkConfidence,
 ): ConfidenceStyle {
-  if (a === "missing" || b === "missing") return "skip";
+  if (a === "missing" || b === "missing") return "inferred";
   if (a === "inferred" || b === "inferred") return "inferred";
   if (a === "estimated" || b === "estimated") return "estimated";
   return "measured";
@@ -443,10 +459,14 @@ type JointUpdateParams = {
 
 function updateJointVisual(joint: JointVisual, params: JointUpdateParams) {
   const { confidence } = params;
-  if (confidence === "missing") {
-    joint.group.visible = false;
-    return;
-  }
+  // "missing" used to hide the joint entirely — now rendered anyway, at the
+  // lowest opacity tier and wireframe, same "always visually complete"
+  // contract as combineConfidence's bone handling above. In practice this
+  // should be rare-to-unreachable now that completeMissingLandmarks'
+  // fallback pass guarantees a real position for everything except the one
+  // documented no-torso-midline-at-all case, but it's a real position
+  // either way (the raw, degenerate MediaPipe coordinates) — safe to draw,
+  // just clearly marked as not to be trusted.
   joint.group.visible = true;
   joint.group.position.copy(params.position);
 
@@ -468,7 +488,11 @@ function updateJointVisual(joint: JointVisual, params: JointUpdateParams) {
   material.color.set(color);
   material.wireframe = confidence !== "measured";
   material.opacity =
-    confidence === "measured" ? MEASURED_OPACITY : opacityFor(confidence);
+    confidence === "measured"
+      ? MEASURED_OPACITY
+      : confidence === "missing"
+        ? MISSING_OPACITY
+        : opacityFor(confidence);
 
   if (joint.halo) {
     joint.halo.visible = params.isDraggable;
@@ -506,14 +530,13 @@ function rebuildScene(
   const draggableSet = new Set(data.draggableJoints);
 
   for (const bone of state.bones) {
+    // combineConfidence never returns "skip" anymore (a missing endpoint
+    // draws "inferred" instead — see that function's own comment), so
+    // every bone is always visible now; no branch left to hide one.
     const style = combineConfidence(
       getConfidence(data.confidenceMap, bone.a),
       getConfidence(data.confidenceMap, bone.b),
     );
-    if (style === "skip") {
-      bone.line.visible = false;
-      continue;
-    }
     bone.line.visible = true;
 
     const pa = positions[bone.a];

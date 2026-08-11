@@ -14,14 +14,14 @@ import { VIRTUAL_CHEST_LANDMARK_INDEX } from "./skeleton";
 
 // A "standing, arms at sides, facing right" neutral pose where every one
 // of the 8 computable regions reads ~0° — same shape as
-// drag-to-angle.test.ts's own fixture, but with every y coordinate kept
-// inside [0,1]. That matters here specifically: unlike
-// drag-to-angle.test.ts (which calls computeAllAngles directly),
-// createPostureEditor first runs keypoints through completeMissingLandmarks,
-// whose classifyLandmarkConfidence treats any landmark outside [0,1] as
-// off-screen ("missing") regardless of visibility — angles.test.ts's own
-// fixtures can get away with e.g. an ankle at y=1.1 because they call
-// computeBodyAngles directly and skip that check entirely.
+// drag-to-angle.test.ts's own fixture, kept inside [0,1] mainly to mirror
+// a real well-framed capture. Unlike drag-to-angle.test.ts (which calls
+// computeAllAngles directly), createPostureEditor first runs keypoints
+// through completeMissingLandmarks — but classifyLandmarkConfidence no
+// longer treats an off-screen-but-plausible coordinate as "missing"
+// regardless of visibility (only MediaPipe's genuine near-origin/near-zero-
+// visibility degenerate signature is), so this fixture no longer strictly
+// depends on staying inside [0,1] the way it once did.
 function neutralLandmarks(): PoseLandmark[] {
   const placeholder: PoseLandmark = { x: 0, y: 0, z: 0, visibility: 1 };
   const landmarks: PoseLandmark[] = Array.from({ length: 33 }, () => ({

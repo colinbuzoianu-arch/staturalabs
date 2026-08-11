@@ -140,6 +140,22 @@ const DEGENERATE_VISIBILITY_THRESHOLD = 0.05;
 // BodyRegion outright rather than drawing a best-effort position — this
 // classification exists so a renderer *can* still show something for a
 // low-confidence point, just visually marked as such.
+//
+// Off-screen alone does NOT make a landmark "missing" — MediaPipe routinely
+// extrapolates a real, usable position for a joint that's walked out of
+// frame (e.g. hips below the bottom edge during a deep bend), and that
+// extrapolation is exactly the kind of "rough but better than nothing"
+// position this classification exists to let through as "estimated". Only
+// the genuinely degenerate case — near-origin coordinates with near-zero
+// visibility, MediaPipe's own "I have no idea" fallback shape — is
+// "missing", regardless of whether that near-origin point happens to fall
+// just inside or just outside the [0,1] frame bounds (that boundary is
+// coincidental, not meaningful). An EARLIER version of this function also
+// treated any off-screen coordinate as "missing" outright; that was too
+// aggressive and produced skeletons with real, usable joints hidden simply
+// because the subject stepped out of frame — see completeMissingLandmarks'
+// own fallback pass below for the residual true-degenerate case this still
+// leaves.
 export function classifyLandmarkConfidence(
   landmark: PoseLandmark,
 ): LandmarkConfidence {
@@ -152,8 +168,7 @@ export function classifyLandmarkConfidence(
   const nearOrigin =
     Math.abs(landmark.x) < DEGENERATE_COORDINATE_EPSILON &&
     Math.abs(landmark.y) < DEGENERATE_COORDINATE_EPSILON;
-  const degenerate =
-    !onScreen || (nearOrigin && visibility < DEGENERATE_VISIBILITY_THRESHOLD);
+  const degenerate = nearOrigin && visibility < DEGENERATE_VISIBILITY_THRESHOLD;
 
   return degenerate ? "missing" : "estimated";
 }
@@ -267,15 +282,27 @@ const SEGMENT_RATIO_OF_STATURE = {
   LOWER_LEG: 0.233,
 } as const;
 
+// Head+neck length (vertex to the shoulder line) as a fraction of stature —
+// same anthropometric source family as SEGMENT_RATIO_OF_STATURE above
+// (Drillis & Contini (1966) / Winter (2009)). Used only by
+// completeMissingLandmarks' final fallback pass to place NOSE when it has
+// no mirror partner and no proportional chain of its own to fall back on
+// (unlike every limb segment above) — not a measurement used anywhere near
+// scoring.
+const HEAD_ABOVE_SHOULDER_RATIO_OF_STATURE = 0.182;
+
 // Landmarks this module will attempt to fill in when "missing" — every
 // paired (LEFT_*/RIGHT_*) landmark except SHOULDER and HIP. Those two are
-// deliberately excluded: they're the torso anchors mirroring itself
-// depends on (see torsoMidline below), so mirroring one shoulder/hip off
-// the other would reflect a point across a line that degenerates to pass
-// through that very point when the opposite side is what's missing —
-// mathematically a no-op, not a useful estimate. If a shoulder or hip is
-// itself "missing", it stays "missing": there's no anthropometric ratio
-// for shoulder/hip width to fall back on either.
+// deliberately excluded from MIRRORING specifically: reflecting one
+// shoulder/hip off the other ACROSS THE SHOULDER-HIP MIDLINE ITSELF (the
+// axis every other mirror in this table uses) degenerates to a no-op when
+// that midline is partly derived from the very point being mirrored — see
+// completeMissingLandmarks' own cross-reflection step for how a still-
+// missing shoulder or hip is actually resolved instead (reflected across a
+// DIFFERENT line, anchored at the *other* pair's midpoint, which sidesteps
+// exactly that circularity). Not "stays missing forever" the way this
+// comment used to claim — there is no anthropometric width ratio for
+// shoulder/hip in this file, but a plain reflection needs no ratio.
 const MIRROR_PAIRS: ReadonlyArray<readonly [LandmarkName, LandmarkName]> = [
   ["LEFT_EYE_INNER", "RIGHT_EYE_INNER"],
   ["LEFT_EYE", "RIGHT_EYE"],
@@ -454,17 +481,34 @@ export type SkeletonLandmark = {
 // Fills in "missing" landmarks (per classifyLandmarkConfidence) for
 // visualization. "measured" and "estimated" landmarks pass through
 // unchanged — this module never second-guesses real MediaPipe output,
-// only fills genuine gaps. Three passes:
+// only fills genuine gaps. Five passes:
 //   1. Classify every landmark.
-//   2. Mirror: reflect a measured/estimated landmark from the opposite
+//   2. Shoulder/hip cross-reflection: a still-missing shoulder is
+//      reflected from its opposite side across a HIP-anchored vertical
+//      line (not the shoulder-hip midline MIRROR_PAIRS uses — see that
+//      table's own comment on why that would degenerate); a still-missing
+//      hip is reflected the same way across a SHOULDER-anchored vertical
+//      line. Runs before mirroring/proportional estimation specifically so
+//      a resolved shoulder/hip is available as a valid parent for those.
+//   3. Mirror: reflect a measured/estimated landmark from the opposite
 //      side across the torso midline, for any still-missing paired
 //      landmark in MIRROR_PAIRS.
-//   3. Proportional: for the four limb segments with a given anthropometric
-//      ratio, place a still-missing landmark from its (now-resolved, by
-//      step 1 or 2) parent joint, then apply the soft ROM clamp.
-// If the torso midline itself can't be computed (both shoulders and/or
-// both hips missing), nothing downstream can be inferred — every affected
-// landmark is returned exactly as classified, unmodified.
+//   4. Proportional: for the four limb segments with a given anthropometric
+//      ratio, place a still-missing landmark from its (now-resolved, by an
+//      earlier step) parent joint, then apply the soft ROM clamp.
+//   5. Final completeness fallback: NOSE (no mirror partner, no
+//      proportional chain), the face cluster on a side with nothing to
+//      mirror from, and the two decorative foot landmarks (HEEL/
+//      FOOT_INDEX, no proportional chain either) — plus a defensive
+//      catch-all for any OTHER landmark somehow still "missing" at this
+//      point. This is what guarantees the function's return value is
+//      ALWAYS a complete 33-landmark set once a torso midline exists at
+//      all (see the very next paragraph for the one case it doesn't).
+// If the torso midline itself can't be computed (both shoulders AND both
+// hips missing — no anchor to place anything relative to, not even
+// approximately), nothing downstream can be inferred: every affected
+// landmark is returned exactly as classified, unmodified. This is the one
+// remaining case where a "missing" landmark can still reach a caller.
 export function completeMissingLandmarks(
   keypoints: PoseLandmarks,
 ): SkeletonLandmark[] {
@@ -509,7 +553,65 @@ export function completeMissingLandmarks(
     y: hipMid.y - shoulderMid.y,
   });
 
-  // Pass 2: mirroring.
+  // Pass 2: shoulder/hip cross-reflection (see this function's own doc
+  // comment for why this can't just be added to MIRROR_PAIRS). shoulderMid/
+  // hipMid/stature/torsoDownDirection above are computed once, from
+  // whatever was directly usable, and deliberately never recomputed as
+  // inference proceeds — same convention passes 3/4 below already follow
+  // (e.g. the "both elbows missing" case uses the real, un-mirrored
+  // stature) — so a shoulder resolved here doesn't retroactively perturb
+  // those torso reference values, only unblocks anything downstream that
+  // needed this specific landmark as a parent.
+  const verticalThroughHip = {
+    x: hipMid.x + torsoDownDirection.x,
+    y: hipMid.y + torsoDownDirection.y,
+  };
+  const verticalThroughShoulder = {
+    x: shoulderMid.x + torsoDownDirection.x,
+    y: shoulderMid.y + torsoDownDirection.y,
+  };
+  for (const [target, source] of [
+    ["LEFT_SHOULDER", "RIGHT_SHOULDER"],
+    ["RIGHT_SHOULDER", "LEFT_SHOULDER"],
+  ] as const) {
+    const targetPoint = at(target);
+    if (targetPoint.confidence !== "missing") continue;
+    const sourcePoint = usablePoint(source);
+    if (!sourcePoint) continue; // both sides missing — nothing to reflect from
+    const mirrored = reflectAcrossLine(sourcePoint, hipMid, verticalThroughHip);
+    points[LANDMARK_INDEX[target]] = {
+      ...targetPoint,
+      x: mirrored.x,
+      y: mirrored.y,
+      z: 0,
+      visibility: 0,
+      confidence: "inferred",
+    };
+  }
+  for (const [target, source] of [
+    ["LEFT_HIP", "RIGHT_HIP"],
+    ["RIGHT_HIP", "LEFT_HIP"],
+  ] as const) {
+    const targetPoint = at(target);
+    if (targetPoint.confidence !== "missing") continue;
+    const sourcePoint = usablePoint(source);
+    if (!sourcePoint) continue;
+    const mirrored = reflectAcrossLine(
+      sourcePoint,
+      shoulderMid,
+      verticalThroughShoulder,
+    );
+    points[LANDMARK_INDEX[target]] = {
+      ...targetPoint,
+      x: mirrored.x,
+      y: mirrored.y,
+      z: 0,
+      visibility: 0,
+      confidence: "inferred",
+    };
+  }
+
+  // Pass 3: mirroring.
   for (const [left, right] of MIRROR_PAIRS) {
     for (const [target, source] of [
       [left, right],
@@ -532,7 +634,7 @@ export function completeMissingLandmarks(
     }
   }
 
-  // Pass 3: proportional estimation, proximal-to-distal so a chain's own
+  // Pass 4: proportional estimation, proximal-to-distal so a chain's own
   // earlier step (e.g. an elbow just placed) is available as the next
   // step's parent (e.g. the wrist).
   for (const step of PROPORTIONAL_CHAINS) {
@@ -590,6 +692,115 @@ export function completeMissingLandmarks(
       ...childPoint,
       x: clamped.x,
       y: clamped.y,
+    };
+  }
+
+  // Pass 5: final completeness fallback. Everything above already resolves
+  // the overwhelming majority of a real capture — this only ever fires for
+  // landmarks structurally outside all of it: NOSE (no mirror partner, no
+  // proportional chain), a face-cluster point on a side with nothing to
+  // mirror from, and the two purely-decorative foot landmarks (a mirror
+  // pair each, but no proportional chain to fall back to if BOTH sides are
+  // degenerate). Everything placed here is "inferred" (this module's own
+  // fabricated-position marker — see SkeletonLandmarkConfidence's own doc
+  // comment), same as every other fabricated position above.
+  const nose = at("NOSE");
+  const headAnchor: Point2D =
+    nose.confidence === "missing"
+      ? {
+          x:
+            shoulderMid.x -
+            torsoDownDirection.x *
+              HEAD_ABOVE_SHOULDER_RATIO_OF_STATURE *
+              stature,
+          y:
+            shoulderMid.y -
+            torsoDownDirection.y *
+              HEAD_ABOVE_SHOULDER_RATIO_OF_STATURE *
+              stature,
+        }
+      : { x: nose.x, y: nose.y };
+  if (nose.confidence === "missing") {
+    points[LANDMARK_INDEX.NOSE] = {
+      ...nose,
+      x: headAnchor.x,
+      y: headAnchor.y,
+      z: 0,
+      visibility: 0,
+      confidence: "inferred",
+    };
+  }
+
+  const FACE_CLUSTER: readonly LandmarkName[] = [
+    "LEFT_EYE_INNER",
+    "LEFT_EYE",
+    "LEFT_EYE_OUTER",
+    "RIGHT_EYE_INNER",
+    "RIGHT_EYE",
+    "RIGHT_EYE_OUTER",
+    "LEFT_EAR",
+    "RIGHT_EAR",
+    "MOUTH_LEFT",
+    "MOUTH_RIGHT",
+  ];
+  for (const name of FACE_CLUSTER) {
+    const point = at(name);
+    if (point.confidence !== "missing") continue;
+    // No per-feature ratio for eye/ear/mouth offsets from the nose exists
+    // in this file (or is worth adding for landmarks POSE_CONNECTIONS only
+    // ever draws as decorative face lines) — collapsing onto the resolved
+    // head position is a deliberately crude last resort, not a claim about
+    // real facial geometry.
+    points[LANDMARK_INDEX[name]] = {
+      ...point,
+      x: headAnchor.x,
+      y: headAnchor.y,
+      z: 0,
+      visibility: 0,
+      confidence: "inferred",
+    };
+  }
+
+  const FOOT_CLUSTER: ReadonlyArray<readonly [LandmarkName, LandmarkName]> = [
+    ["LEFT_HEEL", "LEFT_ANKLE"],
+    ["RIGHT_HEEL", "RIGHT_ANKLE"],
+    ["LEFT_FOOT_INDEX", "LEFT_ANKLE"],
+    ["RIGHT_FOOT_INDEX", "RIGHT_ANKLE"],
+  ];
+  for (const [name, ankleName] of FOOT_CLUSTER) {
+    const point = at(name);
+    if (point.confidence !== "missing") continue;
+    // Same reasoning as FACE_CLUSTER above: no foot-length ratio exists in
+    // this file, and HEEL/FOOT_INDEX are purely decorative (POSE_CONNECTIONS'
+    // own "optional, per spec" comment) — defaulting to the resolved
+    // ankle's own position (a zero-length foot) is crude but harmless.
+    const ankle = at(ankleName);
+    const anchor = ankle.confidence !== "missing" ? ankle : hipMid;
+    points[LANDMARK_INDEX[name]] = {
+      ...point,
+      x: anchor.x,
+      y: anchor.y,
+      z: 0,
+      visibility: 0,
+      confidence: "inferred",
+    };
+  }
+
+  // Defensive catch-all: every one of the 33 landmarks should already be
+  // covered by a pass above, so nothing should actually reach this loop —
+  // it exists so "always returns a complete skeleton" is guaranteed
+  // unconditionally, rather than resting entirely on that reasoning never
+  // having a gap (now or after a future edit to LANDMARK_INDEX/
+  // MIRROR_PAIRS/PROPORTIONAL_CHAINS).
+  for (const point of points) {
+    if (point.confidence !== "missing") continue;
+    points[point.index] = {
+      ...point,
+      x: hipMid.x,
+      y: hipMid.y,
+      z: 0,
+      visibility: 0,
+      confidence: "inferred",
     };
   }
 
