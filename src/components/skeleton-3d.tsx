@@ -18,15 +18,11 @@ import {
   ANATOMICAL_LIMITS,
   BODY_REGION_BONES,
   getVirtualChestPosition,
-  getVirtualHipPosition,
   JOINT_REGIONS,
   LANDMARK_INDEX,
   landmarksTo3DPositions,
-  POSE_CONNECTIONS,
-  POSITION_ONLY_REGIONS,
   type SkeletonLandmarkConfidence,
   VIRTUAL_CHEST_LANDMARK_INDEX,
-  VIRTUAL_HIP_LANDMARK_INDEX,
 } from "@/lib/pose/skeleton";
 import { NOT_ASSESSED_COLOR, riskBandColors } from "@/lib/risk/band-severity";
 
@@ -40,13 +36,30 @@ import { NOT_ASSESSED_COLOR, riskBandColors } from "@/lib/risk/band-severity";
 // down client-side, per mount. If this component is ever wired into
 // anything beyond a live what-if view (persistence, cross-session
 // comparison), re-read ERGO_COMPLIANCE_BY_DESIGN.md §3.2 first.
+//
+// SLD_POSTURE_EDITOR_FIDELITY_PLAN.md P3: renders a solid, neutral-grey
+// mannequin (capsule limb meshes, rigid non-interactive head/hands/feet)
+// rather than the old thin-line stick figure with a sphere at all 33
+// landmarks — deliberately not a realistic human (see that plan's own
+// "design intent, not taste" note on why an obviously synthetic figure
+// matters for the workstation-not-worker framing).
+//
+// P5: limbs/joints below MIN_LANDMARK_VISIBILITY (angles.ts) render
+// visibly distinct from a cleanly measured one — desaturated (color
+// blended toward NOT_ASSESSED_COLOR) AND lower-opacity AND wireframe, all
+// three stacked, driven by the same per-landmark SkeletonLandmarkConfidence
+// this file already threaded through for P3's own rendering. Not a
+// cosmetic choice: CLAUDE.md documents real captures with far-side limbs
+// at 0.27 visibility next to 0.84+ on the near side — a figure that drew
+// those identically would look more confident than the underlying
+// measurement actually is.
 
 export type Skeleton3DProps = {
-  /** The landmark array to render — either an original capture or an FK-adjusted pose. Same PoseLandmarks shape landmarksTo3DPositions accepts. */
+  /** The landmark array to render — as of SLD_POSTURE_EDITOR_FIDELITY_PLAN.md P2, normally a manikin.ts pose built from the current 8 joint angles (fixed anthropometric proportions), not a real capture's own landmarks. Same PoseLandmarks shape landmarksTo3DPositions accepts either way — this component doesn't care which produced it. */
   keypoints: PoseLandmarks;
   /** Per-landmark confidence, keyed by MediaPipe landmark index (0-32) — typically built from classifyLandmarkConfidence or a completeMissingLandmarks result. An index with no entry is treated as "missing", the safe default — rendered faintly (low opacity, wireframe) rather than hidden, since a real skeleton should always look complete; see updateJointVisual/combineConfidence. */
   confidenceMap: ReadonlyMap<number, SkeletonLandmarkConfidence>;
-  /** Which band each scored BodyRegion currently has, for bone/joint coloring. A region absent from the map (or mapped to null) renders NOT_ASSESSED_COLOR. */
+  /** Which band each scored BodyRegion currently has, for limb/joint coloring. A region absent from the map (or mapped to null) renders NOT_ASSESSED_COLOR. */
   regionBands: ReadonlyMap<BodyRegion, RiskBand | null>;
   /** Landmark indices the user may drag — normally JOINT_REGIONS' keys (or a subset), including VIRTUAL_CHEST_LANDMARK_INDEX for the TRUNK handle. */
   draggableJoints: readonly number[];
@@ -74,9 +87,51 @@ const DEFAULT_HEIGHT = 600;
 // standing figure.
 const JOINT_RADIUS = 0.02;
 const DRAGGABLE_JOINT_RADIUS = 0.03;
-const HEAD_RADIUS = 0.08;
 const HALO_RADIUS_SCALE = 1.5;
 const HOVER_SCALE = 1.2;
+
+// Capsule radii for the solid mannequin body (P3) — one per limb "kind",
+// not per BodyRegion, since e.g. both KNEE_LEFT bone segments (thigh AND
+// shin) read the same LEG radius. Rough, deliberately schematic
+// proportions for an "obviously synthetic" figure, not a precision
+// anthropometric claim the way manikin.ts's own ratio table is — nothing
+// here feeds a measurement.
+const TORSO_CAPSULE_RADIUS = 0.07;
+const NECK_CAPSULE_RADIUS = 0.025;
+const ARM_CAPSULE_RADIUS = 0.035;
+const LEG_CAPSULE_RADIUS = 0.05;
+
+// Rigid, non-interactive extremities (P3's own "Head/Hands/Feet" spec) —
+// each a single solid capsule, never articulated, never draggable.
+const HEAD_RADIUS = 0.09;
+const HEAD_LENGTH = 0.05;
+const HAND_RADIUS = 0.03;
+const HAND_LENGTH = 0.06;
+const FOOT_RADIUS = 0.03;
+const FOOT_LENGTH = 0.15;
+
+// capSegments/radialSegments for every capsule mesh in this file (limbs,
+// extremities, and — indirectly, via sphereGeometry's own low segment
+// counts below — the draggable joint handles): deliberately low-poly, not
+// smoothed for realism. Matches the "obviously a synthetic mannequin"
+// design intent, and is cheap to render.
+const CAPSULE_CAP_SEGMENTS = 4;
+const CAPSULE_RADIAL_SEGMENTS = 8;
+
+// BODY_REGION_BONES (skeleton.ts) is still the correct region -> segment
+// map for colouring (SLD_POSTURE_EDITOR_FIDELITY_PLAN.md P3 says so
+// explicitly) — this is the capsule-radius counterpart, one entry per
+// region BODY_REGION_BONES actually has bones for.
+const REGION_CAPSULE_RADIUS: Partial<Record<BodyRegion, number>> = {
+  TRUNK: TORSO_CAPSULE_RADIUS,
+  NECK: NECK_CAPSULE_RADIUS,
+  SHOULDER_LEFT: ARM_CAPSULE_RADIUS,
+  SHOULDER_RIGHT: ARM_CAPSULE_RADIUS,
+  ELBOW_LEFT: ARM_CAPSULE_RADIUS,
+  ELBOW_RIGHT: ARM_CAPSULE_RADIUS,
+  KNEE_LEFT: LEG_CAPSULE_RADIUS,
+  KNEE_RIGHT: LEG_CAPSULE_RADIUS,
+};
 
 // Same opacity tiers as skeleton-viewer.tsx's 2D equivalents (that file's
 // own MEASURED_OPACITY/ESTIMATED_OPACITY/INFERRED_OPACITY are private
@@ -88,7 +143,7 @@ const INFERRED_OPACITY = 0.3;
 // completeMissingLandmarks (skeleton.ts) now guarantees its output never
 // actually carries "missing" confidence except in the one documented case
 // (no torso midline at all — both shoulders AND both hips degenerate). This
-// is purely a safety net for that residual case: render the joint/bone
+// is purely a safety net for that residual case: render the joint/limb
 // faintly rather than hiding it outright, so the figure is always at least
 // visually complete even when the underlying data genuinely couldn't place
 // something.
@@ -135,9 +190,9 @@ function getConfidence(
   return confidenceMap.get(index) ?? "missing";
 }
 
-// A bone with a "missing" endpoint used to be skipped (not drawn) entirely
-// — now drawn "inferred" (the faintest, most-dashed tier already in this
-// file) instead, same "always visually complete, never a gap" contract
+// A limb with a "missing" endpoint used to be skipped (not drawn) entirely
+// — now drawn "inferred" (the faintest tier already in this file) instead,
+// same "always visually complete, never a gap" contract
 // completeMissingLandmarks' own final fallback pass now guarantees at the
 // data level. This function itself can still receive "missing" (see
 // getConfidence's fallback above, and the one residual case
@@ -158,6 +213,50 @@ function opacityFor(style: "measured" | "estimated" | "inferred"): number {
   return style === "estimated" ? ESTIMATED_OPACITY : INFERRED_OPACITY;
 }
 
+// Every material-opacity decision in this file (joints, limbs, and the
+// rigid extremities) funnels through this one function — the single place
+// that adds the "missing" tier combineConfidence's own return type
+// deliberately excludes (a bone's combined confidence collapses "missing"
+// into "inferred" at the pair level; a single landmark's own raw
+// confidence, e.g. a joint handle or an extremity anchored on one
+// landmark, can still be "missing" itself).
+function opacityForConfidence(confidence: SkeletonLandmarkConfidence): number {
+  if (confidence === "measured") return MEASURED_OPACITY;
+  if (confidence === "missing") return MISSING_OPACITY;
+  return opacityFor(confidence);
+}
+
+// P5's own second signal, stacked on top of opacity/wireframe rather than
+// replacing them: how far a limb/joint's risk-band color gets blended
+// toward NOT_ASSESSED_COLOR (the same grey this app already uses for "no
+// data" everywhere else — riskBandColors/band-severity.ts). Opacity alone
+// can still read as "confidently HIGH-risk-red, just a bit see-through" —
+// desaturating the color itself is what actually says "we're not sure
+// this reading is right," which is the truthful claim for a region below
+// MIN_LANDMARK_VISIBILITY. 0 at "measured" (no change at all).
+const CONFIDENCE_DESATURATION: Record<SkeletonLandmarkConfidence, number> = {
+  measured: 0,
+  estimated: 0.45,
+  inferred: 0.7,
+  missing: 0.85,
+};
+
+const DESATURATION_TARGET = new THREE.Color(NOT_ASSESSED_COLOR);
+
+// Blends `baseColor` toward DESATURATION_TARGET by CONFIDENCE_DESATURATION's
+// own per-tier amount — returns a fresh THREE.Color every call (cheap,
+// three numbers) rather than mutating a shared instance, since every
+// caller immediately hands the result to a material's own .color.copy().
+function desaturateColor(
+  baseColor: string,
+  confidence: SkeletonLandmarkConfidence,
+): THREE.Color {
+  return new THREE.Color(baseColor).lerp(
+    DESATURATION_TARGET,
+    CONFIDENCE_DESATURATION[confidence],
+  );
+}
+
 // The synthetic chest joint has no MediaPipe visibility of its own — it's
 // only ever drawable when both shoulders (the real landmarks it's a
 // midpoint of) are themselves usable. Deliberately collapsed to a plain
@@ -169,51 +268,6 @@ function chestConfidence(
   const left = getConfidence(confidenceMap, LANDMARK_INDEX.LEFT_SHOULDER);
   const right = getConfidence(confidenceMap, LANDMARK_INDEX.RIGHT_SHOULDER);
   return left === "missing" || right === "missing" ? "missing" : "measured";
-}
-
-// Same reasoning as chestConfidence — the virtual hip handle has no
-// MediaPipe visibility of its own, only drawable when both real hips are.
-function hipHandleConfidence(
-  confidenceMap: ReadonlyMap<number, SkeletonLandmarkConfidence>,
-): SkeletonLandmarkConfidence {
-  const left = getConfidence(confidenceMap, LANDMARK_INDEX.LEFT_HIP);
-  const right = getConfidence(confidenceMap, LANDMARK_INDEX.RIGHT_HIP);
-  return left === "missing" || right === "missing" ? "missing" : "measured";
-}
-
-function boneKey(a: number, b: number): string {
-  return a < b ? `${a}-${b}` : `${b}-${a}`;
-}
-
-// Inverse of BODY_REGION_BONES (region -> bone pairs), built once at
-// module load so bone coloring is a lookup, not a linear scan — mirrors
-// skeleton-viewer.tsx's own regionForBone/BONE_REGIONS, rebuilt from
-// skeleton.ts's exported table (see that table's own comment) instead of a
-// second hardcoded copy, so the 2D and 3D renderers can't drift apart.
-const BONE_REGION_LOOKUP = new Map<string, BodyRegion>();
-for (const [region, bones] of Object.entries(BODY_REGION_BONES) as Array<
-  [BodyRegion, ReadonlyArray<readonly [number, number]>]
->) {
-  for (const [a, b] of bones) {
-    BONE_REGION_LOOKUP.set(boneKey(a, b), region);
-  }
-}
-
-// JOINT_REGIONS/POSITION_ONLY_REGIONS are typed Record<number, BodyRegion>
-// (every numeric key "promises" a BodyRegion) even though only a handful
-// of the possible indices actually have an entry — safe runtime lookup
-// needs an explicit hasOwnProperty check rather than trusting that type
-// for indices outside their real key sets (no noUncheckedIndexedAccess in
-// this project's tsconfig). Checked together since both kinds of joint
-// need the same halo/hover/drag AFFORDANCE here — only the ANGULAR clamp
-// (buildMeasurer/ANATOMICAL_LIMITS, checked separately below) actually
-// distinguishes them; this component doesn't otherwise care which kind of
-// edit a drag will resolve to.
-function regionForJoint(index: number): BodyRegion | undefined {
-  if (Object.hasOwn(JOINT_REGIONS, index)) return JOINT_REGIONS[index];
-  if (Object.hasOwn(POSITION_ONLY_REGIONS, index))
-    return POSITION_ONLY_REGIONS[index];
-  return undefined;
 }
 
 // ---------------------------------------------------------------------
@@ -427,22 +481,11 @@ function enforceRigidConstraints(
 //     arm length) — matches buildMeasurer's own `parentIndex`.
 //   - KNEE_LEFT/RIGHT: one constraint, pivot=same-side hip (thigh length)
 //     — matches buildMeasurer's own `parentIndex`.
-//   - WRIST_LEFT/RIGHT: one constraint, pivot=same-side elbow (forearm
-//     length) — buildMeasurer has no entry for these at all (they're
-//     POSITION_ONLY_REGIONS, no angle, no angular clamp), but the SAME
-//     "don't stretch the bone while dragging" problem this whole system
-//     exists for applies just as much to a position-only joint as an
-//     angle-based one — "the whole hand" still orbits the elbow at a
-//     fixed forearm length, it just doesn't ALSO resolve to a scored
-//     angle the way ELBOW_LEFT/RIGHT's own drag does.
-//   - ANKLE_LEFT/RIGHT: one constraint, pivot=same-side knee (shin
-//     length) — same reasoning as wrist, mirrored for the leg.
-//   - HIP (virtual): deliberately NO constraint (falls through to the
-//     empty array below) — unlike every joint above, it isn't orbiting a
-//     more-proximal joint; it doesn't stretch a shared bone the same way
-//     a random anatomical drag limit would apply to (see
-//     posture-editor.ts's own applyPositionDrag for how a hip move
-//     recomputes downstream regions).
+//
+// WRIST/ANKLE/HIP no longer appear here — they were POSITION_ONLY_REGIONS
+// draggable joints under the old model, removed entirely in P1 of
+// SLD_POSTURE_EDITOR_FIDELITY_PLAN.md (never draggable now, so no rigid
+// constraint is needed for them either).
 function buildRigidConstraints(
   landmarkIndex: number,
   positions: readonly THREE.Vector3[],
@@ -518,35 +561,7 @@ function buildRigidConstraints(
     return [{ pivot: hipPos, radius: hipPos.distanceTo(kneePos) }];
   }
 
-  if (
-    landmarkIndex === LANDMARK_INDEX.LEFT_WRIST ||
-    landmarkIndex === LANDMARK_INDEX.RIGHT_WRIST
-  ) {
-    const isLeft = landmarkIndex === LANDMARK_INDEX.LEFT_WRIST;
-    const elbowIndex = isLeft
-      ? LANDMARK_INDEX.LEFT_ELBOW
-      : LANDMARK_INDEX.RIGHT_ELBOW;
-    const elbowPos = positions[elbowIndex];
-    const wristPos = positions[landmarkIndex];
-    return [{ pivot: elbowPos, radius: elbowPos.distanceTo(wristPos) }];
-  }
-
-  if (
-    landmarkIndex === LANDMARK_INDEX.LEFT_ANKLE ||
-    landmarkIndex === LANDMARK_INDEX.RIGHT_ANKLE
-  ) {
-    const isLeft = landmarkIndex === LANDMARK_INDEX.LEFT_ANKLE;
-    const kneeIndex = isLeft
-      ? LANDMARK_INDEX.LEFT_KNEE
-      : LANDMARK_INDEX.RIGHT_KNEE;
-    const kneePos = positions[kneeIndex];
-    const anklePos = positions[landmarkIndex];
-    return [{ pivot: kneePos, radius: kneePos.distanceTo(anklePos) }];
-  }
-
-  // HIP (virtual) and anything else falls through to no constraint — see
-  // this function's own doc comment above for why HIP specifically is
-  // deliberately unconstrained.
+  // Anything else (never a draggable joint) falls through to no constraint.
   return [];
 }
 
@@ -605,6 +620,66 @@ function clampAlongDragPath(
 }
 
 // ---------------------------------------------------------------------
+// Solid-mannequin capsule geometry (P3). Every capsule mesh in this file
+// (limbs and the rigid extremities alike) shares ONE unit CapsuleGeometry
+// (radius=1, cylindrical length=1) — same "create once, reposition every
+// render" discipline the old thin-line bones and joint spheres already
+// used — and is fit to its actual span every render via orientCapsuleMesh
+// below: position = center, rotation = aligning the capsule's local +Y to
+// `direction`, scale = (radius, length, radius). Scaling X/Z and Y
+// independently does mean the hemispherical end caps render slightly
+// egg-shaped rather than perfectly round once radius and length differ
+// (always, for an elongated limb) — an accepted trade for a stylized,
+// obviously-synthetic mannequin, not a defect to chase.
+// ---------------------------------------------------------------------
+const CAPSULE_UP_AXIS = new THREE.Vector3(0, 1, 0);
+
+function orientCapsuleMesh(
+  mesh: THREE.Mesh,
+  center: THREE.Vector3,
+  direction: THREE.Vector3,
+  radius: number,
+  length: number,
+) {
+  mesh.position.copy(center);
+  if (direction.lengthSq() > 0) {
+    mesh.quaternion.setFromUnitVectors(
+      CAPSULE_UP_AXIS,
+      direction.clone().normalize(),
+    );
+  }
+  mesh.scale.set(radius, length, radius);
+}
+
+const WORLD_FORWARD = new THREE.Vector3(1, 0, 0);
+const WORLD_LATERAL = new THREE.Vector3(0, 0, 1);
+
+// The foot's own "fixed at 90° to the shank" placement (P3's own spec,
+// "the anthropometric neutral convention, not an approximation"): the
+// component of world-forward (+X — this app's own "front of the
+// mannequin" convention, see manikin.ts's coordinate-convention comment)
+// perpendicular to the CURRENT shank direction — a live Gram-Schmidt
+// projection, not a fixed absolute direction, so the foot stays exactly
+// perpendicular to the shank no matter how much KNEE flexion has rotated
+// it (ANKLE has no scoring rule and never rotates independently — see
+// that plan's own note that this changes no number anywhere).
+function perpendicularForward(shankDirection: THREE.Vector3): THREE.Vector3 {
+  const shank = shankDirection.clone().normalize();
+  const forward = WORLD_FORWARD.clone().sub(
+    shank.clone().multiplyScalar(WORLD_FORWARD.dot(shank)),
+  );
+  if (forward.lengthSq() > 1e-8) return forward.normalize();
+  // Degenerate: the shank is exactly parallel to world-forward (a figure
+  // lying on its side, facing the camera) — WORLD_LATERAL is guaranteed
+  // non-parallel to it in that case, so it's a safe fallback reference
+  // rather than normalizing a near-zero vector into NaN.
+  const lateral = WORLD_LATERAL.clone().sub(
+    shank.clone().multiplyScalar(WORLD_LATERAL.dot(shank)),
+  );
+  return lateral.normalize();
+}
+
+// ---------------------------------------------------------------------
 // Scene state — every mutable three.js object for one mounted instance,
 // held in a ref (never React state, so a joint drag never triggers a
 // React re-render; only the on-demand render loop below repaints).
@@ -612,13 +687,37 @@ function clampAlongDragPath(
 type JointVisual = {
   group: THREE.Group;
   core: THREE.Mesh;
-  halo: THREE.Mesh | null;
+  halo: THREE.Mesh;
 };
 
-type BoneVisual = {
-  line: THREE.Line;
+// One capsule per BODY_REGION_BONES segment (14 total: 4 TRUNK + 2 NECK +
+// 1 each SHOULDER_LEFT/RIGHT/ELBOW_LEFT/RIGHT + 2 each KNEE_LEFT/RIGHT) —
+// `a`/`b` are the two landmark indices it spans, `region` and `radius` are
+// fixed at mount (BODY_REGION_BONES/REGION_CAPSULE_RADIUS never change at
+// runtime), so only position/orientation/color/opacity are recomputed per
+// render.
+type LimbVisual = {
+  mesh: THREE.Mesh;
   a: number;
   b: number;
+  region: BodyRegion;
+  radius: number;
+};
+
+// The five rigid, non-interactive extremities P3 specifies: one head
+// (oriented along the neck vector, anchored on NOSE — see JOINT_REGIONS'
+// own comment on why NOSE is the NECK pivot), one hand per side (anchored
+// on WRIST, oriented "neutral to the forearm"), one foot per side
+// (anchored on ANKLE, oriented perpendicularForward from the shank —
+// "fixed at 90° to the shank"). None of these have a BodyRegion or a
+// drag handle — they're never scored and never move independently of
+// their parent limb.
+type Extremities = {
+  head: THREE.Mesh;
+  handLeft: THREE.Mesh;
+  handRight: THREE.Mesh;
+  footLeft: THREE.Mesh;
+  footRight: THREE.Mesh;
 };
 
 type DragState = {
@@ -639,7 +738,8 @@ type SceneState = {
   controls: OrbitControls;
   raycaster: THREE.Raycaster;
   pointer: THREE.Vector2;
-  bones: BoneVisual[];
+  limbs: LimbVisual[];
+  extremities: Extremities;
   joints: Map<number, JointVisual>;
   renderRequested: boolean;
   animationFrameId: number | null;
@@ -706,8 +806,7 @@ type JointUpdateParams = {
   position: THREE.Vector3;
   confidence: SkeletonLandmarkConfidence;
   isDraggable: boolean;
-  isHead: boolean;
-  region: BodyRegion | undefined;
+  region: BodyRegion;
   regionBands: ReadonlyMap<BodyRegion, RiskBand | null>;
   isHovered: boolean;
   isDragging: boolean;
@@ -715,66 +814,99 @@ type JointUpdateParams = {
 
 function updateJointVisual(joint: JointVisual, params: JointUpdateParams) {
   const { confidence } = params;
-  // "missing" used to hide the joint entirely — now rendered anyway, at the
-  // lowest opacity tier and wireframe, same "always visually complete"
-  // contract as combineConfidence's bone handling above. In practice this
-  // should be rare-to-unreachable now that completeMissingLandmarks'
-  // fallback pass guarantees a real position for everything except the one
-  // documented no-torso-midline-at-all case, but it's a real position
-  // either way (the raw, degenerate MediaPipe coordinates) — safe to draw,
-  // just clearly marked as not to be trusted.
   joint.group.visible = true;
   joint.group.position.copy(params.position);
 
-  const radius = params.isHead
-    ? HEAD_RADIUS
-    : params.isDraggable
-      ? DRAGGABLE_JOINT_RADIUS
-      : JOINT_RADIUS;
+  const radius = params.isDraggable ? DRAGGABLE_JOINT_RADIUS : JOINT_RADIUS;
   joint.core.scale.setScalar(radius);
-  if (joint.halo) joint.halo.scale.setScalar(radius * HALO_RADIUS_SCALE);
+  joint.halo.scale.setScalar(radius * HALO_RADIUS_SCALE);
 
-  const band = params.region
-    ? (params.regionBands.get(params.region) ?? null)
-    : null;
+  const band = params.regionBands.get(params.region) ?? null;
   const baseColor = band ? riskBandColors[band] : NOT_ASSESSED_COLOR;
-  const color = params.isDragging ? DRAG_HIGHLIGHT_COLOR : baseColor;
 
   const material = joint.core.material as THREE.MeshStandardMaterial;
-  material.color.set(color);
-  material.wireframe = confidence !== "measured";
-  material.opacity =
-    confidence === "measured"
-      ? MEASURED_OPACITY
-      : confidence === "missing"
-        ? MISSING_OPACITY
-        : opacityFor(confidence);
-
-  if (joint.halo) {
-    joint.halo.visible = params.isDraggable;
+  // While actively being dragged, the highlight stays full-strength
+  // regardless of confidence — the user is looking straight at it and
+  // actively correcting it, so desaturating the one joint under the
+  // pointer would fight the feedback this highlight exists to give.
+  if (params.isDragging) {
+    material.color.set(DRAG_HIGHLIGHT_COLOR);
+  } else {
+    material.color.copy(desaturateColor(baseColor, confidence));
   }
+  material.wireframe = confidence !== "measured";
+  material.opacity = opacityForConfidence(confidence);
+
+  joint.halo.visible = params.isDraggable;
 
   joint.group.scale.setScalar(
     params.isHovered || params.isDragging ? HOVER_SCALE : 1,
   );
 }
 
-// Rebuilds every bone/joint's position, color, opacity and visibility from
-// `data` — the single code path used both by the prop-driven effect below
-// and by an in-progress drag (via `override`), so there is only ever one
-// implementation of "what the scene should look like right now." Cheap
-// enough (33 landmarks, 26 bones, 34 joint slots — all plain vector/color
-// writes onto already-created objects, nothing allocated on the GPU side)
-// to call on every throttled drag frame.
+type LimbUpdateParams = {
+  a: THREE.Vector3;
+  b: THREE.Vector3;
+  radius: number;
+  color: string;
+  confidence: ConfidenceStyle;
+};
+
+function updateLimbVisual(mesh: THREE.Mesh, params: LimbUpdateParams) {
+  const direction = params.b.clone().sub(params.a);
+  orientCapsuleMesh(
+    mesh,
+    midpoint(params.a, params.b),
+    direction,
+    params.radius,
+    direction.length(),
+  );
+  const material = mesh.material as THREE.MeshStandardMaterial;
+  material.color.copy(desaturateColor(params.color, params.confidence));
+  material.wireframe = params.confidence !== "measured";
+  material.opacity = opacityForConfidence(params.confidence);
+}
+
+type ExtremityUpdateParams = {
+  center: THREE.Vector3;
+  direction: THREE.Vector3;
+  radius: number;
+  length: number;
+  confidence: SkeletonLandmarkConfidence;
+};
+
+// Every extremity renders NOT_ASSESSED_COLOR unconditionally — none of
+// the five has a BodyRegion or a score of its own (head/hands/feet are
+// never independently measured), so there is no band to tint them with.
+function updateExtremityVisual(
+  mesh: THREE.Mesh,
+  params: ExtremityUpdateParams,
+) {
+  orientCapsuleMesh(
+    mesh,
+    params.center,
+    params.direction,
+    params.radius,
+    params.length,
+  );
+  const material = mesh.material as THREE.MeshStandardMaterial;
+  material.color.set(NOT_ASSESSED_COLOR);
+  material.wireframe = params.confidence !== "measured";
+  material.opacity = opacityForConfidence(params.confidence);
+}
+
+// Rebuilds every limb/extremity/joint's position, color, opacity and
+// visibility from `data` — the single code path used both by the
+// prop-driven effect below and by an in-progress drag (via `override`), so
+// there is only ever one implementation of "what the scene should look
+// like right now."
 function rebuildScene(
   state: SceneState,
   data: SceneData,
   override?: { index: number; position: THREE.Vector3 },
 ) {
   const basePositions = landmarksTo3DPositions(data.keypoints);
-  const isVirtualOverride =
-    override?.index === VIRTUAL_CHEST_LANDMARK_INDEX ||
-    override?.index === VIRTUAL_HIP_LANDMARK_INDEX;
+  const isVirtualOverride = override?.index === VIRTUAL_CHEST_LANDMARK_INDEX;
   const positions =
     override && !isVirtualOverride
       ? basePositions.map((p, i) =>
@@ -785,115 +917,124 @@ function rebuildScene(
     override && override.index === VIRTUAL_CHEST_LANDMARK_INDEX
       ? override.position
       : getVirtualChestPosition(positions);
-  const hipHandlePosition =
-    override && override.index === VIRTUAL_HIP_LANDMARK_INDEX
-      ? override.position
-      : getVirtualHipPosition(positions);
 
   const draggableSet = new Set(data.draggableJoints);
 
-  for (const bone of state.bones) {
-    // combineConfidence never returns "skip" anymore (a missing endpoint
-    // draws "inferred" instead — see that function's own comment), so
-    // every bone is always visible now; no branch left to hide one.
+  for (const limb of state.limbs) {
     const style = combineConfidence(
-      getConfidence(data.confidenceMap, bone.a),
-      getConfidence(data.confidenceMap, bone.b),
+      getConfidence(data.confidenceMap, limb.a),
+      getConfidence(data.confidenceMap, limb.b),
     );
-    bone.line.visible = true;
-
-    const pa = positions[bone.a];
-    const pb = positions[bone.b];
-    const posAttr = bone.line.geometry.attributes
-      .position as THREE.BufferAttribute;
-    posAttr.setXYZ(0, pa.x, pa.y, pa.z);
-    posAttr.setXYZ(1, pb.x, pb.y, pb.z);
-    posAttr.needsUpdate = true;
-    bone.line.geometry.computeBoundingSphere();
-
-    const region = BONE_REGION_LOOKUP.get(boneKey(bone.a, bone.b));
-    const band = region ? (data.regionBands.get(region) ?? null) : null;
+    const band = data.regionBands.get(limb.region) ?? null;
     const color = band ? riskBandColors[band] : NOT_ASSESSED_COLOR;
-
-    const wantsDashed = style === "inferred";
-    const isDashed = bone.line.material instanceof THREE.LineDashedMaterial;
-    if (wantsDashed !== isDashed) {
-      (bone.line.material as THREE.Material).dispose();
-      bone.line.material = wantsDashed
-        ? new THREE.LineDashedMaterial({
-            color,
-            transparent: true,
-            dashSize: 0.03,
-            gapSize: 0.02,
-          })
-        : new THREE.LineBasicMaterial({ color, transparent: true });
-    } else {
-      (bone.line.material as THREE.LineBasicMaterial).color.set(color);
-    }
-    (bone.line.material as THREE.Material & { opacity: number }).opacity =
-      opacityFor(style);
-    if (wantsDashed) bone.line.computeLineDistances();
+    updateLimbVisual(limb.mesh, {
+      a: positions[limb.a],
+      b: positions[limb.b],
+      radius: limb.radius,
+      color,
+      confidence: style,
+    });
   }
 
-  for (let index = 0; index < 33; index++) {
+  // Head — one solid element, rigidly oriented along the neck vector
+  // (shoulderMid -> NOSE), anchored at NOSE (the same landmark
+  // JOINT_REGIONS already pivots the NECK drag handle on).
+  const leftShoulder = positions[LANDMARK_INDEX.LEFT_SHOULDER];
+  const rightShoulder = positions[LANDMARK_INDEX.RIGHT_SHOULDER];
+  const shoulderMid = midpoint(leftShoulder, rightShoulder);
+  const nose = positions[LANDMARK_INDEX.NOSE];
+  updateExtremityVisual(state.extremities.head, {
+    center: nose,
+    direction: nose.clone().sub(shoulderMid),
+    radius: HEAD_RADIUS,
+    length: HEAD_LENGTH,
+    confidence: getConfidence(data.confidenceMap, LANDMARK_INDEX.NOSE),
+  });
+
+  for (const side of ["LEFT", "RIGHT"] as const) {
+    // Hand — neutral to the forearm: continues the elbow->wrist direction
+    // past the wrist, never independently rotated.
+    const elbow = positions[LANDMARK_INDEX[`${side}_ELBOW`]];
+    const wrist = positions[LANDMARK_INDEX[`${side}_WRIST`]];
+    const forearmDirection = wrist.clone().sub(elbow);
+    const handCenter =
+      forearmDirection.lengthSq() > 0
+        ? wrist.clone().add(
+            forearmDirection
+              .clone()
+              .normalize()
+              .multiplyScalar(HAND_LENGTH / 2),
+          )
+        : wrist.clone();
+    updateExtremityVisual(
+      state.extremities[side === "LEFT" ? "handLeft" : "handRight"],
+      {
+        center: handCenter,
+        direction: forearmDirection,
+        radius: HAND_RADIUS,
+        length: HAND_LENGTH,
+        confidence: getConfidence(
+          data.confidenceMap,
+          LANDMARK_INDEX[`${side}_WRIST`],
+        ),
+      },
+    );
+
+    // Foot — fixed at 90° to the shank (perpendicularForward), extending
+    // forward from the ankle.
+    const knee = positions[LANDMARK_INDEX[`${side}_KNEE`]];
+    const ankle = positions[LANDMARK_INDEX[`${side}_ANKLE`]];
+    const footDirection = perpendicularForward(ankle.clone().sub(knee));
+    const footCenter = ankle
+      .clone()
+      .add(footDirection.clone().multiplyScalar(FOOT_LENGTH / 2));
+    updateExtremityVisual(
+      state.extremities[side === "LEFT" ? "footLeft" : "footRight"],
+      {
+        center: footCenter,
+        direction: footDirection,
+        radius: FOOT_RADIUS,
+        length: FOOT_LENGTH,
+        confidence: getConfidence(
+          data.confidenceMap,
+          LANDMARK_INDEX[`${side}_ANKLE`],
+        ),
+      },
+    );
+  }
+
+  // The 8 draggable joint handles (JOINT_REGIONS' own key set — exactly
+  // TRUNK/NECK/SHOULDER_LEFT/RIGHT/ELBOW_LEFT/RIGHT/KNEE_LEFT/RIGHT, per
+  // SLD_POSTURE_EDITOR_FIDELITY_PLAN.md's P1 invariant). VIRTUAL_CHEST
+  // (TRUNK) has no real landmark behind it, so it's hidden entirely when
+  // not draggable rather than floating a synthetic marker with nothing to
+  // interact with — every other handle stays visible (smaller, no halo)
+  // even when not draggable, same as before P3.
+  for (const [indexKey, region] of Object.entries(JOINT_REGIONS) as Array<
+    [string, BodyRegion]
+  >) {
+    const index = Number(indexKey);
     const joint = state.joints.get(index);
     if (!joint) continue;
+
+    const isDraggable = draggableSet.has(index);
+    const isChest = index === VIRTUAL_CHEST_LANDMARK_INDEX;
+    if (isChest && !isDraggable) {
+      joint.group.visible = false;
+      continue;
+    }
+
     updateJointVisual(joint, {
-      position: positions[index],
-      confidence: getConfidence(data.confidenceMap, index),
-      isDraggable: draggableSet.has(index),
-      isHead: index === LANDMARK_INDEX.NOSE,
-      region: regionForJoint(index),
+      position: isChest ? chestPosition : positions[index],
+      confidence: isChest
+        ? chestConfidence(data.confidenceMap)
+        : getConfidence(data.confidenceMap, index),
+      isDraggable,
+      region,
       regionBands: data.regionBands,
       isHovered: state.hoveredIndex === index,
       isDragging: state.drag?.landmarkIndex === index,
     });
-  }
-
-  // Virtual chest (TRUNK drag handle) — only ever shown when actually
-  // draggable; there's no non-interactive reason to float a synthetic
-  // marker over the chest.
-  const chestJoint = state.joints.get(VIRTUAL_CHEST_LANDMARK_INDEX);
-  if (chestJoint) {
-    const chestDraggable = draggableSet.has(VIRTUAL_CHEST_LANDMARK_INDEX);
-    if (!chestDraggable) {
-      chestJoint.group.visible = false;
-    } else {
-      updateJointVisual(chestJoint, {
-        position: chestPosition,
-        confidence: chestConfidence(data.confidenceMap),
-        isDraggable: true,
-        isHead: false,
-        region: "TRUNK",
-        regionBands: data.regionBands,
-        isHovered: state.hoveredIndex === VIRTUAL_CHEST_LANDMARK_INDEX,
-        isDragging: state.drag?.landmarkIndex === VIRTUAL_CHEST_LANDMARK_INDEX,
-      });
-    }
-  }
-
-  // Virtual hip (HIP position-only drag handle) — same "only shown when
-  // draggable" reasoning as the chest handle above. region: "HIP" never
-  // resolves to a band (HIP has no ScoringRule, ever — see
-  // skeleton.ts's own POSITION_ONLY_REGIONS comment), so this always
-  // renders at NOT_ASSESSED_COLOR — expected, not a bug.
-  const hipHandleJoint = state.joints.get(VIRTUAL_HIP_LANDMARK_INDEX);
-  if (hipHandleJoint) {
-    const hipHandleDraggable = draggableSet.has(VIRTUAL_HIP_LANDMARK_INDEX);
-    if (!hipHandleDraggable) {
-      hipHandleJoint.group.visible = false;
-    } else {
-      updateJointVisual(hipHandleJoint, {
-        position: hipHandlePosition,
-        confidence: hipHandleConfidence(data.confidenceMap),
-        isDraggable: true,
-        isHead: false,
-        region: "HIP",
-        regionBands: data.regionBands,
-        isHovered: state.hoveredIndex === VIRTUAL_HIP_LANDMARK_INDEX,
-        isDragging: state.drag?.landmarkIndex === VIRTUAL_HIP_LANDMARK_INDEX,
-      });
-    }
   }
 
   scheduleRender(state);
@@ -990,28 +1131,61 @@ export function Skeleton3D({
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     const sphereGeometry = new THREE.SphereGeometry(1, 16, 12);
+    // Unit capsule (radius=1, cylindrical length=1) shared by every limb
+    // and extremity mesh — see orientCapsuleMesh's own doc comment for why
+    // one shared geometry, scaled per-instance every render, is enough.
+    const capsuleGeometry = new THREE.CapsuleGeometry(
+      1,
+      1,
+      CAPSULE_CAP_SEGMENTS,
+      CAPSULE_RADIAL_SEGMENTS,
+    );
 
-    const bones: BoneVisual[] = POSE_CONNECTIONS.map(([a, b]) => {
-      const geometry = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(),
-        new THREE.Vector3(),
-      ]);
-      const material = new THREE.LineBasicMaterial({
+    const neutralMaterial = () =>
+      new THREE.MeshStandardMaterial({
         color: NOT_ASSESSED_COLOR,
         transparent: true,
       });
-      const line = new THREE.Line(geometry, material);
-      scene.add(line);
-      return { line, a, b };
-    });
 
+    // Solid mannequin limbs (P3) — one capsule per BODY_REGION_BONES
+    // segment, still the correct region -> segment map per that plan's own
+    // note. Every segment here has a real BodyRegion (BODY_REGION_BONES
+    // has no unscored entries), so there is no "no region" case to guard.
+    const limbs: LimbVisual[] = [];
+    for (const [region, bones] of Object.entries(BODY_REGION_BONES) as Array<
+      [BodyRegion, ReadonlyArray<readonly [number, number]>]
+    >) {
+      const radius = REGION_CAPSULE_RADIUS[region] ?? ARM_CAPSULE_RADIUS;
+      for (const [a, b] of bones) {
+        const mesh = new THREE.Mesh(capsuleGeometry, neutralMaterial());
+        scene.add(mesh);
+        limbs.push({ mesh, a, b, region, radius });
+      }
+    }
+
+    // Rigid, non-interactive extremities (P3) — head, hands, feet. None
+    // of these have a BodyRegion, a drag handle, or independent
+    // articulation; rebuildScene repositions/reorients them every render
+    // from their anchor landmark (NOSE / WRIST / ANKLE) alone.
+    const extremities: Extremities = {
+      head: new THREE.Mesh(capsuleGeometry, neutralMaterial()),
+      handLeft: new THREE.Mesh(capsuleGeometry, neutralMaterial()),
+      handRight: new THREE.Mesh(capsuleGeometry, neutralMaterial()),
+      footLeft: new THREE.Mesh(capsuleGeometry, neutralMaterial()),
+      footRight: new THREE.Mesh(capsuleGeometry, neutralMaterial()),
+    };
+    for (const mesh of Object.values(extremities)) scene.add(mesh);
+
+    // Draggable joint handles — exactly JOINT_REGIONS' own 8 entries
+    // (SLD_POSTURE_EDITOR_FIDELITY_PLAN.md P1's "exactly eight drag
+    // handles" invariant), not all 33+1 landmark slots the pre-P3 renderer
+    // built spheres for. Every one of these 8 is always potentially
+    // draggable, so every one always gets a halo too — shown/hidden
+    // per-render based on the actual draggableJoints prop (see
+    // updateJointVisual), never recreated.
     const joints = new Map<number, JointVisual>();
-    const allJointIndices = [
-      ...Array.from({ length: 33 }, (_, i) => i),
-      VIRTUAL_CHEST_LANDMARK_INDEX,
-      VIRTUAL_HIP_LANDMARK_INDEX,
-    ];
-    for (const index of allJointIndices) {
+    for (const indexKey of Object.keys(JOINT_REGIONS)) {
+      const index = Number(indexKey);
       const core = new THREE.Mesh(
         sphereGeometry,
         new THREE.MeshStandardMaterial({
@@ -1024,24 +1198,16 @@ export function Skeleton3D({
       const group = new THREE.Group();
       group.add(core);
 
-      // A halo (glow shell) only for joints that could ever be draggable —
-      // built once per index from JOINT_REGIONS/POSITION_ONLY_REGIONS'
-      // static key sets (regionForJoint checks both), then shown/hidden
-      // per-render based on the actual draggableJoints prop (see
-      // updateJointVisual), never recreated.
-      let halo: THREE.Mesh | null = null;
-      if (regionForJoint(index) !== undefined) {
-        halo = new THREE.Mesh(
-          sphereGeometry,
-          new THREE.MeshBasicMaterial({
-            color: DRAGGABLE_HALO_COLOR,
-            transparent: true,
-            opacity: 0.25,
-            depthWrite: false,
-          }),
-        );
-        group.add(halo);
-      }
+      const halo = new THREE.Mesh(
+        sphereGeometry,
+        new THREE.MeshBasicMaterial({
+          color: DRAGGABLE_HALO_COLOR,
+          transparent: true,
+          opacity: 0.25,
+          depthWrite: false,
+        }),
+      );
+      group.add(halo);
 
       scene.add(group);
       joints.set(index, { group, core, halo });
@@ -1054,7 +1220,8 @@ export function Skeleton3D({
       controls: undefined as unknown as OrbitControls, // assigned just below, before any event can reference it
       raycaster,
       pointer,
-      bones,
+      limbs,
+      extremities,
       joints,
       renderRequested: false,
       animationFrameId: null,
@@ -1178,7 +1345,9 @@ export function Skeleton3D({
       );
 
       const positions = landmarksTo3DPositions(keypointsRef.current);
-      const region = regionForJoint(landmarkIndex);
+      const region = Object.hasOwn(JOINT_REGIONS, landmarkIndex)
+        ? JOINT_REGIONS[landmarkIndex]
+        : undefined;
       const limits = region ? (ANATOMICAL_LIMITS[region] ?? null) : null;
 
       state.drag = {
@@ -1297,7 +1466,11 @@ export function Skeleton3D({
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableRotate = true;
     controls.enableZoom = true;
-    controls.enablePan = false;
+    // Panning re-frames the figure — the practical purpose the removed
+    // virtual hip drag handle used to serve (see
+    // SLD_POSTURE_EDITOR_FIDELITY_PLAN.md's P1), now covered by ordinary
+    // camera control instead of a fake anatomical drag.
+    controls.enablePan = true;
     controls.autoRotate = false;
     controls.minDistance = MIN_ZOOM_DISTANCE;
     controls.maxDistance = MAX_ZOOM_DISTANCE;
@@ -1347,14 +1520,17 @@ export function Skeleton3D({
       if (state.animationFrameId !== null)
         cancelAnimationFrame(state.animationFrameId);
       controls.dispose();
-      for (const bone of bones) {
-        bone.line.geometry.dispose();
-        (bone.line.material as THREE.Material).dispose();
+      for (const limb of limbs) {
+        (limb.mesh.material as THREE.Material).dispose();
+      }
+      for (const mesh of Object.values(extremities)) {
+        (mesh.material as THREE.Material).dispose();
       }
       for (const joint of joints.values()) {
         (joint.core.material as THREE.Material).dispose();
-        if (joint.halo) (joint.halo.material as THREE.Material).dispose();
+        (joint.halo.material as THREE.Material).dispose();
       }
+      capsuleGeometry.dispose();
       sphereGeometry.dispose();
       renderer.dispose();
       sceneStateRef.current = null;

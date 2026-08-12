@@ -11,10 +11,10 @@ import { describeRegionResult } from "@/lib/capture/describe-region-result";
 import type { RegionResult } from "@/lib/capture/types";
 import type { PoseLandmarks } from "@/lib/pose/angles";
 import { computeAllAngles } from "@/lib/pose/drag-to-angle";
+import { buildManikinPose } from "@/lib/pose/manikin";
 import {
   applyAngleInput,
   applyJointDrag,
-  applyPositionDrag,
   createPostureEditor,
   getRegionDelta,
   type PostureEditorState,
@@ -27,7 +27,6 @@ import {
   ANATOMICAL_LIMITS,
   completeMissingLandmarks,
   JOINT_REGIONS,
-  POSITION_ONLY_REGIONS,
   type SkeletonLandmark,
   type SkeletonLandmarkConfidence,
   THREE_D_SCALE,
@@ -100,14 +99,17 @@ export type PostureEditorProps = {
 //   - 8 angle-based, scored regions (JOINT_REGIONS): TRUNK, NECK,
 //     SHOULDER_LEFT/RIGHT, ELBOW_LEFT/RIGHT, KNEE_LEFT/RIGHT — RegionRow,
 //     with a slider.
-//   - 5 position-only regions (skeleton.ts's POSITION_ONLY_REGIONS — see
-//     that export's own comment for the full rationale): WRIST_LEFT/RIGHT,
-//     ANKLE_LEFT/RIGHT, HIP — PositionOnlyRegionRow, draggable but no
-//     angle/slider/score.
-//   - 4 regions with no row of their own at all (UPPER_ARM_LEFT/RIGHT,
-//     FOREARM_LEFT/RIGHT) — SharedMeasurementRegionRow: they're already
-//     the exact bone segments SHOULDER/ELBOW color (skeleton.ts's
-//     BODY_REGION_BONES), not a second thing to independently edit.
+//   - Every other region — SharedMeasurementRegionRow. UPPER_ARM_LEFT/
+//     RIGHT and FOREARM_LEFT/RIGHT are already the exact bone segments
+//     SHOULDER/ELBOW color (skeleton.ts's BODY_REGION_BONES), not a second
+//     thing to independently edit; HIP is TRUNK's own shoulder-hip-knee
+//     triangle renamed, not independent information. WRIST_LEFT/RIGHT and
+//     ANKLE_LEFT/RIGHT (SHARED_MEASUREMENT_SOURCE has no entry for these
+//     three) render as genuinely "not yet supported" — see
+//     SLD_POSTURE_EDITOR_FIDELITY_PLAN.md's P1 for why these, and the old
+//     position-only drag handles that used to represent them, were cut:
+//     WRIST needs MediaPipe's Hand Landmarker (a model this app doesn't
+//     run) and ANKLE dorsiflexion is unmeasurable from one 2D camera.
 // ---------------------------------------------------------------------
 const REGION_ORDER: readonly BodyRegion[] = [
   "TRUNK",
@@ -156,13 +158,7 @@ const REGION_LABELS: Record<BodyRegion, string> = {
 const ANGLE_EDITABLE_REGIONS = new Set<BodyRegion>(
   Object.values(JOINT_REGIONS),
 );
-const POSITION_ONLY_REGION_SET = new Set<BodyRegion>(
-  Object.values(POSITION_ONLY_REGIONS),
-);
-const DRAGGABLE_JOINTS = [
-  ...Object.keys(JOINT_REGIONS).map(Number),
-  ...Object.keys(POSITION_ONLY_REGIONS).map(Number),
-];
+const DRAGGABLE_JOINTS = Object.keys(JOINT_REGIONS).map(Number);
 
 const DESKTOP_SKELETON_SIZE = { width: 500, height: 600 };
 const MOBILE_MAX_SKELETON_SIZE = 480;
@@ -300,9 +296,12 @@ function threeScenePositionToMediaPipe(position: {
   // and z sign-flipped-and-unscaled. Skeleton3D's onJointDrag reports
   // positions in that 3D scene-unit space (see its own prop doc); every
   // pure pose function downstream of here (computeAngleFromDrag,
-  // applyAngleAdjustments) works in MediaPipe's normalized image space, so
-  // this conversion has to happen exactly once, here, where both
-  // conventions actually meet.
+  // applyAngleAdjustments) works in that same pre-projection coordinate
+  // convention — real MediaPipe captures and manikin.ts's synthetic
+  // landmarks alike (manikin.ts's own header explains why it deliberately
+  // matches this convention) — so this conversion has to happen exactly
+  // once, here, where both spaces actually meet, regardless of which one
+  // Skeleton3D was actually rendering from.
   return {
     x: position.x / THREE_D_SCALE,
     y: -position.y / THREE_D_SCALE,
@@ -556,15 +555,21 @@ function ValidatedRegionRow({
 // skeleton.ts's BODY_REGION_BONES' own comment for why: a real, separate
 // upper-arm/forearm measurement would be rotation around the limb's own
 // long axis — humeral rotation, forearm pronation/supination — which a
-// single 2D camera can't observe). Naming which joint actually drives each
-// one here, rather than a bare "not yet supported", makes that an
-// intentional design boundary visible in the UI, not a gap that reads like
-// unfinished work.
+// single 2D camera can't observe). HIP is TRUNK's own shoulder-hip-knee
+// triangle renamed, not independent information (see
+// SLD_POSTURE_EDITOR_FIDELITY_PLAN.md's P1). Naming which joint actually
+// drives each one here, rather than a bare "not yet supported", makes that
+// an intentional design boundary visible in the UI, not a gap that reads
+// like unfinished work. WRIST_LEFT/RIGHT and ANKLE_LEFT/RIGHT have no entry
+// — those genuinely are "not yet supported" (blocked on MediaPipe's Hand
+// Landmarker, and on a camera this app doesn't have, respectively), not
+// redundant with something else already shown.
 const SHARED_MEASUREMENT_SOURCE: Partial<Record<BodyRegion, string>> = {
   UPPER_ARM_LEFT: "Left Shoulder",
   UPPER_ARM_RIGHT: "Right Shoulder",
   FOREARM_LEFT: "Left Elbow",
   FOREARM_RIGHT: "Right Elbow",
+  HIP: "Trunk",
 };
 
 function SharedMeasurementRegionRow({ region }: { region: BodyRegion }) {
@@ -581,57 +586,24 @@ function SharedMeasurementRegionRow({ region }: { region: BodyRegion }) {
   );
 }
 
-// WRIST_LEFT/RIGHT, ANKLE_LEFT/RIGHT, and HIP (skeleton.ts's
-// POSITION_ONLY_REGIONS — see that export's own comment for the full
-// rationale) are real, functional, draggable parts of the skeleton with
-// no independent angle or score: "the whole hand"/"the whole foot"/"the
-// pelvis" gets a position relative to the rest of the body, deliberately
-// no more granular than that. This row is the position-only equivalent of
-// RegionRow below — same isAdjusted/reset affordance, no slider or angle
-// input since there's no angle to show one for.
-function PositionOnlyRegionRow({
-  region,
-  isAdjusted,
-  onReset,
-}: {
-  region: BodyRegion;
-  isAdjusted: boolean;
-  onReset: () => void;
-}) {
-  return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="font-heading font-bold">
-            {REGION_LABELS[region]}
-          </span>
-          {isAdjusted && (
-            <span
-              className="flex items-center gap-1 rounded-full bg-accent/15 px-2 py-0.5 font-technical text-[11px] font-bold text-accent"
-              title="Repositioned from the camera-measured position"
-            >
-              <span aria-hidden="true">✎</span> Adjusted
-            </span>
-          )}
-        </div>
-        {isAdjusted && (
-          <button
-            type="button"
-            onClick={onReset}
-            aria-label={`Reset ${REGION_LABELS[region]} to measured position`}
-            title="Reset to measured position"
-            className="rounded px-1.5 py-0.5 font-technical text-sm text-border hover:text-accent"
-          >
-            ↩
-          </button>
-        )}
-      </div>
-      <span className="font-technical text-xs text-border">
-        Position only — drag on the skeleton to reposition. No independent
-        ergonomic score for this region.
-      </span>
-    </div>
-  );
+// P4 (SLD_POSTURE_EDITOR_FIDELITY_PLAN.md): computeAngleFromDrag's own
+// `clamped` boolean used to be discarded entirely — a drag (or a typed
+// value) that hit ANATOMICAL_LIMITS just silently sprang back to the
+// bound with no explanation, which reads as a bug rather than a real
+// anatomical limit ("silence is what makes a clamp feel like a bug").
+// Safe to compare `currentAngle` against the bounds with strict equality:
+// wasClamped is only ever true when currentAngle IS one of these two
+// literal values (posture-editor.ts's applyResolvedAngle/applyAngleInput
+// and drag-to-angle.ts's computeAngleFromDrag all clamp via this exact
+// Math.min/Math.max pair, never an approximation of it).
+function describeClampedLimit(
+  region: BodyRegion,
+  currentAngle: number,
+): string | null {
+  const limits = ANATOMICAL_LIMITS[region];
+  if (!limits) return null;
+  const bound = currentAngle === limits.max ? limits.max : limits.min;
+  return `limited to ${bound}° — ${REGION_LABELS[region].toLowerCase()} flexion range`;
 }
 
 function RegionRow({
@@ -766,6 +738,11 @@ function RegionRow({
             °
           </span>
         </div>
+        {delta.wasClamped && delta.currentAngle !== null && (
+          <output className="block font-technical text-xs text-accent">
+            {describeClampedLimit(region, delta.currentAngle)}
+          </output>
+        )}
         <span className="flex items-center gap-1.5 font-technical text-xs">
           <BandDot band={delta.currentBand} />
           {delta.currentAngle !== null
@@ -1089,6 +1066,16 @@ export function PostureEditor({
 
   const editor = loadState.editor;
 
+  // The skeleton renders from FIXED anthropometric proportions, not the
+  // real capture's own (SLD_POSTURE_EDITOR_FIDELITY_PLAN.md P2) — angles
+  // in, positions out, from the same currentAngles the region rows already
+  // read. confidenceMap/regionBands above are deliberately NOT derived
+  // from this: measurement confidence and score are properties of what the
+  // camera actually saw, independent of how the figure is drawn. Cheap
+  // pure arithmetic on 8 numbers — recomputed every render rather than
+  // memoized, same as this component's other small per-render derivations.
+  const manikinLandmarks = buildManikinPose(editor.currentAngles);
+
   const updateEditor = (next: PostureEditorState) => {
     setLoadState({
       status: "ready",
@@ -1101,20 +1088,19 @@ export function PostureEditor({
     landmarkIndex: number,
     newPosition: { x: number; y: number; z: number },
   ) => {
-    const mediaPipePosition = threeScenePositionToMediaPipe(newPosition);
-    // Two entirely different resolutions depending on which kind of joint
-    // was dragged (skeleton-3d.tsx itself doesn't distinguish them — see
-    // that component's own regionForJoint, which checks JOINT_REGIONS and
-    // POSITION_ONLY_REGIONS together purely for hover/halo/rigid-
-    // constraint purposes): an angle-based joint resolves to a BodyRegion
-    // angle via computeAngleFromDrag/applyJointDrag; a position-only one
-    // (skeleton.ts's POSITION_ONLY_REGIONS) has no angle at all —
-    // applyPositionDrag just translates it (and its cluster) directly.
-    if (Object.hasOwn(POSITION_ONLY_REGIONS, landmarkIndex)) {
-      updateEditor(applyPositionDrag(editor, landmarkIndex, mediaPipePosition));
-      return;
-    }
-    updateEditor(applyJointDrag(editor, landmarkIndex, mediaPipePosition));
+    // The dragged position comes back in the manikin's own coordinate
+    // space (Skeleton3D is rendering manikinLandmarks below, not
+    // editor.currentKeypoints) — threeScenePositionToMediaPipe is a plain
+    // inverse-affine transform (unscale/unflip), generic over whichever
+    // landmark set was actually projected into scene space, so it applies
+    // here unchanged. applyJointDrag reads every OTHER reference landmark
+    // from manikinLandmarks too (see that function's own doc comment for
+    // why that's load-bearing, not incidental) — only the resulting ANGLE
+    // is ever written onto the real editor state.
+    const manikinPosition = threeScenePositionToMediaPipe(newPosition);
+    updateEditor(
+      applyJointDrag(editor, manikinLandmarks, landmarkIndex, manikinPosition),
+    );
   };
 
   const handleAngleCommit = (region: BodyRegion, degrees: number) => {
@@ -1218,7 +1204,7 @@ export function PostureEditor({
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         <div className="w-full shrink-0 lg:w-[55%]">
           <Skeleton3D
-            keypoints={editor.currentKeypoints}
+            keypoints={manikinLandmarks}
             confidenceMap={confidenceMap}
             regionBands={editor.currentBands}
             draggableJoints={isValidated ? [] : DRAGGABLE_JOINTS}
@@ -1250,16 +1236,6 @@ export function PostureEditor({
                       onAngleCommit={(degrees) =>
                         handleAngleCommit(region, degrees)
                       }
-                      onReset={() => handleResetRegion(region)}
-                    />
-                  );
-                }
-                if (POSITION_ONLY_REGION_SET.has(region)) {
-                  return (
-                    <PositionOnlyRegionRow
-                      key={region}
-                      region={region}
-                      isAdjusted={editor.adjustedRegions.has(region)}
                       onReset={() => handleResetRegion(region)}
                     />
                   );

@@ -6,15 +6,11 @@ import {
   classifyLandmarkConfidence,
   completeMissingLandmarks,
   getVirtualChestPosition,
-  getVirtualHipPosition,
   JOINT_REGIONS,
   LANDMARK_INDEX,
   landmarksTo3DPositions,
   POSE_CONNECTIONS,
-  POSITION_ONLY_CLUSTER,
-  POSITION_ONLY_REGIONS,
   VIRTUAL_CHEST_LANDMARK_INDEX,
-  VIRTUAL_HIP_LANDMARK_INDEX,
 } from "./skeleton";
 
 // Builds a full 33-entry landmarks array, same pattern as angles.test.ts's
@@ -590,88 +586,18 @@ describe("ANATOMICAL_LIMITS", () => {
     expect(ANATOMICAL_LIMITS.KNEE_LEFT).toEqual({ min: 0, max: 130 });
   });
 
-  it("has no entry for any of the 5 position-only regions — they never clamp to an angle range", () => {
-    for (const region of Object.values(POSITION_ONLY_REGIONS)) {
-      expect(ANATOMICAL_LIMITS[region]).toBeUndefined();
-    }
-  });
-});
-
-describe("getVirtualHipPosition", () => {
-  it("is the midpoint of the projected left/right hip positions", () => {
-    const landmarks = makeLandmarks({
-      LEFT_HIP: { x: 0.4, y: 0.7 },
-      RIGHT_HIP: { x: 0.6, y: 0.7 },
-    });
-    const positions = landmarksTo3DPositions(landmarks);
-    const hip = getVirtualHipPosition(positions);
-    expect(hip.x).toBeCloseTo(1.0, 10); // (0.4 + 0.6) / 2 * 2
-    expect(hip.y).toBeCloseTo(-1.4, 10); // -0.7 * 2
-  });
-});
-
-describe("POSITION_ONLY_REGIONS", () => {
-  it("maps each position-only landmark index to the region it controls", () => {
-    expect(POSITION_ONLY_REGIONS[LANDMARK_INDEX.LEFT_WRIST]).toBe("WRIST_LEFT");
-    expect(POSITION_ONLY_REGIONS[LANDMARK_INDEX.RIGHT_WRIST]).toBe(
-      "WRIST_RIGHT",
-    );
-    expect(POSITION_ONLY_REGIONS[LANDMARK_INDEX.LEFT_ANKLE]).toBe("ANKLE_LEFT");
-    expect(POSITION_ONLY_REGIONS[LANDMARK_INDEX.RIGHT_ANKLE]).toBe(
-      "ANKLE_RIGHT",
-    );
-    expect(POSITION_ONLY_REGIONS[VIRTUAL_HIP_LANDMARK_INDEX]).toBe("HIP");
-  });
-
-  it("shares no landmark index with JOINT_REGIONS — a joint is angle-editable xor position-only, never both", () => {
-    const jointIndices = new Set(Object.keys(JOINT_REGIONS).map(Number));
-    for (const index of Object.keys(POSITION_ONLY_REGIONS).map(Number)) {
-      expect(jointIndices.has(index)).toBe(false);
-    }
-  });
-
-  it("VIRTUAL_HIP_LANDMARK_INDEX falls outside both MediaPipe's real range and VIRTUAL_CHEST_LANDMARK_INDEX", () => {
-    expect(VIRTUAL_HIP_LANDMARK_INDEX).toBeGreaterThan(32);
-    expect(VIRTUAL_HIP_LANDMARK_INDEX).not.toBe(VIRTUAL_CHEST_LANDMARK_INDEX);
-  });
-});
-
-describe("POSITION_ONLY_CLUSTER", () => {
-  it("has exactly one cluster per POSITION_ONLY_REGIONS entry", () => {
-    expect(Object.keys(POSITION_ONLY_CLUSTER).sort()).toEqual(
-      Object.keys(POSITION_ONLY_REGIONS).sort(),
-    );
-  });
-
-  it("the wrist cluster is the wrist plus its hand-detail landmarks", () => {
-    expect(
-      [...POSITION_ONLY_CLUSTER[LANDMARK_INDEX.LEFT_WRIST]].sort(),
-    ).toEqual(
-      [
-        LANDMARK_INDEX.LEFT_WRIST,
-        LANDMARK_INDEX.LEFT_PINKY,
-        LANDMARK_INDEX.LEFT_INDEX,
-        LANDMARK_INDEX.LEFT_THUMB,
-      ].sort(),
-    );
-  });
-
-  it("the ankle cluster is the ankle plus heel and foot-index", () => {
-    expect(
-      [...POSITION_ONLY_CLUSTER[LANDMARK_INDEX.RIGHT_ANKLE]].sort(),
-    ).toEqual(
-      [
-        LANDMARK_INDEX.RIGHT_ANKLE,
-        LANDMARK_INDEX.RIGHT_HEEL,
-        LANDMARK_INDEX.RIGHT_FOOT_INDEX,
-      ].sort(),
-    );
-  });
-
-  it("the virtual hip cluster is both real hip landmarks — dragging it moves both, not a single fabricated point", () => {
-    expect(
-      [...POSITION_ONLY_CLUSTER[VIRTUAL_HIP_LANDMARK_INDEX]].sort(),
-    ).toEqual([LANDMARK_INDEX.LEFT_HIP, LANDMARK_INDEX.RIGHT_HIP].sort());
+  // P1 invariant (SLD_POSTURE_EDITOR_FIDELITY_PLAN.md §2.5): manipulable
+  // ⟺ has an ANATOMICAL_LIMITS entry. Every region JOINT_REGIONS maps a
+  // landmark to must have a clamp range here, and vice versa — a drag
+  // handle with no limit (or a limit with no handle) would silently drift
+  // the drag surface out of sync with what's actually scoreable. The old
+  // position-only joints (WRIST_LEFT/RIGHT, ANKLE_LEFT/RIGHT, HIP) used to
+  // be the deliberate exception to this; P1 removed them entirely rather
+  // than keep them as a documented non-clamping special case.
+  it("JOINT_REGIONS' value set equals ANATOMICAL_LIMITS' key set exactly", () => {
+    const jointRegionValues = new Set(Object.values(JOINT_REGIONS));
+    const limitKeys = new Set(Object.keys(ANATOMICAL_LIMITS));
+    expect(jointRegionValues).toEqual(limitKeys);
   });
 });
 
