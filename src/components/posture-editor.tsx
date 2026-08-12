@@ -94,41 +94,39 @@ export type PostureEditorProps = {
 };
 
 // ---------------------------------------------------------------------
-// Region metadata — every BodyRegion, in display order, and which kind of
-// row each one renders as:
-//   - 8 angle-based, scored regions (JOINT_REGIONS): TRUNK, NECK,
-//     SHOULDER_LEFT/RIGHT, ELBOW_LEFT/RIGHT, KNEE_LEFT/RIGHT — RegionRow,
-//     with a slider.
-//   - Every other region — SharedMeasurementRegionRow. UPPER_ARM_LEFT/
-//     RIGHT and FOREARM_LEFT/RIGHT are already the exact bone segments
-//     SHOULDER/ELBOW color (skeleton.ts's BODY_REGION_BONES), not a second
-//     thing to independently edit; HIP is TRUNK's own shoulder-hip-knee
-//     triangle renamed, not independent information. WRIST_LEFT/RIGHT and
-//     ANKLE_LEFT/RIGHT (SHARED_MEASUREMENT_SOURCE has no entry for these
-//     three) render as genuinely "not yet supported" — see
-//     SLD_POSTURE_EDITOR_FIDELITY_PLAN.md's P1 for why these, and the old
-//     position-only drag handles that used to represent them, were cut:
-//     WRIST needs MediaPipe's Hand Landmarker (a model this app doesn't
-//     run) and ANKLE dorsiflexion is unmeasurable from one 2D camera.
-// ---------------------------------------------------------------------
+// Region metadata — the 8 angle-based, scored regions (JOINT_REGIONS'
+// value set: TRUNK, NECK, SHOULDER_LEFT/RIGHT, ELBOW_LEFT/RIGHT,
+// KNEE_LEFT/RIGHT — every one of them gets a RegionRow with a slider),
+// in on-screen display order.
+//
+// Deliberately NOT every BodyRegion — UPPER_ARM_LEFT/RIGHT and
+// FOREARM_LEFT/RIGHT are already the exact bone segments SHOULDER/ELBOW
+// color (skeleton.ts's BODY_REGION_BONES' own comment: a real, separate
+// upper-arm/forearm measurement would be rotation around the limb's own
+// long axis, unobservable from one 2D camera); HIP is TRUNK's own
+// shoulder-hip-knee triangle renamed, not independent information; WRIST_
+// LEFT/RIGHT and ANKLE_LEFT/RIGHT are blocked on MediaPipe's Hand
+// Landmarker and on a camera this app doesn't have, respectively (see
+// SLD_POSTURE_EDITOR_FIDELITY_PLAN.md's P1). None of these five ever has
+// a row of its own here — a row with nothing real to show is worse than
+// no row, not a gap that reads like unfinished work.
+//
+// Ordered top-to-bottom to roughly track where each control sits on the
+// 3D figure to its left (head/neck first, legs last) rather than
+// alphabetically or by BodyRegion enum order, so working a slider and
+// watching its effect on the model don't require hunting up and down the
+// list — see this file's own "P2/P4/neck" note for why this can only ever
+// be an approximate match against a rotatable 3D view, not a pixel-exact
+// one.
 const REGION_ORDER: readonly BodyRegion[] = [
-  "TRUNK",
   "NECK",
+  "TRUNK",
   "SHOULDER_LEFT",
   "SHOULDER_RIGHT",
-  "UPPER_ARM_LEFT",
-  "UPPER_ARM_RIGHT",
   "ELBOW_LEFT",
   "ELBOW_RIGHT",
-  "FOREARM_LEFT",
-  "FOREARM_RIGHT",
-  "WRIST_LEFT",
-  "WRIST_RIGHT",
-  "HIP",
   "KNEE_LEFT",
   "KNEE_RIGHT",
-  "ANKLE_LEFT",
-  "ANKLE_RIGHT",
 ];
 
 // Hand-authored presentation copy over the enum, same category as
@@ -155,9 +153,6 @@ const REGION_LABELS: Record<BodyRegion, string> = {
   ANKLE_RIGHT: "Right Ankle",
 };
 
-const ANGLE_EDITABLE_REGIONS = new Set<BodyRegion>(
-  Object.values(JOINT_REGIONS),
-);
 const DRAGGABLE_JOINTS = Object.keys(JOINT_REGIONS).map(Number);
 
 const DESKTOP_SKELETON_SIZE = { width: 500, height: 600 };
@@ -549,43 +544,6 @@ function ValidatedRegionRow({
   );
 }
 
-// UPPER_ARM_LEFT/RIGHT and FOREARM_LEFT/RIGHT aren't separately editable
-// regions with their own row/slider — they're already the exact bone
-// segments SHOULDER_LEFT/RIGHT and ELBOW_LEFT/RIGHT color (see
-// skeleton.ts's BODY_REGION_BONES' own comment for why: a real, separate
-// upper-arm/forearm measurement would be rotation around the limb's own
-// long axis — humeral rotation, forearm pronation/supination — which a
-// single 2D camera can't observe). HIP is TRUNK's own shoulder-hip-knee
-// triangle renamed, not independent information (see
-// SLD_POSTURE_EDITOR_FIDELITY_PLAN.md's P1). Naming which joint actually
-// drives each one here, rather than a bare "not yet supported", makes that
-// an intentional design boundary visible in the UI, not a gap that reads
-// like unfinished work. WRIST_LEFT/RIGHT and ANKLE_LEFT/RIGHT have no entry
-// — those genuinely are "not yet supported" (blocked on MediaPipe's Hand
-// Landmarker, and on a camera this app doesn't have, respectively), not
-// redundant with something else already shown.
-const SHARED_MEASUREMENT_SOURCE: Partial<Record<BodyRegion, string>> = {
-  UPPER_ARM_LEFT: "Left Shoulder",
-  UPPER_ARM_RIGHT: "Right Shoulder",
-  FOREARM_LEFT: "Left Elbow",
-  FOREARM_RIGHT: "Right Elbow",
-  HIP: "Trunk",
-};
-
-function SharedMeasurementRegionRow({ region }: { region: BodyRegion }) {
-  const source = SHARED_MEASUREMENT_SOURCE[region];
-  return (
-    <div className="flex items-center justify-between rounded-lg border border-border/50 bg-surface/50 p-3 opacity-60">
-      <span className="font-heading font-bold">{REGION_LABELS[region]}</span>
-      <span className="font-technical text-xs text-border">
-        {source
-          ? `no separate measurement — see ${source}`
-          : "not yet supported"}
-      </span>
-    </div>
-  );
-}
-
 // P4 (SLD_POSTURE_EDITOR_FIDELITY_PLAN.md): computeAngleFromDrag's own
 // `clamped` boolean used to be discarded entirely — a drag (or a typed
 // value) that hit ANATOMICAL_LIMITS just silently sprang back to the
@@ -606,12 +564,37 @@ function describeClampedLimit(
   return `limited to ${bound}° — ${REGION_LABELS[region].toLowerCase()} flexion range`;
 }
 
+// NECK is the one region among the 8 whose angle is SIGNED (forward
+// flexion positive, backward extension negative — CLAUDE.md) rather than
+// a plain magnitude, which needs a "which way is the subject facing"
+// determination no other region makes. Both computeAngleFromDrag
+// (drag-to-angle.ts) and applyNeckRotation (forward-kinematics.ts) refuse
+// to guess a direction when the dragged/typed pose puts the nose exactly
+// on the shoulder-midpoint x — a genuine, if narrow, geometric ambiguity
+// (CLAUDE.md: "subject not in profile"), not a bug, and every OTHER
+// region's own FK step has no equivalent throw at all. Left uncaught,
+// that exception aborted applyAngleInput/applyJointDrag before
+// updateEditor ever ran — the slider's OWN controlled value never
+// advanced, so the native input visibly snapped back to wherever it last
+// was on every attempt near that point, with nothing on screen explaining
+// why. Catching it here and naming the real cause directly (rather than
+// leaving PostureEditor's handlers to let it propagate uncaught) is what
+// turns that into a legible message instead of a silent, unexplained
+// "stuck" control.
+function describeRegionInputError(err: unknown): string {
+  if (err instanceof Error && /profile/i.test(err.message)) {
+    return "Can't tell forward from backward at this exact angle — nudge it slightly and try again.";
+  }
+  return err instanceof Error ? err.message : "Could not apply this change.";
+}
+
 function RegionRow({
   idPrefix,
   region,
   originalResult,
   delta,
   rules,
+  inputError,
   onAngleCommit,
   onReset,
 }: {
@@ -620,6 +603,7 @@ function RegionRow({
   originalResult: RegionResult;
   delta: RegionDelta;
   rules: readonly ScoringRuleRow[];
+  inputError: string | null;
   onAngleCommit: (degrees: number) => void;
   onReset: () => void;
 }) {
@@ -741,6 +725,14 @@ function RegionRow({
         {delta.wasClamped && delta.currentAngle !== null && (
           <output className="block font-technical text-xs text-accent">
             {describeClampedLimit(region, delta.currentAngle)}
+          </output>
+        )}
+        {inputError && (
+          <output
+            className="block font-technical text-xs text-accent"
+            role="alert"
+          >
+            {inputError}
           </output>
         )}
         <span className="flex items-center gap-1.5 font-technical text-xs">
@@ -933,6 +925,16 @@ export function PostureEditor({
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  // Per-region failure from a drag or typed angle that a pure resolve
+  // function (applyAngleInput/applyJointDrag) THREW on, rather than
+  // returning a new state — currently only reachable for NECK's own
+  // "subject not in profile" degeneracy (see describeRegionInputError's
+  // own comment). Keyed by region rather than a single shared value so an
+  // error on one row never gets attributed to (or silently clears) another
+  // row's own message.
+  const [regionInputErrors, setRegionInputErrors] = useState<
+    Partial<Record<BodyRegion, string>>
+  >({});
   // Set once onValidate/onReopen resolves successfully — from then on this,
   // not the (now stale) validationStatus/validatedAt/regionResults props,
   // is the source of truth for display, until the parent re-renders with
@@ -1084,6 +1086,16 @@ export function PostureEditor({
     });
   };
 
+  const setRegionInputError = (region: BodyRegion, message: string | null) => {
+    setRegionInputErrors((prev) => {
+      if (prev[region] === message) return prev;
+      const next = { ...prev };
+      if (message) next[region] = message;
+      else delete next[region];
+      return next;
+    });
+  };
+
   const handleJointDrag = (
     landmarkIndex: number,
     newPosition: { x: number; y: number; z: number },
@@ -1098,21 +1110,46 @@ export function PostureEditor({
     // why that's load-bearing, not incidental) — only the resulting ANGLE
     // is ever written onto the real editor state.
     const manikinPosition = threeScenePositionToMediaPipe(newPosition);
-    updateEditor(
-      applyJointDrag(editor, manikinLandmarks, landmarkIndex, manikinPosition),
-    );
+    // Resolved purely to key regionInputErrors correctly — Skeleton3D's
+    // own onJointDrag callback here is ALREADY wrapped in a try/catch on
+    // its side (skeleton-3d.tsx's endDrag/handleDragMove), so a throw here
+    // can never crash the interaction; this local try/catch exists to give
+    // it a VISIBLE, per-region message instead of a console-only one.
+    const region = Object.hasOwn(JOINT_REGIONS, landmarkIndex)
+      ? JOINT_REGIONS[landmarkIndex]
+      : undefined;
+    try {
+      const next = applyJointDrag(
+        editor,
+        manikinLandmarks,
+        landmarkIndex,
+        manikinPosition,
+      );
+      updateEditor(next);
+      if (region) setRegionInputError(region, null);
+    } catch (err) {
+      if (region) setRegionInputError(region, describeRegionInputError(err));
+    }
   };
 
   const handleAngleCommit = (region: BodyRegion, degrees: number) => {
-    updateEditor(applyAngleInput(editor, region, degrees));
+    try {
+      const next = applyAngleInput(editor, region, degrees);
+      updateEditor(next);
+      setRegionInputError(region, null);
+    } catch (err) {
+      setRegionInputError(region, describeRegionInputError(err));
+    }
   };
 
   const handleResetRegion = (region: BodyRegion) => {
     updateEditor(resetRegion(editor, region));
+    setRegionInputError(region, null);
   };
 
   const handleResetAll = () => {
     updateEditor(resetAll(editor));
+    setRegionInputErrors({});
   };
 
   // `resetToOriginal` distinguishes the two validation paths: "Accept as
@@ -1223,27 +1260,21 @@ export function PostureEditor({
                   result={effectiveRegionResults[region]}
                 />
               ))
-            : REGION_ORDER.map((region) => {
-                if (ANGLE_EDITABLE_REGIONS.has(region)) {
-                  return (
-                    <RegionRow
-                      key={region}
-                      idPrefix={postureSampleId}
-                      region={region}
-                      originalResult={effectiveOriginalRegionResults[region]}
-                      delta={getRegionDelta(editor, region)}
-                      rules={editor.rules}
-                      onAngleCommit={(degrees) =>
-                        handleAngleCommit(region, degrees)
-                      }
-                      onReset={() => handleResetRegion(region)}
-                    />
-                  );
-                }
-                return (
-                  <SharedMeasurementRegionRow key={region} region={region} />
-                );
-              })}
+            : REGION_ORDER.map((region) => (
+                <RegionRow
+                  key={region}
+                  idPrefix={postureSampleId}
+                  region={region}
+                  originalResult={effectiveOriginalRegionResults[region]}
+                  delta={getRegionDelta(editor, region)}
+                  rules={editor.rules}
+                  inputError={regionInputErrors[region] ?? null}
+                  onAngleCommit={(degrees) =>
+                    handleAngleCommit(region, degrees)
+                  }
+                  onReset={() => handleResetRegion(region)}
+                />
+              ))}
         </div>
       </div>
 
