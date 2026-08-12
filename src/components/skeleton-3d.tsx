@@ -102,13 +102,17 @@ const ARM_CAPSULE_RADIUS = 0.035;
 const LEG_CAPSULE_RADIUS = 0.05;
 
 // Rigid, non-interactive extremities (P3's own "Head/Hands/Feet" spec) —
-// each a single solid capsule, never articulated, never draggable.
+// each a single solid capsule, never articulated, never draggable. Every
+// *_LENGTH constant here is the capsule's TOTAL visual span (tip to tip,
+// caps included) — the same thing a limb's own `length` means (the raw
+// distance between its two joints, see buildCapsuleGeometry's own doc
+// comment for why that distinction matters).
 const HEAD_RADIUS = 0.09;
-const HEAD_LENGTH = 0.05;
+const HEAD_LENGTH = 0.23;
 const HAND_RADIUS = 0.03;
-const HAND_LENGTH = 0.06;
+const HAND_LENGTH = 0.12;
 const FOOT_RADIUS = 0.03;
-const FOOT_LENGTH = 0.15;
+const FOOT_LENGTH = 0.21;
 
 // capSegments/radialSegments for every capsule mesh in this file (limbs,
 // extremities, and — indirectly, via sphereGeometry's own low segment
@@ -117,6 +121,13 @@ const FOOT_LENGTH = 0.15;
 // design intent, and is cheap to render.
 const CAPSULE_CAP_SEGMENTS = 4;
 const CAPSULE_RADIAL_SEGMENTS = 8;
+// CapsuleGeometry's own `length` constructor argument is the CYLINDER
+// only — a capsule's actual tip-to-tip span is length + 2*radius (each
+// hemispherical cap adds one more radius). Never let the derived cylinder
+// length reach exactly 0 (or go negative, for a radius-dominated capsule
+// like the head — see buildCapsuleGeometry) — CapsuleGeometry itself
+// doesn't handle that gracefully.
+const MIN_CAPSULE_CYLINDER_LENGTH = 0.001;
 
 // BODY_REGION_BONES (skeleton.ts) is still the correct region -> segment
 // map for colouring (SLD_POSTURE_EDITOR_FIDELITY_PLAN.md P3 says so
@@ -620,26 +631,56 @@ function clampAlongDragPath(
 }
 
 // ---------------------------------------------------------------------
-// Solid-mannequin capsule geometry (P3). Every capsule mesh in this file
-// (limbs and the rigid extremities alike) shares ONE unit CapsuleGeometry
-// (radius=1, cylindrical length=1) — same "create once, reposition every
-// render" discipline the old thin-line bones and joint spheres already
-// used — and is fit to its actual span every render via orientCapsuleMesh
-// below: position = center, rotation = aligning the capsule's local +Y to
-// `direction`, scale = (radius, length, radius). Scaling X/Z and Y
-// independently does mean the hemispherical end caps render slightly
-// egg-shaped rather than perfectly round once radius and length differ
-// (always, for an elongated limb) — an accepted trade for a stylized,
-// obviously-synthetic mannequin, not a defect to chase.
+// Solid-mannequin capsule geometry (P3). Each limb/extremity mesh gets its
+// OWN CapsuleGeometry, built once at mount (buildCapsuleGeometry below)
+// with its real radius and span baked in directly, NOT one shared unit
+// capsule stretched via mesh.scale — an earlier version of this file did
+// that (scale.set(radius, length, radius) on a shared radius=1/length=1
+// capsule), which is a real shape bug, not just a stylistic quirk: a
+// non-uniform scale like that stretches the hemispherical caps' apex
+// height by the Y factor (length), not the X/Z factor (radius), so for
+// any elongated limb (length >> radius, i.e. every arm/leg) the caps
+// balloon out to roughly `length` past each end instead of `radius`.
+// Building the geometry at the correct proportions directly avoids that
+// distortion entirely — every render only repositions/reorients
+// (orientCapsuleMesh below), never rescales.
+//
+// This does mean each mesh's geometry assumes its OWN span never changes
+// after creation — true for every caller today (manikin.ts's proportions
+// are fixed regardless of the current 8 angles; the extremities' spans
+// are fixed constants), not a general guarantee for arbitrary future
+// `keypoints` data. A caller that fed genuinely varying bone lengths over
+// time would need this reworked to rebuild geometry on change, which
+// nothing here does.
 // ---------------------------------------------------------------------
 const CAPSULE_UP_AXIS = new THREE.Vector3(0, 1, 0);
+
+// CapsuleGeometry's own `length` constructor argument is the cylinder
+// only (see MIN_CAPSULE_CYLINDER_LENGTH's own comment) — `totalLength`
+// here is the desired tip-to-tip span (a limb's own joint-to-joint
+// distance, or one of the HEAD_LENGTH/HAND_LENGTH/FOOT_LENGTH constants),
+// so every caller can keep thinking in "how long should this actually
+// look," not in the geometry constructor's own narrower unit.
+function buildCapsuleGeometry(
+  radius: number,
+  totalLength: number,
+): THREE.CapsuleGeometry {
+  const cylinderLength = Math.max(
+    totalLength - 2 * radius,
+    MIN_CAPSULE_CYLINDER_LENGTH,
+  );
+  return new THREE.CapsuleGeometry(
+    radius,
+    cylinderLength,
+    CAPSULE_CAP_SEGMENTS,
+    CAPSULE_RADIAL_SEGMENTS,
+  );
+}
 
 function orientCapsuleMesh(
   mesh: THREE.Mesh,
   center: THREE.Vector3,
   direction: THREE.Vector3,
-  radius: number,
-  length: number,
 ) {
   mesh.position.copy(center);
   if (direction.lengthSq() > 0) {
@@ -648,7 +689,6 @@ function orientCapsuleMesh(
       direction.clone().normalize(),
     );
   }
-  mesh.scale.set(radius, length, radius);
 }
 
 const WORLD_FORWARD = new THREE.Vector3(1, 0, 0);
@@ -692,16 +732,17 @@ type JointVisual = {
 
 // One capsule per BODY_REGION_BONES segment (14 total: 4 TRUNK + 2 NECK +
 // 1 each SHOULDER_LEFT/RIGHT/ELBOW_LEFT/RIGHT + 2 each KNEE_LEFT/RIGHT) —
-// `a`/`b` are the two landmark indices it spans, `region` and `radius` are
-// fixed at mount (BODY_REGION_BONES/REGION_CAPSULE_RADIUS never change at
-// runtime), so only position/orientation/color/opacity are recomputed per
-// render.
+// `a`/`b` are the two landmark indices it spans, `region` is fixed at
+// mount (BODY_REGION_BONES never changes at runtime). No `radius` field —
+// unlike an earlier version of this file, the mesh's own geometry already
+// has its radius (and correct span) baked in by buildCapsuleGeometry at
+// creation time, so only position/orientation/color/opacity are
+// recomputed per render.
 type LimbVisual = {
   mesh: THREE.Mesh;
   a: number;
   b: number;
   region: BodyRegion;
-  radius: number;
 };
 
 // The five rigid, non-interactive extremities P3 specifies: one head
@@ -847,20 +888,17 @@ function updateJointVisual(joint: JointVisual, params: JointUpdateParams) {
 type LimbUpdateParams = {
   a: THREE.Vector3;
   b: THREE.Vector3;
-  radius: number;
   color: string;
   confidence: ConfidenceStyle;
 };
 
+// No radius/length here anymore — the mesh's own geometry (built once at
+// mount by buildCapsuleGeometry, from this same bone's real span) already
+// has the correct proportions baked in; this only ever repositions and
+// reorients it to match the two endpoints' CURRENT positions.
 function updateLimbVisual(mesh: THREE.Mesh, params: LimbUpdateParams) {
   const direction = params.b.clone().sub(params.a);
-  orientCapsuleMesh(
-    mesh,
-    midpoint(params.a, params.b),
-    direction,
-    params.radius,
-    direction.length(),
-  );
+  orientCapsuleMesh(mesh, midpoint(params.a, params.b), direction);
   const material = mesh.material as THREE.MeshStandardMaterial;
   material.color.copy(desaturateColor(params.color, params.confidence));
   material.wireframe = params.confidence !== "measured";
@@ -870,8 +908,6 @@ function updateLimbVisual(mesh: THREE.Mesh, params: LimbUpdateParams) {
 type ExtremityUpdateParams = {
   center: THREE.Vector3;
   direction: THREE.Vector3;
-  radius: number;
-  length: number;
   confidence: SkeletonLandmarkConfidence;
 };
 
@@ -882,13 +918,7 @@ function updateExtremityVisual(
   mesh: THREE.Mesh,
   params: ExtremityUpdateParams,
 ) {
-  orientCapsuleMesh(
-    mesh,
-    params.center,
-    params.direction,
-    params.radius,
-    params.length,
-  );
+  orientCapsuleMesh(mesh, params.center, params.direction);
   const material = mesh.material as THREE.MeshStandardMaterial;
   material.color.set(NOT_ASSESSED_COLOR);
   material.wireframe = params.confidence !== "measured";
@@ -930,7 +960,6 @@ function rebuildScene(
     updateLimbVisual(limb.mesh, {
       a: positions[limb.a],
       b: positions[limb.b],
-      radius: limb.radius,
       color,
       confidence: style,
     });
@@ -946,8 +975,6 @@ function rebuildScene(
   updateExtremityVisual(state.extremities.head, {
     center: nose,
     direction: nose.clone().sub(shoulderMid),
-    radius: HEAD_RADIUS,
-    length: HEAD_LENGTH,
     confidence: getConfidence(data.confidenceMap, LANDMARK_INDEX.NOSE),
   });
 
@@ -971,8 +998,6 @@ function rebuildScene(
       {
         center: handCenter,
         direction: forearmDirection,
-        radius: HAND_RADIUS,
-        length: HAND_LENGTH,
         confidence: getConfidence(
           data.confidenceMap,
           LANDMARK_INDEX[`${side}_WRIST`],
@@ -993,8 +1018,6 @@ function rebuildScene(
       {
         center: footCenter,
         direction: footDirection,
-        radius: FOOT_RADIUS,
-        length: FOOT_LENGTH,
         confidence: getConfidence(
           data.confidenceMap,
           LANDMARK_INDEX[`${side}_ANKLE`],
@@ -1131,15 +1154,14 @@ export function Skeleton3D({
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     const sphereGeometry = new THREE.SphereGeometry(1, 16, 12);
-    // Unit capsule (radius=1, cylindrical length=1) shared by every limb
-    // and extremity mesh — see orientCapsuleMesh's own doc comment for why
-    // one shared geometry, scaled per-instance every render, is enough.
-    const capsuleGeometry = new THREE.CapsuleGeometry(
-      1,
-      1,
-      CAPSULE_CAP_SEGMENTS,
-      CAPSULE_RADIAL_SEGMENTS,
-    );
+
+    // Computed once, here, rather than at its previous (later) call site —
+    // now doing double duty: still feeds computeDefaultView below, and
+    // ALSO gives the limb geometry below something real to measure each
+    // bone's initial span from (see buildCapsuleGeometry's own doc comment
+    // for why that span gets baked into the geometry once, not re-derived
+    // via mesh.scale every render).
+    const initialPositions = landmarksTo3DPositions(keypointsRef.current);
 
     const neutralMaterial = () =>
       new THREE.MeshStandardMaterial({
@@ -1151,28 +1173,52 @@ export function Skeleton3D({
     // segment, still the correct region -> segment map per that plan's own
     // note. Every segment here has a real BodyRegion (BODY_REGION_BONES
     // has no unscored entries), so there is no "no region" case to guard.
+    // Each mesh gets its OWN geometry (buildCapsuleGeometry), sized from
+    // its real initial span — not one shared unit capsule stretched via
+    // scale (see that function's own doc comment for why the old approach
+    // was a real shape bug, not just a stylistic one).
     const limbs: LimbVisual[] = [];
     for (const [region, bones] of Object.entries(BODY_REGION_BONES) as Array<
       [BodyRegion, ReadonlyArray<readonly [number, number]>]
     >) {
       const radius = REGION_CAPSULE_RADIUS[region] ?? ARM_CAPSULE_RADIUS;
       for (const [a, b] of bones) {
-        const mesh = new THREE.Mesh(capsuleGeometry, neutralMaterial());
+        const span = initialPositions[a].distanceTo(initialPositions[b]);
+        const geometry = buildCapsuleGeometry(radius, span);
+        const mesh = new THREE.Mesh(geometry, neutralMaterial());
         scene.add(mesh);
-        limbs.push({ mesh, a, b, region, radius });
+        limbs.push({ mesh, a, b, region });
       }
     }
 
     // Rigid, non-interactive extremities (P3) — head, hands, feet. None
     // of these have a BodyRegion, a drag handle, or independent
     // articulation; rebuildScene repositions/reorients them every render
-    // from their anchor landmark (NOSE / WRIST / ANKLE) alone.
+    // from their anchor landmark (NOSE / WRIST / ANKLE) alone. Spans are
+    // the fixed HEAD_LENGTH/HAND_LENGTH/FOOT_LENGTH constants (never
+    // derived from a landmark distance the way a limb's is), so their
+    // geometry needs no positions to build from.
     const extremities: Extremities = {
-      head: new THREE.Mesh(capsuleGeometry, neutralMaterial()),
-      handLeft: new THREE.Mesh(capsuleGeometry, neutralMaterial()),
-      handRight: new THREE.Mesh(capsuleGeometry, neutralMaterial()),
-      footLeft: new THREE.Mesh(capsuleGeometry, neutralMaterial()),
-      footRight: new THREE.Mesh(capsuleGeometry, neutralMaterial()),
+      head: new THREE.Mesh(
+        buildCapsuleGeometry(HEAD_RADIUS, HEAD_LENGTH),
+        neutralMaterial(),
+      ),
+      handLeft: new THREE.Mesh(
+        buildCapsuleGeometry(HAND_RADIUS, HAND_LENGTH),
+        neutralMaterial(),
+      ),
+      handRight: new THREE.Mesh(
+        buildCapsuleGeometry(HAND_RADIUS, HAND_LENGTH),
+        neutralMaterial(),
+      ),
+      footLeft: new THREE.Mesh(
+        buildCapsuleGeometry(FOOT_RADIUS, FOOT_LENGTH),
+        neutralMaterial(),
+      ),
+      footRight: new THREE.Mesh(
+        buildCapsuleGeometry(FOOT_RADIUS, FOOT_LENGTH),
+        neutralMaterial(),
+      ),
     };
     for (const mesh of Object.values(extremities)) scene.add(mesh);
 
@@ -1483,7 +1529,6 @@ export function Skeleton3D({
     controls.addEventListener("change", () => scheduleRender(state));
     state.controls = controls;
 
-    const initialPositions = landmarksTo3DPositions(keypointsRef.current);
     const view = computeDefaultView(initialPositions, camera);
     camera.position.copy(view.position);
     controls.target.copy(view.target);
@@ -1520,17 +1565,22 @@ export function Skeleton3D({
       if (state.animationFrameId !== null)
         cancelAnimationFrame(state.animationFrameId);
       controls.dispose();
+      // Each limb/extremity mesh has its OWN geometry now (buildCapsuleGeometry,
+      // one per instance, sized at creation) rather than sharing one unit
+      // capsule — so, unlike sphereGeometry below, geometry disposal has
+      // to happen per-mesh here too, not once for the whole group.
       for (const limb of limbs) {
+        limb.mesh.geometry.dispose();
         (limb.mesh.material as THREE.Material).dispose();
       }
       for (const mesh of Object.values(extremities)) {
+        mesh.geometry.dispose();
         (mesh.material as THREE.Material).dispose();
       }
       for (const joint of joints.values()) {
         (joint.core.material as THREE.Material).dispose();
         (joint.halo.material as THREE.Material).dispose();
       }
-      capsuleGeometry.dispose();
       sphereGeometry.dispose();
       renderer.dispose();
       sceneStateRef.current = null;
