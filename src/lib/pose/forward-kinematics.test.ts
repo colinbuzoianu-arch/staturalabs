@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { computeAllAngles } from "./drag-to-angle";
 import {
   type AngleAdjustment,
   applyAngleAdjustments,
@@ -374,6 +375,101 @@ describe("applyAngleAdjustments", () => {
         { bodyRegion: "NECK", currentDegrees: 0, targetDegrees: 20 },
       ]),
     ).toThrow(/profile/);
+  });
+
+  // Regression: a large TRUNK edit used to silently flip NECK's reported
+  // sign/direction, because facingSign was read off raw nose.x vs
+  // shoulderMid.x — a comparison that isn't stable under this very
+  // function's own TRUNK rotation (nose and shoulderMid are both members
+  // of TRUNK_DISTAL and rotate together, so their x-difference rotates
+  // right along with the trunk and can cross zero). Reported symptom: bend
+  // TRUNK forward in the posture editor and the NECK slider "jumps to the
+  // opposite (backward) band and stops responding." Reproduces the real
+  // reported scenario end to end (applyAngleAdjustments -> computeAllAngles,
+  // the same round trip posture-editor.ts's applyResolvedAngle drives) —
+  // NOT a synthetic unit check of resolveNeckFacingSign in isolation.
+  it("a large forward TRUNK bend does not flip NECK's reported sign or direction", () => {
+    // A shallow starting lean (~4°), not UPRIGHT_TORSO or LEAN_TORSO: this
+    // needs enough remaining headroom below ANATOMICAL_LIMITS.TRUNK's 90°
+    // ceiling for the applied rotation to actually carry nose.x across
+    // shoulderMid.x (confirmed empirically — the old raw-x heuristic's sign
+    // only flips here once TRUNK approaches 90°, not at LEAN_TORSO's ~40°
+    // starting lean, which leaves too little headroom).
+    const SHALLOW_LEAN_TORSO = {
+      LEFT_SHOULDER: { x: 0.52, y: 0.3 },
+      RIGHT_SHOULDER: { x: 0.52, y: 0.3 },
+      LEFT_HIP: { x: 0.5, y: 0.6 },
+      RIGHT_HIP: { x: 0.5, y: 0.6 },
+      LEFT_KNEE: { x: 0.5, y: 0.9 },
+      RIGHT_KNEE: { x: 0.5, y: 0.9 },
+    } as const;
+    const baseline = makeSkeleton({
+      ...SHALLOW_LEAN_TORSO,
+      NOSE: { x: 0.6, y: 0.32 }, // nose.x > shoulderMid.x: facing right
+      LEFT_EAR: { x: 0.62, y: 0.35 }, // slight forward-flexed neck
+      RIGHT_EAR: { x: 0.62, y: 0.35 },
+    });
+    const beforeAngles = computeAllAngles(baseline);
+    const neckBefore = beforeAngles.get("NECK");
+    const trunkBefore = beforeAngles.get("TRUNK");
+    expect(neckBefore).toBeDefined();
+    expect(trunkBefore).toBeDefined();
+    expect(neckBefore as number).toBeGreaterThan(0); // forward flexion, positive
+
+    // Bend TRUNK forward to its ANATOMICAL_LIMITS max (90°) — large enough
+    // that a rigid rotation of nose+shoulders around the (fixed) hip pivot
+    // pushes nose.x well past shoulderMid.x on the other side, which is
+    // exactly what used to flip the old raw-x facingSign heuristic.
+    const bent = applyAngleAdjustments(baseline, [
+      {
+        bodyRegion: "TRUNK",
+        currentDegrees: trunkBefore as number,
+        targetDegrees: 90,
+      },
+    ]);
+    const nose = bent[LANDMARK_INDEX.NOSE];
+    const shoulderMid = {
+      x:
+        (bent[LANDMARK_INDEX.LEFT_SHOULDER].x +
+          bent[LANDMARK_INDEX.RIGHT_SHOULDER].x) /
+        2,
+      y:
+        (bent[LANDMARK_INDEX.LEFT_SHOULDER].y +
+          bent[LANDMARK_INDEX.RIGHT_SHOULDER].y) /
+        2,
+    };
+    // Confirms this fixture actually exercises the bug condition: the old
+    // raw-x heuristic's sign really would have flipped here.
+    expect(Math.sign(nose.x - shoulderMid.x)).not.toBe(
+      Math.sign(
+        baseline[LANDMARK_INDEX.NOSE].x - SHALLOW_LEAN_TORSO.LEFT_SHOULDER.x,
+      ),
+    );
+
+    const afterAngles = computeAllAngles(bent);
+    const neckAfter = afterAngles.get("NECK");
+    expect(neckAfter).toBeDefined();
+    // NECK's own angle was never touched by this adjustment — its sign and
+    // (approximately, modulo the bilateral-midpoint TRUNK simplification)
+    // its magnitude must stay exactly where they were, not flip to a
+    // large-magnitude negative "backward extension" reading.
+    expect(neckAfter as number).toBeGreaterThan(0);
+    expect(neckAfter as number).toBeCloseTo(neckBefore as number, 6);
+
+    // And a subsequent NECK adjustment, applied on top of the bent trunk,
+    // must still rotate the head in the same relative sense a small-trunk
+    // edit would — i.e. increasing the NECK target further increases
+    // forward flexion, not decreases/reverses it.
+    const bentThenNecked = applyAngleAdjustments(bent, [
+      {
+        bodyRegion: "NECK",
+        currentDegrees: neckAfter as number,
+        targetDegrees: (neckAfter as number) + 15,
+      },
+    ]);
+    const neckFinal = computeAllAngles(bentThenNecked).get("NECK");
+    expect(neckFinal).toBeDefined();
+    expect(neckFinal as number).toBeGreaterThan(neckAfter as number);
   });
 
   // Verifies the invariant skeleton-3d.tsx's own rigid drag constraints

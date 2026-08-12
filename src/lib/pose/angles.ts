@@ -40,7 +40,7 @@ export const LANDMARK_INDEX = {
   RIGHT_ANKLE: 28,
 } as const;
 
-type Point2D = { x: number; y: number };
+export type Point2D = { x: number; y: number };
 
 function vector(from: Point2D, to: Point2D): Point2D {
   return { x: to.x - from.x, y: to.y - from.y };
@@ -81,18 +81,14 @@ export function flexionFrom180(includedDegrees: number): number {
 // directions. Disambiguating requires knowing which way the subject faces
 // in the image.
 //
-// Facing direction is auto-detected per sample from nose.x relative to the
-// shoulder-midpoint x (the nose sits on whichever side of the neck line
-// the subject is facing). The rotational direction of the ear relative to
-// the shoulder->hip (trunk) line is then read off a 2D cross product, and
-// combined with facing direction to decide the sign: bending toward the
-// facing direction is flexion (+), bending away from it is extension (-).
-//
-// Degenerate case: if nose.x exactly equals the shoulder-midpoint x,
-// facing direction can't be determined from this heuristic (the pose is
-// effectively facing the camera, not in profile) — this throws rather than
-// guessing a direction, consistent with treating an unresolvable case as a
-// data problem rather than silently picking a sign.
+// Facing direction is auto-detected per sample via resolveNeckFacingSign
+// (below) — a cross product between the trunk axis and the nose's offset
+// from shoulderMid, NOT a raw nose.x-vs-shoulderMid.x comparison (see that
+// function's own comment for why the raw-x version is unstable). The
+// rotational direction of the ear relative to the shoulder->hip (trunk)
+// line is then read off a 2D cross product, and combined with facing
+// direction to decide the sign: bending toward the facing direction is
+// flexion (+), bending away from it is extension (-).
 function signedNeckFlexion(
   magnitude: number,
   points: {
@@ -106,14 +102,9 @@ function signedNeckFlexion(
   },
 ): number {
   const shoulderMid = midpoint(points.leftShoulder, points.rightShoulder);
-  const facingSign = Math.sign(points.nose.x - shoulderMid.x);
-  if (facingSign === 0) {
-    throw new Error(
-      "Cannot determine neck flexion sign: nose.x equals shoulder-midpoint x (subject not in profile)",
-    );
-  }
-
   const hipMid = midpoint(points.leftHip, points.rightHip);
+  const facingSign = resolveNeckFacingSign(points.nose, shoulderMid, hipMid);
+
   const earMid = midpoint(points.leftEar, points.rightEar);
   const trunkVector = vector(shoulderMid, hipMid);
   const neckVector = vector(shoulderMid, earMid);
@@ -121,6 +112,56 @@ function signedNeckFlexion(
 
   const flexionSign = Math.sign(-cross * facingSign);
   return magnitude * flexionSign;
+}
+
+// Which side of the trunk axis the head is offset toward — the signal
+// signedNeckFlexion (and every other NECK-sign call site: drag-to-angle.ts's
+// NOSE-drag branch, forward-kinematics.ts's applyNeckRotation) needs to
+// disambiguate forward flexion from backward extension.
+//
+// Deliberately NOT a raw `nose.x vs shoulderMid.x` world-space comparison,
+// which is what this used to be. nose and shoulderMid both belong to the
+// same rigid "upper body" group that a TRUNK edit/rotation carries along
+// together (forward-kinematics.ts's applyTrunkRotation rotates the head
+// with the shoulders around the hip pivot) — so that raw x-difference is
+// itself a vector that rotates along with the trunk, and can cross zero
+// (flipping the reported facing direction, and with it the reported NECK
+// sign) for a large enough trunk flexion even though the subject hasn't
+// actually turned to face a different way. Confirmed reachable in practice:
+// bending TRUNK forward in the posture editor drove exactly this flip,
+// reported as the NECK slider "jumping to the opposite band and refusing
+// to respond" once the internally-tracked angle desynced from the
+// (ANATOMICAL_LIMITS-clamped) displayed slider position.
+//
+// Signing via a cross product between the trunk axis (shoulderMid->hipMid)
+// and the nose's offset from shoulderMid instead: both vectors are members
+// of the same rigid group and rotate together under any common rotation of
+// the upper body, so their cross product's sign — hence this function's
+// result — stays constant no matter how far the trunk itself is bent
+// (cross(Rv1, Rv2) = cross(v1, v2) for any shared rotation R, a standard
+// rotation invariant). For an upright trunk (shoulderMid directly above
+// hipMid, every existing fixture/test case) this collapses to exactly the
+// old raw-x comparison, so it changes nothing for a neutral or lightly-bent
+// trunk — see angles.test.ts.
+//
+// Degenerate case: nose exactly on the trunk axis (cross === 0) — the
+// generalized form of "subject facing the camera, not in profile," same
+// treatment as before (throws rather than guessing a direction).
+export function resolveNeckFacingSign(
+  nose: Point2D,
+  shoulderMid: Point2D,
+  hipMid: Point2D,
+): number {
+  const trunkVector = vector(shoulderMid, hipMid);
+  const noseVector = vector(shoulderMid, nose);
+  const cross = trunkVector.x * noseVector.y - trunkVector.y * noseVector.x;
+  const facingSign = -Math.sign(cross);
+  if (facingSign === 0) {
+    throw new Error(
+      "Cannot determine neck flexion sign: nose lies on the trunk axis (subject not in profile)",
+    );
+  }
+  return facingSign;
 }
 
 export type ComputedBodyRegion =

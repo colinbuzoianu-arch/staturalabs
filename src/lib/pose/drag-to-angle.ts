@@ -7,6 +7,7 @@ import {
   LANDMARK_INDEX,
   type PoseLandmark,
   type PoseLandmarks,
+  resolveNeckFacingSign,
 } from "./angles";
 import {
   ANATOMICAL_LIMITS,
@@ -192,12 +193,13 @@ export function computeAngleFromDrag(
       at(LANDMARK_INDEX.LEFT_HIP),
       at(LANDMARK_INDEX.RIGHT_HIP),
     );
-    const facingSign = Math.sign(newPosition.x - shoulderMid.x);
-    if (facingSign === 0) {
-      throw new Error(
-        "Cannot determine neck flexion sign: dragged nose.x equals shoulder-midpoint x (subject not in profile)",
-      );
-    }
+    // resolveNeckFacingSign (angles.ts) rather than a raw
+    // newPosition.x-vs-shoulderMid.x comparison — that raw form is the
+    // same one that used to make applyNeckRotation's rotation direction
+    // (forward-kinematics.ts) unstable across a TRUNK edit; using the
+    // identical trunk-relative resolution here keeps a direct nose drag
+    // consistent with every other NECK-sign call site.
+    const facingSign = resolveNeckFacingSign(newPosition, shoulderMid, hipMid);
     const magnitude = flexionFrom180(
       includedAngle(hipMid, shoulderMid, newPosition),
     );

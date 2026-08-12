@@ -1,4 +1,5 @@
 import type { BodyRegion } from "@/generated/prisma/enums";
+import { resolveNeckFacingSign } from "./angles";
 import { LANDMARK_INDEX, type SkeletonLandmark } from "./skeleton";
 
 // Pure math — no DOM, no React. Same compliance posture as skeleton.ts
@@ -39,12 +40,17 @@ import { LANDMARK_INDEX, type SkeletonLandmark } from "./skeleton";
 // derivation against signedNeckFlexion's own formula (facingSign, cross
 // product) collapses to a remarkably clean result:
 //
-//   φ = facingSign * Δflexion,   facingSign = sign(nose.x - shoulderMid.x)
+//   φ = facingSign * Δflexion,   facingSign = resolveNeckFacingSign(...)
 //
 // — verified both algebraically and against a worked numeric example
-// (see forward-kinematics.test.ts). facingSign===0 is the same
-// subject-not-in-profile degeneracy signedNeckFlexion itself throws on;
-// this module throws for the same reason, not a new failure mode.
+// (see forward-kinematics.test.ts). facingSign resolution (and its
+// degenerate throw) is shared with angles.ts's signedNeckFlexion via
+// resolveNeckFacingSign, not re-derived here — see that function's own
+// comment for why it's a trunk-relative cross product rather than a raw
+// nose.x-vs-shoulderMid.x comparison (the latter is NOT invariant under
+// this very module's own applyTrunkRotation, which was exactly the bug:
+// a large enough TRUNK edit could flip facingSign and make the NECK
+// slider appear to jump/stick even though NECK's own delta never changed).
 //
 // Two known limitations of the sign(s0) approach, both inherited from
 // TRUNK/SHOULDER/ELBOW/KNEE's magnitude-only angle convention (unlike
@@ -326,17 +332,17 @@ function applyNeckRotation(
 ): SkeletonLandmark[] {
   const at = (name: LandmarkName) => working[LANDMARK_INDEX[name]];
   const shoulderMid = midpoint(at("LEFT_SHOULDER"), at("RIGHT_SHOULDER"));
+  const hipMid = midpoint(at("LEFT_HIP"), at("RIGHT_HIP"));
   const nose = at("NOSE");
 
-  const facingSign = Math.sign(nose.x - shoulderMid.x);
-  if (facingSign === 0) {
-    // Same degenerate case signedNeckFlexion itself throws on (angles.ts) —
-    // a genuine data anomaly (subject facing the camera, not in profile),
-    // not a routine condition to guess a direction for.
-    throw new Error(
-      "Cannot determine neck rotation direction: nose.x equals shoulder-midpoint x (subject not in profile)",
-    );
-  }
+  // resolveNeckFacingSign throws the same degenerate-case error
+  // signedNeckFlexion itself does (angles.ts) — a genuine data anomaly
+  // (subject facing the camera, not in profile), not a routine condition
+  // to guess a direction for. Reading it off shoulderMid/hipMid (rather
+  // than a raw nose.x-vs-shoulderMid.x comparison) keeps this rotation's
+  // direction stable across a TRUNK edit applied earlier in the same
+  // adjustment batch — see this file's derivation-summary comment.
+  const facingSign = resolveNeckFacingSign(nose, shoulderMid, hipMid);
 
   const phi = facingSign * deltaFlexionDegrees;
   return rotateLandmarks(working, NECK_DISTAL, shoulderMid, phi);
