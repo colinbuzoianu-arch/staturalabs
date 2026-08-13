@@ -6,11 +6,17 @@ import {
   classifyLandmarkConfidence,
   completeMissingLandmarks,
   getVirtualChestPosition,
+  getVirtualHipPosition,
+  getVirtualKneePosition,
   JOINT_REGIONS,
   LANDMARK_INDEX,
   landmarksTo3DPositions,
   POSE_CONNECTIONS,
+  PROXY_JOINT_REGIONS,
+  regionForDraggableLandmark,
   VIRTUAL_CHEST_LANDMARK_INDEX,
+  VIRTUAL_HIP_LANDMARK_INDEX,
+  VIRTUAL_KNEE_LANDMARK_INDEX,
 } from "./skeleton";
 
 // Builds a full 33-entry landmarks array, same pattern as angles.test.ts's
@@ -513,6 +519,93 @@ describe("getVirtualChestPosition", () => {
   });
 });
 
+describe("getVirtualHipPosition", () => {
+  it("is the midpoint of the projected left/right hip positions", () => {
+    const landmarks = makeLandmarks({
+      LEFT_HIP: { x: 0.4, y: 0.6 },
+      RIGHT_HIP: { x: 0.6, y: 0.6 },
+    });
+    const positions = landmarksTo3DPositions(landmarks);
+    const hip = getVirtualHipPosition(positions);
+    expect(hip.x).toBeCloseTo(1.0, 10); // (0.4 + 0.6) / 2 * 2
+    expect(hip.y).toBeCloseTo(-1.2, 10); // -0.6 * 2
+  });
+
+  it("VIRTUAL_HIP_LANDMARK_INDEX falls outside MediaPipe's real 0-32 range and is distinct from VIRTUAL_CHEST_LANDMARK_INDEX", () => {
+    expect(VIRTUAL_HIP_LANDMARK_INDEX).toBeGreaterThan(32);
+    expect(VIRTUAL_HIP_LANDMARK_INDEX).not.toBe(VIRTUAL_CHEST_LANDMARK_INDEX);
+  });
+
+  it("is not draggable — JOINT_REGIONS has no entry for it (TRUNK's only drag handle is the chest)", () => {
+    expect(JOINT_REGIONS[VIRTUAL_HIP_LANDMARK_INDEX]).toBeUndefined();
+  });
+});
+
+describe("getVirtualKneePosition", () => {
+  it("is the midpoint of the projected left/right knee positions", () => {
+    const landmarks = makeLandmarks({
+      LEFT_KNEE: { x: 0.4, y: 0.9 },
+      RIGHT_KNEE: { x: 0.6, y: 0.9 },
+    });
+    const positions = landmarksTo3DPositions(landmarks);
+    const knee = getVirtualKneePosition(positions);
+    expect(knee.x).toBeCloseTo(1.0, 10); // (0.4 + 0.6) / 2 * 2
+    expect(knee.y).toBeCloseTo(-1.8, 10); // -0.9 * 2
+  });
+
+  it("VIRTUAL_KNEE_LANDMARK_INDEX falls outside MediaPipe's real 0-32 range and is distinct from the other virtual indices", () => {
+    expect(VIRTUAL_KNEE_LANDMARK_INDEX).toBeGreaterThan(32);
+    expect(VIRTUAL_KNEE_LANDMARK_INDEX).not.toBe(VIRTUAL_CHEST_LANDMARK_INDEX);
+    expect(VIRTUAL_KNEE_LANDMARK_INDEX).not.toBe(VIRTUAL_HIP_LANDMARK_INDEX);
+  });
+
+  it("is HIP's own drag handle — JOINT_REGIONS maps it to HIP, not to VIRTUAL_HIP_LANDMARK_INDEX", () => {
+    expect(JOINT_REGIONS[VIRTUAL_KNEE_LANDMARK_INDEX]).toBe("HIP");
+  });
+});
+
+describe("PROXY_JOINT_REGIONS (Fix 4)", () => {
+  it("maps wrist/ankle landmarks to the ELBOW/KNEE region they're a proxy for", () => {
+    expect(PROXY_JOINT_REGIONS[LANDMARK_INDEX.LEFT_WRIST]).toBe("ELBOW_LEFT");
+    expect(PROXY_JOINT_REGIONS[LANDMARK_INDEX.RIGHT_WRIST]).toBe("ELBOW_RIGHT");
+    expect(PROXY_JOINT_REGIONS[LANDMARK_INDEX.LEFT_ANKLE]).toBe("KNEE_LEFT");
+    expect(PROXY_JOINT_REGIONS[LANDMARK_INDEX.RIGHT_ANKLE]).toBe("KNEE_RIGHT");
+  });
+
+  it("shares no key with JOINT_REGIONS — a proxy is a landmark that ISN'T already its own primary handle", () => {
+    const jointKeys = new Set(Object.keys(JOINT_REGIONS).map(Number));
+    for (const key of Object.keys(PROXY_JOINT_REGIONS).map(Number)) {
+      expect(jointKeys.has(key)).toBe(false);
+    }
+  });
+});
+
+describe("regionForDraggableLandmark", () => {
+  it("resolves a primary handle via JOINT_REGIONS", () => {
+    expect(regionForDraggableLandmark(LANDMARK_INDEX.LEFT_ELBOW)).toBe(
+      "ELBOW_LEFT",
+    );
+    expect(regionForDraggableLandmark(VIRTUAL_CHEST_LANDMARK_INDEX)).toBe(
+      "TRUNK",
+    );
+  });
+
+  it("falls back to a proxy handle via PROXY_JOINT_REGIONS", () => {
+    expect(regionForDraggableLandmark(LANDMARK_INDEX.LEFT_WRIST)).toBe(
+      "ELBOW_LEFT",
+    );
+    expect(regionForDraggableLandmark(LANDMARK_INDEX.RIGHT_ANKLE)).toBe(
+      "KNEE_RIGHT",
+    );
+  });
+
+  it("returns undefined for a landmark that controls nothing", () => {
+    expect(
+      regionForDraggableLandmark(LANDMARK_INDEX.RIGHT_EYE),
+    ).toBeUndefined();
+  });
+});
+
 describe("BODY_REGION_BONES", () => {
   it("only references real MediaPipe landmark indices (0-32)", () => {
     for (const bones of Object.values(BODY_REGION_BONES)) {
@@ -539,6 +632,14 @@ describe("BODY_REGION_BONES", () => {
       ].sort(),
     );
   });
+
+  it("NECK is empty — its single segment (shoulder midpoint -> NOSE) is special-cased in skeleton-3d.tsx, not expressed as a real-landmark-index pair here", () => {
+    expect(BODY_REGION_BONES.NECK).toEqual([]);
+  });
+
+  it("TRUNK is empty — its solid mesh (shoulder midpoint -> hip midpoint) is special-cased in skeleton-3d.tsx, not expressed as real-landmark-index pairs here", () => {
+    expect(BODY_REGION_BONES.TRUNK).toEqual([]);
+  });
 });
 
 describe("JOINT_REGIONS", () => {
@@ -559,11 +660,12 @@ describe("JOINT_REGIONS", () => {
 });
 
 describe("ANATOMICAL_LIMITS", () => {
-  it("covers exactly the 8 scored regions, each with min <= max", () => {
+  it("covers exactly the 8 scored regions plus HIP (Fix 3), each with min <= max", () => {
     expect(Object.keys(ANATOMICAL_LIMITS).sort()).toEqual(
       [
         "TRUNK",
         "NECK",
+        "HIP",
         "SHOULDER_LEFT",
         "SHOULDER_RIGHT",
         "ELBOW_LEFT",
@@ -581,6 +683,7 @@ describe("ANATOMICAL_LIMITS", () => {
   it("matches the spec's per-region degree bounds", () => {
     expect(ANATOMICAL_LIMITS.TRUNK).toEqual({ min: 0, max: 90 });
     expect(ANATOMICAL_LIMITS.NECK).toEqual({ min: -20, max: 60 });
+    expect(ANATOMICAL_LIMITS.HIP).toEqual({ min: 0, max: 120 });
     expect(ANATOMICAL_LIMITS.SHOULDER_LEFT).toEqual({ min: 0, max: 180 });
     expect(ANATOMICAL_LIMITS.ELBOW_LEFT).toEqual({ min: 0, max: 145 });
     expect(ANATOMICAL_LIMITS.KNEE_LEFT).toEqual({ min: 0, max: 130 });
@@ -591,9 +694,11 @@ describe("ANATOMICAL_LIMITS", () => {
   // landmark to must have a clamp range here, and vice versa — a drag
   // handle with no limit (or a limit with no handle) would silently drift
   // the drag surface out of sync with what's actually scoreable. The old
-  // position-only joints (WRIST_LEFT/RIGHT, ANKLE_LEFT/RIGHT, HIP) used to
-  // be the deliberate exception to this; P1 removed them entirely rather
-  // than keep them as a documented non-clamping special case.
+  // position-only joints (WRIST_LEFT/RIGHT, ANKLE_LEFT/RIGHT) are the
+  // deliberate exception to this; P1 removed them entirely rather than
+  // keep them as a documented non-clamping special case. HIP was cut
+  // alongside them at the time for a different reason (no independent
+  // angle existed yet) and came back with its own real entry in Fix 3.
   it("JOINT_REGIONS' value set equals ANATOMICAL_LIMITS' key set exactly", () => {
     const jointRegionValues = new Set(Object.values(JOINT_REGIONS));
     const limitKeys = new Set(Object.keys(ANATOMICAL_LIMITS));

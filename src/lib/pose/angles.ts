@@ -164,6 +164,46 @@ export function resolveNeckFacingSign(
   return facingSign;
 }
 
+// A synthetic point directly "below" `origin` in image space (y increases
+// downward — MediaPipe convention) — the vertical reference direction HIP
+// flexion measures against (see hipFlexion below). The offset's magnitude
+// (1) is arbitrary: includedAngle only ever reads direction, never
+// distance, from the points it's given.
+function verticalReferencePoint(origin: Point2D): Point2D {
+  return { x: origin.x, y: origin.y + 1 };
+}
+
+// HIP flexion for one side: the angle between straight-down-from-the-hip
+// (verticalReferencePoint) and the hip->knee vector. 0° when the knee
+// hangs directly below the hip (standing), increasing as the thigh lifts
+// forward — deliberately measured against a fixed vertical reference
+// rather than against another body landmark, unlike every other formula in
+// this file (TRUNK's own shoulder-hip-knee triangle, for instance). That's
+// the point: a shoulder-hip-knee-style measurement would still be coupled
+// to trunk lean (bend forward at the trunk and the "hip angle" that
+// formula reports changes even though the thigh itself never moved),
+// which is exactly why HIP was originally treated as redundant with TRUNK
+// and left undraggable (see SLD_SKELETON_FIXES.md's Fix 3 "why it was
+// missing"). Anchoring to true vertical instead makes this a genuinely
+// independent measurement — ergonomically, "how far has the thigh lifted
+// off vertical," the number that matters for seated work/pedal operation
+// regardless of how upright the trunk happens to be.
+//
+// Not part of ComputedBodyRegion/computeRawBodyAngle/computeBodyAngles
+// below, deliberately: HIP has no seeded ScoringRule yet (no formula in
+// the persisted capture-scoring pipeline — see RegionResult's own
+// "not-yet-supported" status), so it stays out of that 8-region contract
+// entirely rather than forcing a ninth always-present-but-never-scored
+// entry through every one of that type's consumers (buildRegionResults,
+// the capture API, the PDF report). drag-to-angle.ts's computeAllAngles —
+// the live, ungated posture-editor computation, which already has its own
+// wider BodyRegion-keyed return type — calls this directly instead,
+// bilateral-averaging the two sides the same way computeRawBodyAngle's own
+// TRUNK/NECK cases do.
+export function hipFlexion(hip: Point2D, knee: Point2D): number {
+  return includedAngle(verticalReferencePoint(hip), hip, knee);
+}
+
 export type ComputedBodyRegion =
   | typeof BodyRegion.TRUNK
   | typeof BodyRegion.NECK

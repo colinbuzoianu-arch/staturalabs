@@ -2,14 +2,20 @@ import { describe, expect, it } from "vitest";
 import { CameraAngle } from "@/generated/prisma/enums";
 import { computeBodyAngles, LANDMARK_INDEX, type PoseLandmark } from "./angles";
 import { computeAllAngles, computeAngleFromDrag } from "./drag-to-angle";
-import { VIRTUAL_CHEST_LANDMARK_INDEX } from "./skeleton";
+import {
+  VIRTUAL_CHEST_LANDMARK_INDEX,
+  VIRTUAL_KNEE_LANDMARK_INDEX,
+} from "./skeleton";
 
 // A full "standing, arms at sides, facing right" pose where every one of
-// the 8 computable regions reads ~0° — every joint chain here is either a
-// straight vertical line (TRUNK/NECK/ELBOW/KNEE) or hanging straight down
-// from its proximal joint (SHOULDER), the exact same coordinates
+// the 9 computable regions reads ~0° — every joint chain here is either a
+// straight vertical line (TRUNK/NECK/ELBOW/KNEE/HIP) or hanging straight
+// down from its proximal joint (SHOULDER), the exact same coordinates
 // angles.test.ts's own "neutral" fixtures use per region, reused here
 // rather than re-derived so the baseline values are already known-correct.
+// HIP reads 0° here for the same reason KNEE does: hip.y=0.7, knee.y=0.9
+// per side below means the knee hangs directly below the hip, exactly the
+// "0° = standing" case hipFlexion's own vertical reference measures.
 function neutralLandmarks(
   overrides: Partial<
     Record<number, { x: number; y: number; visibility?: number }>
@@ -48,9 +54,9 @@ function neutralLandmarks(
 }
 
 describe("computeAllAngles", () => {
-  it("computes all 8 regions from a neutral pose, all ~0°", () => {
+  it("computes all 9 regions from a neutral pose, all ~0°", () => {
     const angles = computeAllAngles(neutralLandmarks());
-    expect(angles.size).toBe(8);
+    expect(angles.size).toBe(9);
     for (const degrees of angles.values()) {
       expect(degrees).toBeCloseTo(0, 5);
     }
@@ -91,7 +97,7 @@ describe("computeAllAngles", () => {
       [LANDMARK_INDEX.LEFT_HIP]: { x: 0.5, y: 0.7, visibility: 0.05 },
     });
     const angles = computeAllAngles(landmarks);
-    expect(angles.size).toBe(8);
+    expect(angles.size).toBe(9);
     // TRUNK reads both knees+hips; KNEE_LEFT/SHOULDER_LEFT read the left
     // hip directly — all still compute a real value despite the low
     // visibility on LEFT_KNEE/LEFT_HIP.
@@ -152,6 +158,55 @@ describe("computeAngleFromDrag", () => {
     expect(knee.clamped).toBe(false);
   });
 
+  it("Fix 4: LEFT_WRIST (proxy) resolves to ELBOW_LEFT, with the real elbow staying the fixed vertex", () => {
+    const landmarks = neutralLandmarks();
+    // Elbow (vertex) and shoulder (parent) both stay at their real neutral
+    // positions — (0.5,0.65) and (0.5,0.5) — only the wrist (dragged) moves.
+    // Dragging the wrist to (0.65,0.65) — same y as the elbow, offset only
+    // in x — puts it exactly perpendicular to elbow->shoulder ("straight
+    // up"), a clean 90° by construction, same right-triangle shape as the
+    // TRUNK/NECK/HIP proxy-drag cases elsewhere in this file.
+    const result = computeAngleFromDrag(landmarks, LANDMARK_INDEX.LEFT_WRIST, {
+      x: 0.65,
+      y: 0.65,
+    });
+    expect(result.bodyRegion).toBe("ELBOW_LEFT");
+    expect(result.angleDegrees).toBeCloseTo(90, 5);
+    expect(result.clamped).toBe(false);
+  });
+
+  it("Fix 4: RIGHT_ANKLE (proxy) resolves to KNEE_RIGHT, with the real knee staying the fixed vertex", () => {
+    const landmarks = neutralLandmarks();
+    // Knee (vertex, 0.5,0.9) and hip (parent, 0.5,0.7) both stay at their
+    // real neutral positions — only the ankle (dragged) moves, to
+    // (0.65,0.95). Hand-verified: knee->hip=(0,-0.2) ("up"), knee->ankle
+    // (dragged)=(0.15,0.05); included angle = |atan2(0.05,0.15) - (-90°)|
+    // = |18.4349° + 90°| = 108.4349°, flexion = 180 - 108.4349 = 71.5651°.
+    const result = computeAngleFromDrag(landmarks, LANDMARK_INDEX.RIGHT_ANKLE, {
+      x: 0.65,
+      y: 0.95,
+    });
+    expect(result.bodyRegion).toBe("KNEE_RIGHT");
+    expect(result.angleDegrees).toBeCloseTo(71.5651, 3);
+    expect(result.clamped).toBe(false);
+  });
+
+  it("Fix 4: a proxy drag leaves the real vertex/parent landmarks in `landmarks` completely untouched", () => {
+    // computeAngleFromDrag never mutates its input — same invariant every
+    // other branch already has, worth confirming explicitly for the proxy
+    // path since it's the one case where the dragged index and the
+    // formula's own vertex/parent indices are all DIFFERENT landmarks.
+    const landmarks = neutralLandmarks();
+    const snapshot = landmarks.map((l) => ({ ...l }));
+    computeAngleFromDrag(landmarks, LANDMARK_INDEX.LEFT_WRIST, {
+      x: 0.9,
+      y: 0.1,
+    });
+    for (let i = 0; i < landmarks.length; i++) {
+      expect(landmarks[i]).toEqual(snapshot[i]);
+    }
+  });
+
   it("TRUNK: dragging the virtual chest handle produces the bilateral-midpoint angle", () => {
     const landmarks = neutralLandmarks();
     // hipMid=(0.5,0.7), kneeMid=(0.5,0.9); dragging the chest to (0.6,0.6)
@@ -166,6 +221,25 @@ describe("computeAngleFromDrag", () => {
       },
     );
     expect(result.bodyRegion).toBe("TRUNK");
+    expect(result.angleDegrees).toBeCloseTo(45, 5);
+    expect(result.clamped).toBe(false);
+  });
+
+  it("HIP: dragging the virtual knee handle produces the vertical-referenced, hipMid-anchored angle", () => {
+    const landmarks = neutralLandmarks();
+    // hipMid=(0.5,0.7); dragging the knee handle to (0.6,0.8) gives a
+    // vector of (0.1,0.1) from hipMid — a clean 45° from straight down
+    // (0,1) by construction, same right-triangle-diagonal shape as the
+    // TRUNK/NECK cases above.
+    const result = computeAngleFromDrag(
+      landmarks,
+      VIRTUAL_KNEE_LANDMARK_INDEX,
+      {
+        x: 0.6,
+        y: 0.8,
+      },
+    );
+    expect(result.bodyRegion).toBe("HIP");
     expect(result.angleDegrees).toBeCloseTo(45, 5);
     expect(result.clamped).toBe(false);
   });

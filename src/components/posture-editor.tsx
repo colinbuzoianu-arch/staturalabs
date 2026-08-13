@@ -27,6 +27,8 @@ import {
   ANATOMICAL_LIMITS,
   completeMissingLandmarks,
   JOINT_REGIONS,
+  PROXY_JOINT_REGIONS,
+  regionForDraggableLandmark,
   type SkeletonLandmark,
   type SkeletonLandmarkConfidence,
   THREE_D_SCALE,
@@ -94,8 +96,8 @@ export type PostureEditorProps = {
 };
 
 // ---------------------------------------------------------------------
-// Region metadata — the 8 angle-based, scored regions (JOINT_REGIONS'
-// value set: TRUNK, NECK, SHOULDER_LEFT/RIGHT, ELBOW_LEFT/RIGHT,
+// Region metadata — the 9 angle-based, draggable regions (JOINT_REGIONS'
+// value set: TRUNK, NECK, HIP, SHOULDER_LEFT/RIGHT, ELBOW_LEFT/RIGHT,
 // KNEE_LEFT/RIGHT — every one of them gets a RegionRow with a slider),
 // in on-screen display order.
 //
@@ -103,13 +105,23 @@ export type PostureEditorProps = {
 // FOREARM_LEFT/RIGHT are already the exact bone segments SHOULDER/ELBOW
 // color (skeleton.ts's BODY_REGION_BONES' own comment: a real, separate
 // upper-arm/forearm measurement would be rotation around the limb's own
-// long axis, unobservable from one 2D camera); HIP is TRUNK's own
-// shoulder-hip-knee triangle renamed, not independent information; WRIST_
-// LEFT/RIGHT and ANKLE_LEFT/RIGHT are blocked on MediaPipe's Hand
-// Landmarker and on a camera this app doesn't have, respectively (see
-// SLD_POSTURE_EDITOR_FIDELITY_PLAN.md's P1). None of these five ever has
+// long axis, unobservable from one 2D camera); WRIST_LEFT/RIGHT and
+// ANKLE_LEFT/RIGHT are blocked on MediaPipe's Hand Landmarker and on a
+// camera this app doesn't have, respectively (see
+// SLD_POSTURE_EDITOR_FIDELITY_PLAN.md's P1). None of these four ever has
 // a row of its own here — a row with nothing real to show is worse than
 // no row, not a gap that reads like unfinished work.
+//
+// HIP used to be excluded for the same reason (P1's own reasoning: its
+// only available "angle" was TRUNK's own shoulder-hip-knee triangle
+// renamed, not independent information) — reinstated in Fix 3
+// (SLD_SKELETON_FIXES.md) once hip FLEXION (thigh angle off true
+// vertical, angles.ts's hipFlexion) was recognized as a genuinely
+// different, independent measurement TRUNK's triangle can't give. HIP has
+// no seeded ScoringRule yet, so its row shows a live angle with no band
+// ("no threshold matched") rather than a colored risk band — same
+// no-scoring-yet treatment as any other region with an empty rule set,
+// nothing region-specific to build for that.
 //
 // Ordered top-to-bottom to roughly track where each control sits on the
 // 3D figure to its left (head/neck first, legs last) rather than
@@ -117,7 +129,8 @@ export type PostureEditorProps = {
 // watching its effect on the model don't require hunting up and down the
 // list — see this file's own "P2/P4/neck" note for why this can only ever
 // be an approximate match against a rotatable 3D view, not a pixel-exact
-// one.
+// one. HIP (thigh) sits between the arms and KNEE (shin) to match its
+// position on the actual figure.
 const REGION_ORDER: readonly BodyRegion[] = [
   "NECK",
   "TRUNK",
@@ -125,6 +138,7 @@ const REGION_ORDER: readonly BodyRegion[] = [
   "SHOULDER_RIGHT",
   "ELBOW_LEFT",
   "ELBOW_RIGHT",
+  "HIP",
   "KNEE_LEFT",
   "KNEE_RIGHT",
 ];
@@ -153,7 +167,15 @@ const REGION_LABELS: Record<BodyRegion, string> = {
   ANKLE_RIGHT: "Right Ankle",
 };
 
-const DRAGGABLE_JOINTS = Object.keys(JOINT_REGIONS).map(Number);
+// JOINT_REGIONS' 9 primary handles PLUS PROXY_JOINT_REGIONS' 4 wrist/ankle
+// proxies (Fix 4, SLD_SKELETON_FIXES.md) — both sets are equally draggable
+// from this component's own perspective (Skeleton3D renders/styles the
+// distinction, this just decides "can be dragged at all" vs. isValidated's
+// read-only []).
+const DRAGGABLE_JOINTS = [
+  ...Object.keys(JOINT_REGIONS).map(Number),
+  ...Object.keys(PROXY_JOINT_REGIONS).map(Number),
+];
 
 const DESKTOP_SKELETON_SIZE = { width: 500, height: 600 };
 const MOBILE_MAX_SKELETON_SIZE = 480;
@@ -1115,9 +1137,13 @@ export function PostureEditor({
     // its side (skeleton-3d.tsx's endDrag/handleDragMove), so a throw here
     // can never crash the interaction; this local try/catch exists to give
     // it a VISIBLE, per-region message instead of a console-only one.
-    const region = Object.hasOwn(JOINT_REGIONS, landmarkIndex)
-      ? JOINT_REGIONS[landmarkIndex]
-      : undefined;
+    // regionForDraggableLandmark (not a JOINT_REGIONS-only lookup): a
+    // wrist/ankle proxy drag (Fix 4) must clear/set the error on the
+    // region it's actually editing (e.g. ELBOW_LEFT for a LEFT_WRIST
+    // drag), the same region applyJointDrag/computeAngleFromDrag resolve
+    // to internally — not silently skip error bookkeeping just because the
+    // dragged landmark itself isn't in JOINT_REGIONS.
+    const region = regionForDraggableLandmark(landmarkIndex);
     try {
       const next = applyJointDrag(
         editor,

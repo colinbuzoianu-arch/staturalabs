@@ -104,6 +104,7 @@ function lateral(origin: PoseLandmark, offset: number): PoseLandmark {
 type ManikinAngleRegion =
   | "TRUNK"
   | "NECK"
+  | "HIP"
   | "SHOULDER_LEFT"
   | "SHOULDER_RIGHT"
   | "ELBOW_LEFT"
@@ -122,9 +123,10 @@ function angleOrNeutral(
   return angles.get(region) ?? 0;
 }
 
-// Given the 8 scored joint angles (flexion-from-neutral degrees, the exact
-// convention CLAUDE.md mandates for computeBodyAngles — read directly, no
-// unit conversion), returns a full 33-point manikin pose — one
+// Given the 8 scored joint angles plus HIP (Fix 3, SLD_SKELETON_FIXES.md —
+// flexion-from-neutral degrees, the exact convention CLAUDE.md mandates
+// for computeBodyAngles/hipFlexion — read directly, no unit conversion),
+// returns a full 33-point manikin pose — one
 // PoseLandmark per MediaPipe landmark index (skeleton.ts's LANDMARK_INDEX)
 // — built entirely from fixed anthropometric proportions (RATIO_OF_STATURE
 // above), never from any captured landmark's own position. Angles in,
@@ -143,6 +145,11 @@ export function buildManikinPose(
 ): PoseLandmarks {
   const trunk = angleOrNeutral(angles, "TRUNK");
   const neck = angleOrNeutral(angles, "NECK");
+  // Bilateral, like `trunk`/`neck` above — BodyRegion.HIP has no LEFT/
+  // RIGHT variant, so both legs read this same single value (matching
+  // applyHipRotation's own "same delta, both sides independently" model —
+  // forward-kinematics.ts).
+  const hipFlexionAngle = angleOrNeutral(angles, "HIP");
 
   const positions = new Array<PoseLandmark>(33);
   const set = (name: keyof typeof LANDMARK_INDEX, point: PoseLandmark) => {
@@ -152,9 +159,12 @@ export function buildManikinPose(
   const hipMid: PoseLandmark = { x: 0, y: 0, z: 0 };
   // TRUNK's own formula (angles.ts: flexion = 180 - angle(shoulder, hip,
   // knee)) reads 0° exactly when the shoulder-hip-knee chain is straight —
-  // i.e. when the upper legs (always vertical below, see the per-side loop)
-  // and the torso are collinear. Using `trunk` directly as the torso's
-  // "degrees from straight up" is what makes that hold here too.
+  // i.e. when the upper legs (vertical below at hipFlexionAngle=0, see the
+  // per-side loop's own Fix 3 comment) and the torso are collinear. Using
+  // `trunk` directly as the torso's "degrees from straight up" is what
+  // makes that hold here too, for the default/neutral-HIP case — a
+  // nonzero HIP value breaks that collinearity on purpose (see
+  // upperLegAngle's own comment on the resulting, real TRUNK coupling).
   const torsoAngle = trunk;
   const shoulderMid = step(
     hipMid,
@@ -242,11 +252,21 @@ export function buildManikinPose(
       set(`${side}_${name}`, wrist);
     }
 
-    // Upper leg: always straight down. None of the 8 scored regions carry
-    // a hip-for-legs angle — TRUNK's own formula is defined relative to
-    // this fixed vertical leg reference (see torsoAngle's own comment
-    // above) — so there is no input that should ever move this segment.
-    const knee = step(hip, 180, RATIO_OF_STATURE.UPPER_LEG * STATURE);
+    // Upper leg (Fix 3): hangs straight down (180°, hipFlexionAngle's own
+    // 0°-at-neutral reference) at rest, swinging forward toward horizontal
+    // as HIP flexion increases — the same "180-minus-flexion-from-a-
+    // hang-down-reference" relationship upperArmAngle has to
+    // shoulderFlexion above. Deliberately NOT chained through torsoAngle
+    // the way upperArmAngle is: hipFlexion (angles.ts) is measured against
+    // true vertical, independent of trunk lean, by design (see that
+    // function's own comment for why) — chaining this through torsoAngle
+    // would silently reintroduce exactly the trunk-coupling HIP exists to
+    // avoid. TRUNK's own formula still reads this segment (shoulder-hip-
+    // knee — see torsoAngle's own comment above), so a nonzero HIP value
+    // here changes what TRUNK itself reports too — the same real coupling
+    // forward-kinematics.ts's applyHipRotation documents, not a bug.
+    const upperLegAngle = 180 - hipFlexionAngle;
+    const knee = step(hip, upperLegAngle, RATIO_OF_STATURE.UPPER_LEG * STATURE);
     // Shank: bends backward (away from the +x "forward" direction TRUNK/
     // NECK/SHOULDER/ELBOW all bend toward) as flexion increases from the
     // straight-leg 0° reference — a knee is anatomically one-directional,

@@ -335,9 +335,12 @@ describe("applyAngleAdjustments", () => {
   });
 
   it("skips adjustments for regions with no defined FK behavior", () => {
+    // WRIST_LEFT (blocked on MediaPipe's Hand Landmarker — see
+    // ANATOMICAL_LIMITS' own comment, skeleton.ts) — unlike HIP, still
+    // genuinely unsupported here after Fix 3.
     const landmarks = makeSkeleton(UPRIGHT_TORSO);
     const result = applyAngleAdjustments(landmarks, [
-      { bodyRegion: "HIP", currentDegrees: 0, targetDegrees: 90 },
+      { bodyRegion: "WRIST_LEFT", currentDegrees: 0, targetDegrees: 90 },
     ]);
     for (let i = 0; i < landmarks.length; i++) {
       expect(result[i].x).toBeCloseTo(landmarks[i].x, 10);
@@ -541,5 +544,182 @@ describe("applyAngleAdjustments", () => {
     bones.forEach((_bone, i) => {
       expect(after[i]).toBeCloseTo(before[i] as number, 10);
     });
+  });
+});
+
+// Fix 3 (SLD_SKELETON_FIXES.md): applyHipRotation, exercised through
+// applyAngleAdjustments the same way every other region's FK function is
+// tested in this file.
+describe("applyHipRotation (HIP, via applyAngleAdjustments)", () => {
+  // Standing, feet together, directly below the hips — HIP flexion is
+  // exactly 0° on both sides in this pose (each hip->knee vector points
+  // straight down, parallel to hipFlexion's own vertical reference). NOSE
+  // is off the trunk axis (unlike UPRIGHT_TORSO's own default (0.5,0.5)
+  // placeholder, which sits exactly ON it) so computeAllAngles' own NECK
+  // computation — unconditional, run for every region even in a test that
+  // only cares about HIP — doesn't hit signedNeckFlexion's "not in
+  // profile" throw.
+  const STANDING_LEGS = {
+    ...UPRIGHT_TORSO,
+    NOSE: { x: 0.6, y: 0.2 },
+    LEFT_ANKLE: { x: 0.5, y: 1.2 },
+    RIGHT_ANKLE: { x: 0.5, y: 1.2 },
+    LEFT_HEEL: { x: 0.48, y: 1.25 },
+    RIGHT_HEEL: { x: 0.52, y: 1.25 },
+    LEFT_FOOT_INDEX: { x: 0.5, y: 1.3 },
+    RIGHT_FOOT_INDEX: { x: 0.5, y: 1.3 },
+  } as const;
+
+  it("moves both legs (knee/ankle/heel/foot) but leaves the hips, shoulders, and trunk untouched", () => {
+    const landmarks = makeSkeleton(STANDING_LEGS);
+    const result = applyAngleAdjustments(landmarks, [
+      { bodyRegion: "HIP", currentDegrees: 0, targetDegrees: 45 },
+    ]);
+
+    for (const name of [
+      "LEFT_HIP",
+      "RIGHT_HIP",
+      "LEFT_SHOULDER",
+      "RIGHT_SHOULDER",
+    ] as const) {
+      const index = LANDMARK_INDEX[name];
+      expect(result[index].x).toBeCloseTo(landmarks[index].x, 10);
+      expect(result[index].y).toBeCloseTo(landmarks[index].y, 10);
+    }
+
+    for (const name of [
+      "LEFT_KNEE",
+      "RIGHT_KNEE",
+      "LEFT_ANKLE",
+      "RIGHT_ANKLE",
+      "LEFT_HEEL",
+      "RIGHT_HEEL",
+      "LEFT_FOOT_INDEX",
+      "RIGHT_FOOT_INDEX",
+    ] as const) {
+      const index = LANDMARK_INDEX[name];
+      const moved =
+        Math.abs(result[index].x - landmarks[index].x) +
+        Math.abs(result[index].y - landmarks[index].y);
+      expect(moved).toBeGreaterThan(0.01);
+    }
+  });
+
+  // The property LEFT_HIP_DISTAL/RIGHT_HIP_DISTAL's own comment argues
+  // for: rotating each leg around its OWN real hip (not a shared virtual
+  // midpoint, unlike TRUNK) must preserve each thigh's bone length
+  // exactly, since rotation around a point's true anatomical pivot can
+  // never change its distance from that pivot.
+  it("preserves both thigh lengths exactly", () => {
+    const landmarks = makeSkeleton(STANDING_LEGS);
+    const beforeLeft = distanceForTest(
+      landmarks[LANDMARK_INDEX.LEFT_HIP],
+      landmarks[LANDMARK_INDEX.LEFT_KNEE],
+    );
+    const beforeRight = distanceForTest(
+      landmarks[LANDMARK_INDEX.RIGHT_HIP],
+      landmarks[LANDMARK_INDEX.RIGHT_KNEE],
+    );
+
+    const result = applyAngleAdjustments(landmarks, [
+      { bodyRegion: "HIP", currentDegrees: 0, targetDegrees: 60 },
+    ]);
+
+    const afterLeft = distanceForTest(
+      result[LANDMARK_INDEX.LEFT_HIP],
+      result[LANDMARK_INDEX.LEFT_KNEE],
+    );
+    const afterRight = distanceForTest(
+      result[LANDMARK_INDEX.RIGHT_HIP],
+      result[LANDMARK_INDEX.RIGHT_KNEE],
+    );
+    expect(afterLeft).toBeCloseTo(beforeLeft, 10);
+    expect(afterRight).toBeCloseTo(beforeRight, 10);
+  });
+
+  it("round-trips through computeAllAngles: a HIP adjustment lands on the requested target angle", () => {
+    const landmarks = makeSkeleton(STANDING_LEGS);
+    const before = computeAllAngles(landmarks).get("HIP");
+    expect(before).toBeCloseTo(0, 5);
+
+    const result = applyAngleAdjustments(landmarks, [
+      {
+        bodyRegion: "HIP",
+        currentDegrees: before as number,
+        targetDegrees: 30,
+      },
+    ]);
+    const after = computeAllAngles(result).get("HIP");
+    expect(after).toBeCloseTo(30, 5);
+  });
+
+  // NOT independence — the opposite. computeRawBodyAngle's own TRUNK
+  // formula is 180 - angle(shoulder, hip, knee): it reads the KNEE as one
+  // of its own triangle vertices, the same landmark HIP's rotation moves.
+  // Rotating only the knee ray around hip by θ (shoulder ray untouched)
+  // changes that included angle by θ regardless of the shoulder ray's own
+  // direction — a plain property of an included angle between two rays
+  // sharing a vertex — so adjusting HIP always shifts TRUNK's own live
+  // reading too, confirmed here rather than just reasoned about: in this
+  // exactly-upright starting fixture (shoulder ray precisely opposite
+  // hipFlexion's own vertical reference), the shift is the full 40°, not
+  // an approximation. This is real, pre-existing coupling in v1's TRUNK
+  // formula (see CLAUDE.md's scoring-methodology section — that formula is
+  // versioned/seeded data, not something this fix touches or could fix),
+  // now visible for the first time because HIP is the first control that
+  // can move the KNEE landmark independently of a KNEE_LEFT/RIGHT edit
+  // (which only ever rotates the shin distal to a FIXED knee vertex).
+  // Known follow-up, not solved here: the posture editor's own
+  // adjustedRegions tracking (posture-editor.ts) only marks the region the
+  // user actually touched (HIP), so TRUNK's row will show this shifted
+  // number without an "Adjusted" badge explaining why.
+  it("HIP's own rotation shifts TRUNK's live reading too, since both formulas share the hip->knee ray", () => {
+    const landmarks = makeSkeleton(STANDING_LEGS);
+    const trunkBefore = computeAllAngles(landmarks).get("TRUNK");
+    expect(trunkBefore).toBeCloseTo(0, 5);
+
+    const result = applyAngleAdjustments(landmarks, [
+      { bodyRegion: "HIP", currentDegrees: 0, targetDegrees: 40 },
+    ]);
+    const trunkAfter = computeAllAngles(result).get("TRUNK");
+    expect(trunkAfter).toBeCloseTo(40, 5);
+  });
+
+  it("HIP resolves before KNEE when both are adjusted together, so KNEE rotates around the already-hip-moved knee position", () => {
+    // Order-independence check, same style as this file's own
+    // "applies TRUNK then ELBOW the same regardless of input order" test:
+    // REGION_PRIORITY forces HIP before KNEE_LEFT internally regardless of
+    // which order the caller lists them in.
+    const landmarks = makeSkeleton(STANDING_LEGS);
+    const hipAdjustment: AngleAdjustment = {
+      bodyRegion: "HIP",
+      currentDegrees: 0,
+      targetDegrees: 30,
+    };
+    const kneeAdjustment: AngleAdjustment = {
+      bodyRegion: "KNEE_LEFT",
+      currentDegrees: 0,
+      targetDegrees: 20,
+    };
+
+    const hipFirst = applyAngleAdjustments(landmarks, [
+      hipAdjustment,
+      kneeAdjustment,
+    ]);
+    const kneeFirst = applyAngleAdjustments(landmarks, [
+      kneeAdjustment,
+      hipAdjustment,
+    ]);
+
+    for (const name of [
+      "LEFT_KNEE",
+      "LEFT_ANKLE",
+      "RIGHT_KNEE",
+      "RIGHT_ANKLE",
+    ] as const) {
+      const index = LANDMARK_INDEX[name];
+      expect(hipFirst[index].x).toBeCloseTo(kneeFirst[index].x, 10);
+      expect(hipFirst[index].y).toBeCloseTo(kneeFirst[index].y, 10);
+    }
   });
 });

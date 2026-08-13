@@ -3,6 +3,7 @@ import {
   type ComputedBodyRegion,
   computeRawBodyAngle,
   flexionFrom180,
+  hipFlexion,
   includedAngle,
   LANDMARK_INDEX,
   type PoseLandmark,
@@ -11,8 +12,9 @@ import {
 } from "./angles";
 import {
   ANATOMICAL_LIMITS,
-  JOINT_REGIONS,
+  regionForDraggableLandmark,
   VIRTUAL_CHEST_LANDMARK_INDEX,
+  VIRTUAL_KNEE_LANDMARK_INDEX,
 } from "./skeleton";
 
 // Pure math — no DOM, no React, client-importable. The inverse of
@@ -36,17 +38,6 @@ function midpoint(a: Point2D, b: Point2D): Point2D {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }
 
-// JOINT_REGIONS is typed Record<number, BodyRegion> (every numeric key
-// "promises" a BodyRegion) even though only 8 of the 34 possible indices
-// actually have an entry — same defensive hasOwn lookup skeleton-3d.tsx's
-// regionForJoint uses, reimplemented here since this module must stay free
-// of that component's DOM/three.js-adjacent code (no noUncheckedIndexedAccess
-// in this project's tsconfig, so the type alone can't be trusted for
-// indices outside JOINT_REGIONS' real key set).
-function regionForJoint(index: number): BodyRegion | undefined {
-  return Object.hasOwn(JOINT_REGIONS, index) ? JOINT_REGIONS[index] : undefined;
-}
-
 // The same 8 regions computeBodyAngles produces a reading for — the only
 // ones computeRawBodyAngle has a formula for at all.
 const COMPUTED_REGIONS: readonly ComputedBodyRegion[] = [
@@ -61,10 +52,12 @@ const COMPUTED_REGIONS: readonly ComputedBodyRegion[] = [
 ];
 
 // Given a complete set of (possibly user-adjusted) landmarks, computes
-// every one of the 8 regions' angles directly via computeRawBodyAngle —
-// bypassing BOTH of computeBodyAngles' gates (camera-angle AND
-// visibility), not just the camera-angle one an earlier version of this
-// function's own comment described.
+// every one of the 8 ComputedBodyRegion angles directly via
+// computeRawBodyAngle, plus HIP (via hipFlexion — see that function's own
+// comment for why it's kept separate from the other 8) — bypassing BOTH of
+// computeBodyAngles' gates (camera-angle AND visibility), not just the
+// camera-angle one an earlier version of this function's own comment
+// described.
 //
 // Camera-angle: a human reviewing the rendered skeleton (or actively
 // dragging a joint on it) is already making the "is this a usable view"
@@ -102,6 +95,19 @@ export function computeAllAngles(
   for (const region of COMPUTED_REGIONS) {
     result.set(region, computeRawBodyAngle(region, landmarks));
   }
+  // HIP (Fix 3, SLD_SKELETON_FIXES.md): not one of computeRawBodyAngle's 8
+  // ComputedBodyRegion values — deliberately kept out of that type, since
+  // it has no seeded ScoringRule yet and no place in the persisted
+  // capture-scoring pipeline (see hipFlexion's own comment in angles.ts).
+  // Computed here directly instead, the same bilateral left/right average
+  // computeRawBodyAngle's own TRUNK/NECK cases use.
+  const at = (index: number): PoseLandmark => landmarks[index];
+  result.set(
+    BodyRegion.HIP,
+    (hipFlexion(at(LANDMARK_INDEX.LEFT_HIP), at(LANDMARK_INDEX.LEFT_KNEE)) +
+      hipFlexion(at(LANDMARK_INDEX.RIGHT_HIP), at(LANDMARK_INDEX.RIGHT_KNEE))) /
+      2,
+  );
   return result;
 }
 
@@ -128,23 +134,34 @@ function clampToLimits(
 }
 
 // The inverse of applyAngleAdjustments: given a NEW position for one
-// draggable landmark (JOINT_REGIONS), computes the resulting angle for the
+// draggable landmark (JOINT_REGIONS, or a PROXY_JOINT_REGIONS proxy —
+// Fix 4, SLD_SKELETON_FIXES.md), computes the resulting angle for the
 // BodyRegion it controls — the value a caller feeds back into
 // applyAngleAdjustments as `targetDegrees`. Throws if `draggedLandmarkIndex`
-// isn't a landmark JOINT_REGIONS actually maps to a region, or (NECK only)
-// if the drag lands the nose exactly on the shoulder-midpoint x, the same
-// facing-direction degeneracy angles.ts's signedNeckFlexion and
+// isn't a landmark regionForDraggableLandmark actually maps to a region, or
+// (NECK only) if the drag lands the nose exactly on the shoulder-midpoint
+// x, the same facing-direction degeneracy angles.ts's signedNeckFlexion and
 // forward-kinematics.ts's applyNeckRotation both already refuse to guess a
 // sign for.
+//
+// A proxy drag needs no extra branch below: the SHOULDER/ELBOW/KNEE `else`
+// branch already patches ONLY `draggedLandmarkIndex` into a copy of
+// `landmarks` and recomputes the region's whole formula from that copy —
+// so dragging LEFT_WRIST (which resolves to "ELBOW_LEFT" via
+// PROXY_JOINT_REGIONS) patches the WRIST position while LEFT_ELBOW and
+// LEFT_SHOULDER are read fresh from the real, un-patched array, which is
+// exactly "vertex and parent stay fixed, only the dragged point moves" —
+// the same vertex-preserving behavior a direct ELBOW drag already has,
+// just with a different landmark playing the child role.
 export function computeAngleFromDrag(
   landmarks: PoseLandmarks,
   draggedLandmarkIndex: number,
   newPosition: { x: number; y: number; z?: number },
 ): DragAngleResult {
-  const bodyRegion = regionForJoint(draggedLandmarkIndex);
+  const bodyRegion = regionForDraggableLandmark(draggedLandmarkIndex);
   if (!bodyRegion) {
     throw new Error(
-      `Landmark index ${draggedLandmarkIndex} does not control any BodyRegion (see JOINT_REGIONS)`,
+      `Landmark index ${draggedLandmarkIndex} does not control any BodyRegion (see JOINT_REGIONS/PROXY_JOINT_REGIONS)`,
     );
   }
 
@@ -204,27 +221,47 @@ export function computeAngleFromDrag(
       includedAngle(hipMid, shoulderMid, newPosition),
     );
     rawDegrees = magnitude * facingSign;
+  } else if (draggedLandmarkIndex === VIRTUAL_KNEE_LANDMARK_INDEX) {
+    // HIP (Fix 3): the same bilateral-midpoint simplification as TRUNK's
+    // chest-drag branch above, but mirrored — here the dragged point
+    // stands in for kneeMid (the moving, distal end of the segment), while
+    // hipMid is the fixed vertex a real hipFlexion(hip, knee) call would
+    // also use unmoved. hipFlexion itself can't be reused directly (it
+    // takes two real Point2D arguments, not "vertex fixed, everything else
+    // patched in"), but it's still the exact same includedAngle-against-
+    // true-vertical geometry, just inlined against `newPosition` instead
+    // of a real knee landmark — see that function's own comment (angles.ts)
+    // for why vertical, not another landmark, is the reference here.
+    const hipMid = midpoint(
+      at(LANDMARK_INDEX.LEFT_HIP),
+      at(LANDMARK_INDEX.RIGHT_HIP),
+    );
+    const verticalReference = { x: hipMid.x, y: hipMid.y + 1 };
+    rawDegrees = includedAngle(verticalReference, hipMid, newPosition);
   } else {
-    // SHOULDER/ELBOW/KNEE: the dragged landmark is always the exact
+    // SHOULDER/ELBOW/KNEE: the dragged landmark is either the exact
     // vertex computeBodyAngles' own per-side formula uses (matches
-    // forward-kinematics.ts's SIMPLE_JOINT_CONFIG.vertex), so rather than
-    // re-deriving the formula, this patches ONE landmark into a copy of
-    // the array and calls computeRawBodyAngle directly for just this one
-    // region — true identity with computeBodyAngles' own geometry (same
-    // function, both call it), not just "the same math." Deliberately
-    // NOT computeAllAngles(patched).get(bodyRegion): that would compute
-    // all 8 regions to read just one, and NECK's own facing-direction
-    // degeneracy could then throw while we only actually needed (say)
-    // ELBOW_LEFT — an unrelated region's edge case failing a drag that
-    // has nothing to do with it.
+    // forward-kinematics.ts's SIMPLE_JOINT_CONFIG.vertex — a direct
+    // SHOULDER/ELBOW/KNEE drag) or a PROXY_JOINT_REGIONS proxy for it
+    // (Fix 4 — a WRIST/ANKLE drag, playing that same formula's CHILD
+    // role instead, with the real vertex read unpatched below). Either
+    // way, rather than re-deriving the formula, this patches ONE landmark
+    // into a copy of the array and calls computeRawBodyAngle directly for
+    // just this one region — true identity with computeBodyAngles' own
+    // geometry (same function, both call it), not just "the same math."
+    // Deliberately NOT computeAllAngles(patched).get(bodyRegion): that
+    // would compute all 8 regions to read just one, and NECK's own
+    // facing-direction degeneracy could then throw while we only actually
+    // needed (say) ELBOW_LEFT — an unrelated region's edge case failing a
+    // drag that has nothing to do with it.
     const patched = landmarks.map((landmark, index) =>
       index === draggedLandmarkIndex
         ? { ...landmark, x: newPosition.x, y: newPosition.y }
         : landmark,
     );
     // bodyRegion is provably one of the 6 SHOULDER/ELBOW/KNEE values here
-    // (TRUNK and NECK were already handled in the branches above), all of
-    // which are valid ComputedBodyRegion values — computeRawBodyAngle's
+    // (TRUNK, NECK, and HIP were already handled in the branches above),
+    // all of which are valid ComputedBodyRegion values — computeRawBodyAngle's
     // parameter type just can't see that from this function's own control
     // flow.
     rawDegrees = computeRawBodyAngle(bodyRegion as ComputedBodyRegion, patched);

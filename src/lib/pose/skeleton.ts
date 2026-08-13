@@ -891,18 +891,31 @@ export function landmarksTo3DPositions(
 export const BODY_REGION_BONES: Partial<
   Record<BodyRegion, ReadonlyArray<readonly [number, number]>>
 > = {
-  TRUNK: [
-    [LANDMARK_INDEX.LEFT_SHOULDER, LANDMARK_INDEX.LEFT_HIP],
-    [LANDMARK_INDEX.RIGHT_SHOULDER, LANDMARK_INDEX.RIGHT_HIP],
-    [LANDMARK_INDEX.LEFT_SHOULDER, LANDMARK_INDEX.RIGHT_SHOULDER],
-    [LANDMARK_INDEX.LEFT_HIP, LANDMARK_INDEX.RIGHT_HIP],
-  ],
-  // The two head-to-shoulder bones standing in for a neck line — same
-  // approximation POSE_CONNECTIONS' own comment documents.
-  NECK: [
-    [LANDMARK_INDEX.NOSE, LANDMARK_INDEX.LEFT_SHOULDER],
-    [LANDMARK_INDEX.NOSE, LANDMARK_INDEX.RIGHT_SHOULDER],
-  ],
+  // TRUNK deliberately has no bones here, same reasoning as NECK just
+  // below: four real-landmark-pair lines (the two sides, the shoulder
+  // width, the hip width) drew a wireframe rectangle, not a torso. Its one
+  // true shape is a single solid mesh spanning shoulder-midpoint ->
+  // hip-midpoint, and neither midpoint is a real landmark index this table
+  // can hold. skeleton-3d.tsx special-cases TRUNK's mesh instead, via
+  // getVirtualChestPosition and getVirtualHipPosition below. Kept as a key
+  // mapped to an empty array for the same "still appears in the 8-region
+  // key set" reason NECK's comment gives.
+  TRUNK: [],
+  // NECK deliberately has no bones here, unlike every other region in this
+  // table. Its one true segment runs shoulder-midpoint -> NOSE, but the
+  // shoulder midpoint isn't a real MediaPipe landmark index this table can
+  // hold (see this table's own "only references real landmark indices
+  // 0-32" invariant in skeleton.test.ts) — using
+  // VIRTUAL_CHEST_LANDMARK_INDEX here would violate that same invariant.
+  // skeleton-3d.tsx special-cases NECK's single capsule instead, computing
+  // the shoulder midpoint at render time via getVirtualChestPosition (the
+  // same helper VIRTUAL_CHEST_LANDMARK_INDEX's own TRUNK handle already
+  // uses). Kept as a key mapped to an empty array, not omitted, so NECK
+  // still appears in this table's key set for anything that iterates "the
+  // 8 scored regions" from here (skeleton.test.ts's own coverage check).
+  // Previously this was two head-to-shoulder bones (a V-shape) — replaced
+  // because it rendered as two visibly separate lines instead of a neck.
+  NECK: [],
   SHOULDER_LEFT: [[LANDMARK_INDEX.LEFT_SHOULDER, LANDMARK_INDEX.LEFT_ELBOW]],
   SHOULDER_RIGHT: [[LANDMARK_INDEX.RIGHT_SHOULDER, LANDMARK_INDEX.RIGHT_ELBOW]],
   // The forearm segment — see this table's own top comment for why
@@ -955,6 +968,50 @@ export function getVirtualChestPosition(
     .multiplyScalar(0.5);
 }
 
+// The hip-midpoint counterpart to VIRTUAL_CHEST_LANDMARK_INDEX above, same
+// "no real landmark to reuse" reasoning — introduced for TRUNK's solid
+// torso mesh (skeleton-3d.tsx), which needs both a shoulder-midpoint AND a
+// hip-midpoint endpoint and can't get either from a real landmark index.
+// Deliberately NOT added to JOINT_REGIONS below: unlike the chest, this
+// index is never itself draggable — TRUNK's one drag handle stays the
+// chest (applyTrunkRotation and buildRigidConstraints both already pivot
+// trunk rotation on a FIXED hip midpoint, never a dragged one), so this is
+// a rendering anchor only, not a second TRUNK handle. (HIP — Fix 3, below
+// — gets its OWN drag handle, but at the knee midpoint, not here; this
+// index stays HIP's fixed pivot too, the same role it plays for TRUNK.)
+export const VIRTUAL_HIP_LANDMARK_INDEX = 34;
+
+export function getVirtualHipPosition(
+  positions: readonly THREE.Vector3[],
+): THREE.Vector3 {
+  return positions[LANDMARK_INDEX.LEFT_HIP]
+    .clone()
+    .add(positions[LANDMARK_INDEX.RIGHT_HIP])
+    .multiplyScalar(0.5);
+}
+
+// HIP's own drag handle (Fix 3, SLD_SKELETON_FIXES.md Option A) — the
+// knee midpoint, standing in for "a point on the thigh you'd grab to swing
+// it," the same relationship VIRTUAL_CHEST_LANDMARK_INDEX (shoulder
+// midpoint) has to TRUNK's fixed hip pivot. Deliberately NOT
+// VIRTUAL_HIP_LANDMARK_INDEX itself: that index is HIP's fixed VERTEX
+// (the pivot a thigh swings around), exactly mirroring how hipMid is
+// TRUNK's fixed vertex while the CHEST (the distal end of the segment
+// being measured) is what's actually dragged — reusing the pivot itself
+// as the handle would mean dragging a point that barely moves relative to
+// its own rotation center, and would collide with VIRTUAL_HIP's existing
+// role as TRUNK's torso-mesh anchor (Fix 2).
+export const VIRTUAL_KNEE_LANDMARK_INDEX = 35;
+
+export function getVirtualKneePosition(
+  positions: readonly THREE.Vector3[],
+): THREE.Vector3 {
+  return positions[LANDMARK_INDEX.LEFT_KNEE]
+    .clone()
+    .add(positions[LANDMARK_INDEX.RIGHT_KNEE])
+    .multiplyScalar(0.5);
+}
+
 export const JOINT_REGIONS: Readonly<Record<number, BodyRegion>> = {
   [LANDMARK_INDEX.LEFT_SHOULDER]: "SHOULDER_LEFT",
   [LANDMARK_INDEX.RIGHT_SHOULDER]: "SHOULDER_RIGHT",
@@ -964,7 +1021,46 @@ export const JOINT_REGIONS: Readonly<Record<number, BodyRegion>> = {
   [LANDMARK_INDEX.RIGHT_KNEE]: "KNEE_RIGHT",
   [LANDMARK_INDEX.NOSE]: "NECK",
   [VIRTUAL_CHEST_LANDMARK_INDEX]: "TRUNK",
+  [VIRTUAL_KNEE_LANDMARK_INDEX]: "HIP",
 };
+
+// Fix 4 (SLD_SKELETON_FIXES.md): proxy drag handles — dragging the wrist
+// swings ELBOW, dragging the ankle swings KNEE, matching how people
+// intuitively expect to grab the end of a forearm/shin (rather than the
+// joint itself) to swing it. Deliberately a SEPARATE map from
+// JOINT_REGIONS, not merged into it: JOINT_REGIONS' own key set is a
+// load-bearing invariant elsewhere (its "one real handle per scored
+// region, each haloed" contract — skeleton-3d.tsx's rendering,
+// skeleton.test.ts's own coverage tests) that a proxy handle — which
+// controls a region ANOTHER landmark already owns, and renders smaller
+// with no halo — would silently violate if merged in. WRIST_LEFT/RIGHT
+// and ANKLE_LEFT/RIGHT themselves are still not real BodyRegion values
+// this maps TO (CLAUDE.md: WRIST has no formula/rules yet, ANKLE
+// dorsiflexion is unmeasurable) — these are proxies FOR ELBOW/KNEE, not
+// new regions of their own.
+export const PROXY_JOINT_REGIONS: Readonly<Record<number, BodyRegion>> = {
+  [LANDMARK_INDEX.LEFT_WRIST]: "ELBOW_LEFT",
+  [LANDMARK_INDEX.RIGHT_WRIST]: "ELBOW_RIGHT",
+  [LANDMARK_INDEX.LEFT_ANKLE]: "KNEE_LEFT",
+  [LANDMARK_INDEX.RIGHT_ANKLE]: "KNEE_RIGHT",
+};
+
+// The single "which BodyRegion does dragging this landmark control" answer
+// — JOINT_REGIONS first (a landmark's own real handle), falling back to
+// PROXY_JOINT_REGIONS (a proxy for another region's handle). Every call
+// site that needs this resolution (drag-to-angle.ts's computeAngleFromDrag,
+// skeleton-3d.tsx's onPointerDown, posture-editor.tsx's handleJointDrag)
+// goes through this one function rather than three separately-maintained
+// hasOwn chains that could drift out of sync with each other about which
+// landmarks are draggable at all.
+export function regionForDraggableLandmark(
+  index: number,
+): BodyRegion | undefined {
+  if (Object.hasOwn(JOINT_REGIONS, index)) return JOINT_REGIONS[index];
+  if (Object.hasOwn(PROXY_JOINT_REGIONS, index))
+    return PROXY_JOINT_REGIONS[index];
+  return undefined;
+}
 
 // ---------------------------------------------------------------------
 // Soft range-of-motion limits for interactive dragging in the 3D what-if
@@ -982,22 +1078,33 @@ export const JOINT_REGIONS: Readonly<Record<number, BodyRegion>> = {
 //
 // Manipulable ⟺ has an entry here — the key set of JOINT_REGIONS' values
 // equals the key set of this table exactly (see skeleton.test.ts's own
-// invariant test). WRIST_LEFT/RIGHT, ANKLE_LEFT/RIGHT and HIP used to be
+// invariant test). WRIST_LEFT/RIGHT and ANKLE_LEFT/RIGHT used to be
 // draggable too, position-only with no angle/limit of their own
 // (POSITION_ONLY_REGIONS, now removed — see
 // SLD_POSTURE_EDITOR_FIDELITY_PLAN.md P1): WRIST needs MediaPipe's Hand
-// Landmarker (a model this app doesn't run), ANKLE dorsiflexion and HIP
-// (shoulder-hip-knee is TRUNK's own triangle, not independent
-// information) are both unmeasurable/redundant for the same reasons
-// documented in that plan. Free translation of an unscoreable joint was
-// pure interaction cost with no angle to show for it — cut rather than
-// kept as a non-clamping special case.
+// Landmarker (a model this app doesn't run) and ANKLE dorsiflexion is
+// unmeasurable, both for reasons documented in that plan. Free translation
+// of an unscoreable joint was pure interaction cost with no angle to show
+// for it — cut rather than kept as a non-clamping special case.
+//
+// HIP was cut for the same reason at the time (P1's own reasoning: the
+// only "hip angle" available then was the shoulder-hip-knee triangle,
+// i.e. TRUNK's own formula renamed, not independent information) and
+// re-added here in Fix 3 (SLD_SKELETON_FIXES.md) once that reasoning was
+// revisited: hip FLEXION — thigh angle off true vertical (angles.ts's
+// hipFlexion) — is a different, genuinely independent measurement TRUNK's
+// triangle can't give you, unlike the position-only WRIST/ANKLE gap above,
+// which is still a real, unresolved capability limit.
 // ---------------------------------------------------------------------
 export const ANATOMICAL_LIMITS: Partial<
   Record<BodyRegion, { min: number; max: number }>
 > = {
   TRUNK: { min: 0, max: 90 },
   NECK: { min: -20, max: 60 },
+  // Standing (thigh vertical) to deep seated/pedal-operation flexion — see
+  // hipFlexion's own comment (angles.ts) for why this is measured against
+  // true vertical rather than against another body landmark.
+  HIP: { min: 0, max: 120 },
   SHOULDER_LEFT: { min: 0, max: 180 },
   SHOULDER_RIGHT: { min: 0, max: 180 },
   ELBOW_LEFT: { min: 0, max: 145 },

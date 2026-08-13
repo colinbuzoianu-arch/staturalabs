@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { BodyRegion } from "@/generated/prisma/enums";
 import { computeAngleFromDrag } from "./drag-to-angle";
 import { buildManikinPose } from "./manikin";
-import { LANDMARK_INDEX, VIRTUAL_CHEST_LANDMARK_INDEX } from "./skeleton";
+import {
+  LANDMARK_INDEX,
+  VIRTUAL_CHEST_LANDMARK_INDEX,
+  VIRTUAL_KNEE_LANDMARK_INDEX,
+} from "./skeleton";
 
 // Mirrors manikin.ts's own private RATIO_OF_STATURE/STATURE — deliberately
 // duplicated here rather than exported from that module and imported,
@@ -129,6 +133,58 @@ describe("buildManikinPose", () => {
         RATIO.LOWER_LEG * STATURE,
         10,
       );
+    });
+
+    it("HIP (Fix 3): upper-leg length is fixed, and a nonzero HIP angle swings BOTH knees forward from the same neutral hang-down position", () => {
+      const straight = buildManikinPose(angles({ HIP: 0 }));
+      const bent = buildManikinPose(angles({ HIP: 60 }));
+
+      for (const side of ["LEFT", "RIGHT"] as const) {
+        const hipIndex = LANDMARK_INDEX[`${side}_HIP`];
+        const kneeIndex = LANDMARK_INDEX[`${side}_KNEE`];
+        // Fixed length regardless of HIP angle — a rotation around the
+        // hip, not a translation.
+        expect(distance(bent[hipIndex], bent[kneeIndex])).toBeCloseTo(
+          RATIO.UPPER_LEG * STATURE,
+          10,
+        );
+        // Sanity: the knee actually moved, and lifted (smaller y = higher,
+        // image convention) rather than swinging straight or backward.
+        expect(bent[kneeIndex].y).toBeLessThan(straight[kneeIndex].y);
+      }
+      const leftDelta = {
+        x:
+          bent[LANDMARK_INDEX.LEFT_KNEE].x -
+          straight[LANDMARK_INDEX.LEFT_KNEE].x,
+        y:
+          bent[LANDMARK_INDEX.LEFT_KNEE].y -
+          straight[LANDMARK_INDEX.LEFT_KNEE].y,
+      };
+      const rightDelta = {
+        x:
+          bent[LANDMARK_INDEX.RIGHT_KNEE].x -
+          straight[LANDMARK_INDEX.RIGHT_KNEE].x,
+        y:
+          bent[LANDMARK_INDEX.RIGHT_KNEE].y -
+          straight[LANDMARK_INDEX.RIGHT_KNEE].y,
+      };
+      expect(leftDelta.x).toBeCloseTo(rightDelta.x, 10);
+      expect(leftDelta.y).toBeCloseTo(rightDelta.y, 10);
+    });
+
+    it("HIP=0 (default/neutral) reproduces the exact same leg position as before Fix 3 (straight down)", () => {
+      const withoutHip = buildManikinPose(angles({}));
+      const explicitZero = buildManikinPose(angles({ HIP: 0 }));
+      for (const name of [
+        "LEFT_KNEE",
+        "RIGHT_KNEE",
+        "LEFT_ANKLE",
+        "RIGHT_ANKLE",
+      ] as const) {
+        const index = LANDMARK_INDEX[name];
+        expect(withoutHip[index].x).toBeCloseTo(explicitZero[index].x, 10);
+        expect(withoutHip[index].y).toBeCloseTo(explicitZero[index].y, 10);
+      }
     });
 
     it("shoulder and hip breadth match SHOULDER_WIDTH/HIP_WIDTH ratios", () => {
@@ -272,6 +328,78 @@ describe("buildManikinPose", () => {
       check(LANDMARK_INDEX.RIGHT_ELBOW, "ELBOW_RIGHT", input.ELBOW_RIGHT);
       check(LANDMARK_INDEX.LEFT_KNEE, "KNEE_LEFT", input.KNEE_LEFT);
       check(LANDMARK_INDEX.RIGHT_KNEE, "KNEE_RIGHT", input.KNEE_RIGHT);
+
+      // Fix 4 proxy handles — a "zero-move" drag of the wrist/ankle to its
+      // OWN current manikin position (the `check` helper's default) must
+      // reproduce the exact ELBOW/KNEE angle that placed it, the same
+      // guarantee every direct handle above already has. This is precisely
+      // how posture-editor.tsx's handleJointDrag exercises a proxy drag in
+      // practice (dragging the manikin's own wrist/ankle sphere).
+      check(LANDMARK_INDEX.LEFT_WRIST, "ELBOW_LEFT", input.ELBOW_LEFT);
+      check(LANDMARK_INDEX.RIGHT_ANKLE, "KNEE_RIGHT", input.KNEE_RIGHT);
+    });
+
+    // HIP kept separate from the combined TRUNK+SHOULDER+ELBOW+KNEE test
+    // above (TRUNK: 0 here) rather than folded in — see the coupling test
+    // just below for why combining a nonzero TRUNK with a nonzero HIP
+    // doesn't round-trip TRUNK back to its own input value.
+    it("HIP (Fix 3): the virtual knee handle round-trips to the exact HIP value that built it", () => {
+      const input = { TRUNK: 0, HIP: 35 };
+      const pose = buildManikinPose(angles(input));
+
+      // VIRTUAL_KNEE_LANDMARK_INDEX (35) has no slot of its own in a
+      // 33-element pose — the same relationship getVirtualKneePosition
+      // (skeleton.ts) has to a real capture's own landmarksTo3DPositions
+      // output, just computed here directly on PoseLandmark values.
+      const leftKnee = pose[LANDMARK_INDEX.LEFT_KNEE];
+      const rightKnee = pose[LANDMARK_INDEX.RIGHT_KNEE];
+      const kneeMid = {
+        x: (leftKnee.x + rightKnee.x) / 2,
+        y: (leftKnee.y + rightKnee.y) / 2,
+        z: (leftKnee.z + rightKnee.z) / 2,
+      };
+      const result = computeAngleFromDrag(
+        pose,
+        VIRTUAL_KNEE_LANDMARK_INDEX,
+        kneeMid,
+      );
+      expect(result.bodyRegion).toBe("HIP");
+      expect(result.clamped).toBe(false);
+      expect(result.angleDegrees).toBeCloseTo(input.HIP, 3);
+    });
+
+    // KNOWN COUPLING, not a bug — see applyHipRotation's own comment
+    // (forward-kinematics.ts) and forward-kinematics.test.ts's matching
+    // "HIP's own rotation shifts TRUNK's live reading too" test:
+    // computeAngleFromDrag's TRUNK branch reads kneeMid from the ACTUAL
+    // pose, which HIP has already moved — so a manikin built from a
+    // nonzero TRUNK input alongside a nonzero HIP input does NOT read
+    // back that same TRUNK value via a drag-based recheck, even though
+    // the manikin's own shoulder placement (torsoAngle) was built purely
+    // from the TRUNK input in isolation. This is a property of
+    // computeRawBodyAngle's own TRUNK formula (angles.ts), not of
+    // anything manikin.ts does.
+    it("a combined nonzero TRUNK + HIP does not round-trip TRUNK back to its own input — documents the real coupling", () => {
+      const input = { TRUNK: 30, HIP: 35 };
+      const pose = buildManikinPose(angles(input));
+
+      const leftShoulder = pose[LANDMARK_INDEX.LEFT_SHOULDER];
+      const rightShoulder = pose[LANDMARK_INDEX.RIGHT_SHOULDER];
+      const chestMid = {
+        x: (leftShoulder.x + rightShoulder.x) / 2,
+        y: (leftShoulder.y + rightShoulder.y) / 2,
+        z: (leftShoulder.z + rightShoulder.z) / 2,
+      };
+      const result = computeAngleFromDrag(
+        pose,
+        VIRTUAL_CHEST_LANDMARK_INDEX,
+        chestMid,
+      );
+      expect(result.bodyRegion).toBe("TRUNK");
+      // Not input.TRUNK (30) — shifted by HIP's own 35° knee rotation, the
+      // same exact-equality this file's forward-kinematics.test.ts
+      // counterpart confirms for an upright starting fixture.
+      expect(result.angleDegrees).toBeCloseTo(input.TRUNK + input.HIP, 3);
     });
 
     it("NECK: positive (forward) and negative (backward) both round-trip with the correct sign", () => {

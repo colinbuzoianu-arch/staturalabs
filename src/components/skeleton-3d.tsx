@@ -18,11 +18,17 @@ import {
   ANATOMICAL_LIMITS,
   BODY_REGION_BONES,
   getVirtualChestPosition,
+  getVirtualHipPosition,
+  getVirtualKneePosition,
   JOINT_REGIONS,
   LANDMARK_INDEX,
   landmarksTo3DPositions,
+  PROXY_JOINT_REGIONS,
+  regionForDraggableLandmark,
   type SkeletonLandmarkConfidence,
   VIRTUAL_CHEST_LANDMARK_INDEX,
+  VIRTUAL_HIP_LANDMARK_INDEX,
+  VIRTUAL_KNEE_LANDMARK_INDEX,
 } from "@/lib/pose/skeleton";
 import { NOT_ASSESSED_COLOR, riskBandColors } from "@/lib/risk/band-severity";
 
@@ -61,7 +67,7 @@ export type Skeleton3DProps = {
   confidenceMap: ReadonlyMap<number, SkeletonLandmarkConfidence>;
   /** Which band each scored BodyRegion currently has, for limb/joint coloring. A region absent from the map (or mapped to null) renders NOT_ASSESSED_COLOR. */
   regionBands: ReadonlyMap<BodyRegion, RiskBand | null>;
-  /** Landmark indices the user may drag — normally JOINT_REGIONS' keys (or a subset), including VIRTUAL_CHEST_LANDMARK_INDEX for the TRUNK handle. */
+  /** Landmark indices the user may drag — normally JOINT_REGIONS' keys (or a subset), including VIRTUAL_CHEST_LANDMARK_INDEX for the TRUNK handle and VIRTUAL_KNEE_LANDMARK_INDEX for the HIP handle. */
   draggableJoints: readonly number[];
   /**
    * Fires while dragging (throttled to ~30fps) and once more, unthrottled,
@@ -87,6 +93,12 @@ const DEFAULT_HEIGHT = 600;
 // standing figure.
 const JOINT_RADIUS = 0.02;
 const DRAGGABLE_JOINT_RADIUS = 0.03;
+// Fix 4 (SLD_SKELETON_FIXES.md): wrist/ankle proxy handles render smaller
+// than even the non-draggable JOINT_RADIUS, and always with no halo (see
+// updateJointVisual's own isProxy handling) — visually secondary to the 9
+// primary handles, clearly grabbable but clearly not "a thing that gets
+// scored" itself (dragging one always scores the region it's a proxy FOR).
+const PROXY_JOINT_RADIUS = 0.015;
 const HALO_RADIUS_SCALE = 1.5;
 const HOVER_SCALE = 1.2;
 
@@ -100,6 +112,14 @@ const TORSO_CAPSULE_RADIUS = 0.07;
 const NECK_CAPSULE_RADIUS = 0.025;
 const ARM_CAPSULE_RADIUS = 0.035;
 const LEG_CAPSULE_RADIUS = 0.05;
+
+// Fix 2 (SLD_SKELETON_FIXES.md): the torso's own radius tapers slightly
+// from shoulders to hips instead of being a uniform cylinder — a fixed
+// ratio against TORSO_CAPSULE_RADIUS (which now names the shoulder end
+// specifically), same "schematic, not measured" spirit as every other
+// radius above, deliberately not derived from a live shoulder-width
+// landmark distance.
+const TORSO_HIP_RADIUS_RATIO = 0.85;
 
 // Rigid, non-interactive extremities (P3's own "Head/Hands/Feet" spec) —
 // each a single solid capsule, never articulated, never draggable. Every
@@ -132,7 +152,10 @@ const MIN_CAPSULE_CYLINDER_LENGTH = 0.001;
 // BODY_REGION_BONES (skeleton.ts) is still the correct region -> segment
 // map for colouring (SLD_POSTURE_EDITOR_FIDELITY_PLAN.md P3 says so
 // explicitly) — this is the capsule-radius counterpart, one entry per
-// region BODY_REGION_BONES actually has bones for.
+// region this file builds a capsule for. NECK's entry is read by the
+// separate special-case block below rather than the BODY_REGION_BONES
+// loop, since BODY_REGION_BONES.NECK is deliberately empty (see that
+// table's own comment).
 const REGION_CAPSULE_RADIUS: Partial<Record<BodyRegion, number>> = {
   TRUNK: TORSO_CAPSULE_RADIUS,
   NECK: NECK_CAPSULE_RADIUS,
@@ -281,6 +304,30 @@ function chestConfidence(
   return left === "missing" || right === "missing" ? "missing" : "measured";
 }
 
+// The hip-midpoint counterpart to chestConfidence above, for TRUNK's solid
+// torso mesh's other (Fix 2) endpoint — same collapsed measured/missing
+// distinction, same reasoning (the virtual hip midpoint has no MediaPipe
+// visibility of its own, only the two real hip landmarks it's derived
+// from do).
+function hipConfidence(
+  confidenceMap: ReadonlyMap<number, SkeletonLandmarkConfidence>,
+): SkeletonLandmarkConfidence {
+  const left = getConfidence(confidenceMap, LANDMARK_INDEX.LEFT_HIP);
+  const right = getConfidence(confidenceMap, LANDMARK_INDEX.RIGHT_HIP);
+  return left === "missing" || right === "missing" ? "missing" : "measured";
+}
+
+// The knee-midpoint counterpart to chestConfidence/hipConfidence above,
+// for HIP's own drag handle (Fix 3, VIRTUAL_KNEE_LANDMARK_INDEX) — same
+// collapsed measured/missing distinction, same reasoning.
+function kneeConfidence(
+  confidenceMap: ReadonlyMap<number, SkeletonLandmarkConfidence>,
+): SkeletonLandmarkConfidence {
+  const left = getConfidence(confidenceMap, LANDMARK_INDEX.LEFT_KNEE);
+  const right = getConfidence(confidenceMap, LANDMARK_INDEX.RIGHT_KNEE);
+  return left === "missing" || right === "missing" ? "missing" : "measured";
+}
+
 // ---------------------------------------------------------------------
 // Angle geometry for drag-clamping. Deliberately 3D (THREE.Vector3.angleTo
 // rather than a 2D-only formula) — this is a live 3D drag interaction, not
@@ -349,16 +396,56 @@ const SIMPLE_JOINT_PARENT_CHILD: Partial<Record<number, SimpleJointConfig>> = {
   },
 };
 
+type ProxyJointConfig = {
+  vertexIndex: number;
+  parentIndex: number;
+  toFlexion: (includedDeg: number) => number;
+};
+
+// Fix 4 (SLD_SKELETON_FIXES.md): wrist/ankle proxy handles — the exact
+// inverse relationship SIMPLE_JOINT_PARENT_CHILD above has. There, the
+// dragged landmark plays the VERTEX role and parent/child are read fixed;
+// here the dragged landmark (wrist/ankle) plays the CHILD role instead,
+// and vertexIndex/parentIndex — the real region's own vertex and parent
+// (e.g. LEFT_ELBOW/LEFT_SHOULDER for a LEFT_WRIST proxy) — both stay fixed
+// at their current, this-drag-unmoved positions. Matches
+// PROXY_JOINT_REGIONS' own target region exactly (skeleton.ts) — a
+// LEFT_WRIST proxy targets "ELBOW_LEFT", so vertexIndex is LEFT_ELBOW, the
+// same vertex SIMPLE_JOINT_PARENT_CHILD[LEFT_ELBOW] itself pivots on.
+const PROXY_JOINT_PARENT_VERTEX: Partial<Record<number, ProxyJointConfig>> = {
+  [LANDMARK_INDEX.LEFT_WRIST]: {
+    vertexIndex: LANDMARK_INDEX.LEFT_ELBOW,
+    parentIndex: LANDMARK_INDEX.LEFT_SHOULDER,
+    toFlexion: (included) => 180 - included,
+  },
+  [LANDMARK_INDEX.RIGHT_WRIST]: {
+    vertexIndex: LANDMARK_INDEX.RIGHT_ELBOW,
+    parentIndex: LANDMARK_INDEX.RIGHT_SHOULDER,
+    toFlexion: (included) => 180 - included,
+  },
+  [LANDMARK_INDEX.LEFT_ANKLE]: {
+    vertexIndex: LANDMARK_INDEX.LEFT_KNEE,
+    parentIndex: LANDMARK_INDEX.LEFT_HIP,
+    toFlexion: (included) => 180 - included,
+  },
+  [LANDMARK_INDEX.RIGHT_ANKLE]: {
+    vertexIndex: LANDMARK_INDEX.RIGHT_KNEE,
+    parentIndex: LANDMARK_INDEX.RIGHT_HIP,
+    toFlexion: (included) => 180 - included,
+  },
+};
+
 // Builds a closure measuring flexion-from-neutral degrees for `landmarkIndex`
 // as a function of a trial position for that one landmark, holding every
 // other landmark fixed at its current (drag-start) position — used both to
 // evaluate ANATOMICAL_LIMITS and to bisect toward the boundary in
 // clampAlongDragPath. Returns null when this component has no clamp
-// geometry for that index (no JOINT_REGIONS entry) or when NECK's facing
-// direction is momentarily indeterminate (nose.x exactly at the shoulder
-// midpoint) — same degenerate case angles.ts's signedNeckFlexion throws on,
-// but this is a soft visualization constraint, not the scoring pipeline, so
-// it degrades to "don't clamp this drag" rather than crashing the UI.
+// geometry for that index (no JOINT_REGIONS or PROXY_JOINT_REGIONS entry —
+// Fix 4 added the latter) or when NECK's facing direction is momentarily
+// indeterminate (nose.x exactly at the shoulder midpoint) — same
+// degenerate case angles.ts's signedNeckFlexion throws on, but this is a
+// soft visualization constraint, not the scoring pipeline, so it degrades
+// to "don't clamp this drag" rather than crashing the UI.
 function buildMeasurer(
   landmarkIndex: number,
   positions: readonly THREE.Vector3[],
@@ -401,12 +488,47 @@ function buildMeasurer(
       (180 - angleAtDegrees(shoulderMid, hipMid, trial)) * facingSign;
   }
 
+  if (landmarkIndex === VIRTUAL_KNEE_LANDMARK_INDEX) {
+    // HIP (Fix 3): vertex=hipMid (fixed) — the same fixed vertex
+    // hipFlexion (angles.ts) and applyHipRotation (forward-kinematics.ts)
+    // both use — parent=a synthetic point straight "down" from hipMid in
+    // this scene's own real-world-down convention (landmarksTo3DPositions
+    // flips/scales raw MediaPipe y, so "increasing real-world y" =
+    // "decreasing scene y" — see that function's own doc comment),
+    // child=the dragged knee-midpoint point (standing in for kneeMid). No
+    // 180-flip: matches hipFlexion's own convention (raw included angle,
+    // already 0° at neutral).
+    const hipMid = midpoint(
+      positions[LANDMARK_INDEX.LEFT_HIP],
+      positions[LANDMARK_INDEX.RIGHT_HIP],
+    );
+    const verticalReference = hipMid.clone().add(new THREE.Vector3(0, -1, 0));
+    return (trial) => angleAtDegrees(hipMid, verticalReference, trial);
+  }
+
   const simple = SIMPLE_JOINT_PARENT_CHILD[landmarkIndex];
-  if (!simple) return null;
-  const parentPos = positions[simple.parentIndex];
-  const childPos = positions[simple.childIndex];
-  return (trial) =>
-    simple.toFlexion(angleAtDegrees(trial, parentPos, childPos));
+  if (simple) {
+    const parentPos = positions[simple.parentIndex];
+    const childPos = positions[simple.childIndex];
+    return (trial) =>
+      simple.toFlexion(angleAtDegrees(trial, parentPos, childPos));
+  }
+
+  // Fix 4: wrist/ankle proxy handles — the inverse of the SIMPLE_JOINT_
+  // PARENT_CHILD case just above. There `trial` (the dragged point) plays
+  // the vertex; here vertexIndex/parentIndex both stay FIXED at their
+  // current positions and `trial` plays the child instead — see
+  // PROXY_JOINT_PARENT_VERTEX's own comment for why that's the correct
+  // inversion.
+  const proxy = PROXY_JOINT_PARENT_VERTEX[landmarkIndex];
+  if (proxy) {
+    const vertexPos = positions[proxy.vertexIndex];
+    const parentPos = positions[proxy.parentIndex];
+    return (trial) =>
+      proxy.toFlexion(angleAtDegrees(vertexPos, parentPos, trial));
+  }
+
+  return null;
 }
 
 // ---------------------------------------------------------------------
@@ -492,11 +614,22 @@ function enforceRigidConstraints(
 //     arm length) — matches buildMeasurer's own `parentIndex`.
 //   - KNEE_LEFT/RIGHT: one constraint, pivot=same-side hip (thigh length)
 //     — matches buildMeasurer's own `parentIndex`.
+//   - HIP (virtual knee, Fix 3): one constraint, pivot=hipMid — the same
+//     fixed vertex buildMeasurer's own HIP case measures from.
+//   - WRIST_LEFT/RIGHT and ANKLE_LEFT/RIGHT (proxy handles, Fix 4): one
+//     constraint each, pivot=the real vertex the proxy targets (LEFT_ELBOW
+//     for a LEFT_WRIST proxy, etc.) — matches buildMeasurer's own
+//     `vertexIndex`, not `parentIndex` (a proxy's dragged point plays the
+//     CHILD role, unlike a direct SHOULDER/ELBOW/KNEE drag above).
 //
-// WRIST/ANKLE/HIP no longer appear here — they were POSITION_ONLY_REGIONS
-// draggable joints under the old model, removed entirely in P1 of
-// SLD_POSTURE_EDITOR_FIDELITY_PLAN.md (never draggable now, so no rigid
-// constraint is needed for them either).
+// WRIST/ANKLE were POSITION_ONLY_REGIONS draggable joints under the old
+// model, removed entirely in P1 of SLD_POSTURE_EDITOR_FIDELITY_PLAN.md,
+// then reintroduced in Fix 4 as proxy handles for ELBOW/KNEE specifically
+// (not as their own draggable regions — WRIST/ANKLE still have no
+// ANATOMICAL_LIMITS entry of their own). HIP was cut alongside them at the
+// time for a different reason (no independent angle existed yet, not a
+// position-only gap) and came back in Fix 3 as a real region — see
+// ANATOMICAL_LIMITS.HIP's own comment (skeleton.ts).
 function buildRigidConstraints(
   landmarkIndex: number,
   positions: readonly THREE.Vector3[],
@@ -570,6 +703,29 @@ function buildRigidConstraints(
     const hipPos = positions[hipIndex];
     const kneePos = positions[landmarkIndex];
     return [{ pivot: hipPos, radius: hipPos.distanceTo(kneePos) }];
+  }
+
+  if (landmarkIndex === VIRTUAL_KNEE_LANDMARK_INDEX) {
+    const hipMid = midpoint(
+      positions[LANDMARK_INDEX.LEFT_HIP],
+      positions[LANDMARK_INDEX.RIGHT_HIP],
+    );
+    const kneeMid = getVirtualKneePosition(positions);
+    return [{ pivot: hipMid, radius: hipMid.distanceTo(kneeMid) }];
+  }
+
+  // Fix 4: wrist/ankle proxy handles — pivot on the same fixed vertex
+  // buildMeasurer's own proxy case measures from (LEFT_ELBOW for a
+  // LEFT_WRIST proxy, etc.), radius = that vertex's distance to the
+  // dragged point at constraint-build time. Same "preserve the segment
+  // length during the live preview" purpose a direct ELBOW/KNEE drag's own
+  // constraint above has — here the segment is the forearm/shank, not the
+  // upper-arm/thigh.
+  const proxy = PROXY_JOINT_PARENT_VERTEX[landmarkIndex];
+  if (proxy) {
+    const vertexPos = positions[proxy.vertexIndex];
+    const draggedPos = positions[landmarkIndex];
+    return [{ pivot: vertexPos, radius: vertexPos.distanceTo(draggedPos) }];
   }
 
   // Anything else (never a draggable joint) falls through to no constraint.
@@ -677,6 +833,35 @@ function buildCapsuleGeometry(
   );
 }
 
+// TRUNK's solid torso (Fix 2, SLD_SKELETON_FIXES.md) — a tapered
+// CylinderGeometry rather than a CapsuleGeometry, since a capsule's two
+// hemispherical caps are always the same radius and can't taper. Flat
+// ends (CylinderGeometry's default `openEnded: false`) are fine here,
+// unlike the rounded-cap capsules elsewhere: the torso is the one mesh in
+// this file other limbs visually butt up against (shoulders, hips) rather
+// than terminating in open space.
+//
+// Orientation note: the TRUNK LimbVisual entry below is built with
+// `a = VIRTUAL_HIP_LANDMARK_INDEX, b = VIRTUAL_CHEST_LANDMARK_INDEX` (hip
+// first), so updateLimbVisual's own `direction = b - a` points from hip to
+// chest — i.e. local +Y (CylinderGeometry's "top") ends up at the SHOULDER
+// end once orientCapsuleMesh rotates it. `shoulderRadius` is therefore
+// `radiusTop`, `hipRadius` is `radiusBottom`, matching the "top of the
+// torso is the shoulders" reading the parameter names suggest.
+function buildTorsoGeometry(
+  shoulderRadius: number,
+  hipRadius: number,
+  length: number,
+): THREE.CylinderGeometry {
+  const height = Math.max(length, MIN_CAPSULE_CYLINDER_LENGTH);
+  return new THREE.CylinderGeometry(
+    shoulderRadius,
+    hipRadius,
+    height,
+    CAPSULE_RADIAL_SEGMENTS,
+  );
+}
+
 function orientCapsuleMesh(
   mesh: THREE.Mesh,
   center: THREE.Vector3,
@@ -730,14 +915,25 @@ type JointVisual = {
   halo: THREE.Mesh;
 };
 
-// One capsule per BODY_REGION_BONES segment (14 total: 4 TRUNK + 2 NECK +
-// 1 each SHOULDER_LEFT/RIGHT/ELBOW_LEFT/RIGHT + 2 each KNEE_LEFT/RIGHT) —
-// `a`/`b` are the two landmark indices it spans, `region` is fixed at
-// mount (BODY_REGION_BONES never changes at runtime). No `radius` field —
-// unlike an earlier version of this file, the mesh's own geometry already
-// has its radius (and correct span) baked in by buildCapsuleGeometry at
-// creation time, so only position/orientation/color/opacity are
-// recomputed per render.
+// One capsule per BODY_REGION_BONES segment, plus one more each for NECK
+// and TRUNK (10 total: 1 each SHOULDER_LEFT/RIGHT/ELBOW_LEFT/RIGHT + 2
+// each KNEE_LEFT/RIGHT + 1 NECK + 1 TRUNK) — `a`/`b` are the two landmark
+// indices it spans, `region` is fixed at mount (BODY_REGION_BONES never
+// changes at runtime). NECK's and TRUNK's own entries in BODY_REGION_BONES
+// are both empty (see that table's own comments), so their one mesh each
+// is built separately below, with `a`/`b` set to
+// VIRTUAL_CHEST_LANDMARK_INDEX and/or VIRTUAL_HIP_LANDMARK_INDEX rather
+// than real landmark indices — every read of `a`/`b` in this file
+// (position, confidence) already has to special-case those sentinels the
+// same way the TRUNK/chest joint handle does. TRUNK's mesh is also the one
+// exception to "capsule": buildTorsoGeometry gives it a tapered
+// CylinderGeometry instead, since its shoulder/hip radii genuinely differ
+// (see that function's own comment) — this type still calls the field
+// `mesh`, not `capsule`, for exactly that reason. No `radius` field on
+// this type — unlike an earlier version of this file, the mesh's own
+// geometry already has its radius (and correct span) baked in by
+// buildCapsuleGeometry/buildTorsoGeometry at creation time, so only
+// position/orientation/color/opacity are recomputed per render.
 type LimbVisual = {
   mesh: THREE.Mesh;
   a: number;
@@ -847,6 +1043,8 @@ type JointUpdateParams = {
   position: THREE.Vector3;
   confidence: SkeletonLandmarkConfidence;
   isDraggable: boolean;
+  /** Fix 4: a wrist/ankle proxy handle (PROXY_JOINT_REGIONS) — always renders at PROXY_JOINT_RADIUS with no halo, regardless of isDraggable, visually secondary to the 9 primary handles. */
+  isProxy: boolean;
   region: BodyRegion;
   regionBands: ReadonlyMap<BodyRegion, RiskBand | null>;
   isHovered: boolean;
@@ -858,7 +1056,11 @@ function updateJointVisual(joint: JointVisual, params: JointUpdateParams) {
   joint.group.visible = true;
   joint.group.position.copy(params.position);
 
-  const radius = params.isDraggable ? DRAGGABLE_JOINT_RADIUS : JOINT_RADIUS;
+  const radius = params.isProxy
+    ? PROXY_JOINT_RADIUS
+    : params.isDraggable
+      ? DRAGGABLE_JOINT_RADIUS
+      : JOINT_RADIUS;
   joint.core.scale.setScalar(radius);
   joint.halo.scale.setScalar(radius * HALO_RADIUS_SCALE);
 
@@ -878,7 +1080,7 @@ function updateJointVisual(joint: JointVisual, params: JointUpdateParams) {
   material.wireframe = confidence !== "measured";
   material.opacity = opacityForConfidence(confidence);
 
-  joint.halo.visible = params.isDraggable;
+  joint.halo.visible = params.isDraggable && !params.isProxy;
 
   joint.group.scale.setScalar(
     params.isHovered || params.isDragging ? HOVER_SCALE : 1,
@@ -936,9 +1138,16 @@ function rebuildScene(
   override?: { index: number; position: THREE.Vector3 },
 ) {
   const basePositions = landmarksTo3DPositions(data.keypoints);
-  const isVirtualOverride = override?.index === VIRTUAL_CHEST_LANDMARK_INDEX;
+  // Both TRUNK's chest handle and HIP's knee-midpoint handle (Fix 3) are
+  // sentinel indices outside the real 0-32 landmark range `positions`
+  // covers — an override targeting either one is resolved entirely via
+  // chestPosition/kneePosition below instead, never written into
+  // `positions` itself.
+  const isSentinelOverride =
+    override?.index === VIRTUAL_CHEST_LANDMARK_INDEX ||
+    override?.index === VIRTUAL_KNEE_LANDMARK_INDEX;
   const positions =
-    override && !isVirtualOverride
+    override && !isSentinelOverride
       ? basePositions.map((p, i) =>
           i === override.index ? override.position : p,
         )
@@ -947,19 +1156,56 @@ function rebuildScene(
     override && override.index === VIRTUAL_CHEST_LANDMARK_INDEX
       ? override.position
       : getVirtualChestPosition(positions);
+  // Unlike the chest (TRUNK's own handle) and the knee midpoint (HIP's own
+  // handle, just below), the virtual HIP midpoint itself is never directly
+  // draggable (no JOINT_REGIONS entry — see VIRTUAL_HIP_LANDMARK_INDEX's
+  // own comment), so it needs no override branch: it's always derived
+  // fresh from `positions`, which neither a chest/TRUNK drag nor a
+  // knee-midpoint/HIP drag ever touches either (both pivot on this same
+  // FIXED hip midpoint, per buildRigidConstraints' own TRUNK and HIP
+  // cases).
+  const hipPosition = getVirtualHipPosition(positions);
+  const kneePosition =
+    override && override.index === VIRTUAL_KNEE_LANDMARK_INDEX
+      ? override.position
+      : getVirtualKneePosition(positions);
 
   const draggableSet = new Set(data.draggableJoints);
 
+  // NECK's, TRUNK's, and (Fix 3) HIP's capsules/handles use
+  // VIRTUAL_CHEST_LANDMARK_INDEX / VIRTUAL_HIP_LANDMARK_INDEX /
+  // VIRTUAL_KNEE_LANDMARK_INDEX as sentinel endpoints (see LimbVisual's own
+  // comment) rather than real indices into `positions` — resolved here to
+  // the matching chestPosition/hipPosition/kneePosition (and
+  // chestConfidence/hipConfidence/kneeConfidence), reused below by both the
+  // limb loop and the joint-handle loop so neither can drift out of sync
+  // with the other about where one of these sentinels currently is.
+  const limbEndpointPosition = (index: number) => {
+    if (index === VIRTUAL_CHEST_LANDMARK_INDEX) return chestPosition;
+    if (index === VIRTUAL_HIP_LANDMARK_INDEX) return hipPosition;
+    if (index === VIRTUAL_KNEE_LANDMARK_INDEX) return kneePosition;
+    return positions[index];
+  };
+  const limbEndpointConfidence = (index: number) => {
+    if (index === VIRTUAL_CHEST_LANDMARK_INDEX)
+      return chestConfidence(data.confidenceMap);
+    if (index === VIRTUAL_HIP_LANDMARK_INDEX)
+      return hipConfidence(data.confidenceMap);
+    if (index === VIRTUAL_KNEE_LANDMARK_INDEX)
+      return kneeConfidence(data.confidenceMap);
+    return getConfidence(data.confidenceMap, index);
+  };
+
   for (const limb of state.limbs) {
     const style = combineConfidence(
-      getConfidence(data.confidenceMap, limb.a),
-      getConfidence(data.confidenceMap, limb.b),
+      limbEndpointConfidence(limb.a),
+      limbEndpointConfidence(limb.b),
     );
     const band = data.regionBands.get(limb.region) ?? null;
     const color = band ? riskBandColors[band] : NOT_ASSESSED_COLOR;
     updateLimbVisual(limb.mesh, {
-      a: positions[limb.a],
-      b: positions[limb.b],
+      a: limbEndpointPosition(limb.a),
+      b: limbEndpointPosition(limb.b),
       color,
       confidence: style,
     });
@@ -1026,38 +1272,62 @@ function rebuildScene(
     );
   }
 
-  // The 8 draggable joint handles (JOINT_REGIONS' own key set — exactly
-  // TRUNK/NECK/SHOULDER_LEFT/RIGHT/ELBOW_LEFT/RIGHT/KNEE_LEFT/RIGHT, per
-  // SLD_POSTURE_EDITOR_FIDELITY_PLAN.md's P1 invariant). VIRTUAL_CHEST
-  // (TRUNK) has no real landmark behind it, so it's hidden entirely when
-  // not draggable rather than floating a synthetic marker with nothing to
-  // interact with — every other handle stays visible (smaller, no halo)
-  // even when not draggable, same as before P3.
-  for (const [indexKey, region] of Object.entries(JOINT_REGIONS) as Array<
-    [string, BodyRegion]
-  >) {
-    const index = Number(indexKey);
+  // The 9 primary draggable joint handles (JOINT_REGIONS' own key set —
+  // exactly TRUNK/NECK/HIP/SHOULDER_LEFT/RIGHT/ELBOW_LEFT/RIGHT/
+  // KNEE_LEFT/RIGHT, per SLD_POSTURE_EDITOR_FIDELITY_PLAN.md's original P1
+  // "exactly eight" invariant plus HIP's own handle added in Fix 3) PLUS
+  // PROXY_JOINT_REGIONS' four wrist/ankle proxies (Fix 4) — shared update
+  // logic (updateJointEntry) since both sets read position/confidence from
+  // limbEndpointPosition/limbEndpointConfidence and route through the same
+  // updateJointVisual, differing only in the `isProxy` flag that function
+  // uses to force a smaller radius and no halo. VIRTUAL_CHEST (TRUNK) and
+  // VIRTUAL_KNEE (HIP) have no real landmark behind them, so both are
+  // hidden entirely when not draggable rather than floating a synthetic
+  // marker with nothing to interact with — every other PRIMARY handle
+  // stays visible (smaller, no halo) even when not draggable, same as
+  // before P3. Proxies are real landmarks (WRIST/ANKLE), always anchored
+  // to something real, so they're never hidden this way — they just always
+  // render at PROXY_JOINT_RADIUS with no halo, draggable or not.
+  const updateJointEntry = (
+    index: number,
+    region: BodyRegion,
+    isProxy: boolean,
+  ) => {
     const joint = state.joints.get(index);
-    if (!joint) continue;
+    if (!joint) return;
 
     const isDraggable = draggableSet.has(index);
-    const isChest = index === VIRTUAL_CHEST_LANDMARK_INDEX;
-    if (isChest && !isDraggable) {
-      joint.group.visible = false;
-      continue;
+    if (!isProxy) {
+      const isSyntheticHandle =
+        index === VIRTUAL_CHEST_LANDMARK_INDEX ||
+        index === VIRTUAL_KNEE_LANDMARK_INDEX;
+      if (isSyntheticHandle && !isDraggable) {
+        joint.group.visible = false;
+        return;
+      }
     }
 
     updateJointVisual(joint, {
-      position: isChest ? chestPosition : positions[index],
-      confidence: isChest
-        ? chestConfidence(data.confidenceMap)
-        : getConfidence(data.confidenceMap, index),
+      position: limbEndpointPosition(index),
+      confidence: limbEndpointConfidence(index),
       isDraggable,
+      isProxy,
       region,
       regionBands: data.regionBands,
       isHovered: state.hoveredIndex === index,
       isDragging: state.drag?.landmarkIndex === index,
     });
+  };
+
+  for (const [indexKey, region] of Object.entries(JOINT_REGIONS) as Array<
+    [string, BodyRegion]
+  >) {
+    updateJointEntry(Number(indexKey), region, false);
+  }
+  for (const [indexKey, region] of Object.entries(PROXY_JOINT_REGIONS) as Array<
+    [string, BodyRegion]
+  >) {
+    updateJointEntry(Number(indexKey), region, true);
   }
 
   scheduleRender(state);
@@ -1191,6 +1461,63 @@ export function Skeleton3D({
       }
     }
 
+    // NECK's one capsule (Fix 1: single shoulder-midpoint -> NOSE segment,
+    // replacing the old two-line V-shape) — not driven by the loop above
+    // since BODY_REGION_BONES.NECK is deliberately empty (its endpoint
+    // isn't a real landmark index). `a` is VIRTUAL_CHEST_LANDMARK_INDEX as
+    // a sentinel; rebuildScene's limb loop below resolves it to the live
+    // shoulder-midpoint position/confidence the same way the TRUNK joint
+    // handle already does, rather than indexing into `positions` with it.
+    {
+      const chestAtMount = getVirtualChestPosition(initialPositions);
+      const span = chestAtMount.distanceTo(
+        initialPositions[LANDMARK_INDEX.NOSE],
+      );
+      const geometry = buildCapsuleGeometry(
+        REGION_CAPSULE_RADIUS.NECK ?? NECK_CAPSULE_RADIUS,
+        span,
+      );
+      const mesh = new THREE.Mesh(geometry, neutralMaterial());
+      scene.add(mesh);
+      limbs.push({
+        mesh,
+        a: VIRTUAL_CHEST_LANDMARK_INDEX,
+        b: LANDMARK_INDEX.NOSE,
+        region: "NECK",
+      });
+    }
+
+    // TRUNK's one solid, tapered mesh (Fix 2: shoulder-midpoint ->
+    // hip-midpoint, replacing the old four-line wireframe rectangle) — not
+    // driven by the loop above since BODY_REGION_BONES.TRUNK is
+    // deliberately empty (neither endpoint is a real landmark index). `a`
+    // is VIRTUAL_HIP_LANDMARK_INDEX and `b` is VIRTUAL_CHEST_LANDMARK_INDEX
+    // (hip first — see buildTorsoGeometry's own orientation note for why
+    // that order matters here, unlike every uniform-radius capsule where
+    // endpoint order is irrelevant). rebuildScene's limb loop resolves both
+    // sentinels to their live position/confidence, the same pattern NECK's
+    // chest sentinel above already established.
+    {
+      const chestAtMount = getVirtualChestPosition(initialPositions);
+      const hipAtMount = getVirtualHipPosition(initialPositions);
+      const span = hipAtMount.distanceTo(chestAtMount);
+      const shoulderRadius =
+        REGION_CAPSULE_RADIUS.TRUNK ?? TORSO_CAPSULE_RADIUS;
+      const geometry = buildTorsoGeometry(
+        shoulderRadius,
+        shoulderRadius * TORSO_HIP_RADIUS_RATIO,
+        span,
+      );
+      const mesh = new THREE.Mesh(geometry, neutralMaterial());
+      scene.add(mesh);
+      limbs.push({
+        mesh,
+        a: VIRTUAL_HIP_LANDMARK_INDEX,
+        b: VIRTUAL_CHEST_LANDMARK_INDEX,
+        region: "TRUNK",
+      });
+    }
+
     // Rigid, non-interactive extremities (P3) — head, hands, feet. None
     // of these have a BodyRegion, a drag handle, or independent
     // articulation; rebuildScene repositions/reorients them every render
@@ -1222,15 +1549,24 @@ export function Skeleton3D({
     };
     for (const mesh of Object.values(extremities)) scene.add(mesh);
 
-    // Draggable joint handles — exactly JOINT_REGIONS' own 8 entries
-    // (SLD_POSTURE_EDITOR_FIDELITY_PLAN.md P1's "exactly eight drag
-    // handles" invariant), not all 33+1 landmark slots the pre-P3 renderer
-    // built spheres for. Every one of these 8 is always potentially
-    // draggable, so every one always gets a halo too — shown/hidden
-    // per-render based on the actual draggableJoints prop (see
-    // updateJointVisual), never recreated.
+    // Draggable joint handles — JOINT_REGIONS' own entries
+    // (SLD_POSTURE_EDITOR_FIDELITY_PLAN.md P1's original "exactly eight
+    // drag handles" invariant, now nine with HIP's own handle added in
+    // Fix 3) PLUS PROXY_JOINT_REGIONS' four wrist/ankle proxies (Fix 4),
+    // not all 33+1 landmark slots the pre-P3 renderer built spheres for.
+    // Mount-time construction (geometry/material) is identical either way
+    // — the primary/proxy distinction only affects PER-RENDER styling
+    // (radius, halo visibility — see updateJointVisual's own isProxy
+    // handling), so both sets are built in the same loop rather than two
+    // near-duplicate ones. Every one of these is always potentially
+    // draggable, so every one always gets a halo mesh too (proxies just
+    // keep theirs permanently hidden) — shown/hidden per-render based on
+    // the actual draggableJoints prop, never recreated.
     const joints = new Map<number, JointVisual>();
-    for (const indexKey of Object.keys(JOINT_REGIONS)) {
+    for (const indexKey of [
+      ...Object.keys(JOINT_REGIONS),
+      ...Object.keys(PROXY_JOINT_REGIONS),
+    ]) {
       const index = Number(indexKey);
       const core = new THREE.Mesh(
         sphereGeometry,
@@ -1391,9 +1727,12 @@ export function Skeleton3D({
       );
 
       const positions = landmarksTo3DPositions(keypointsRef.current);
-      const region = Object.hasOwn(JOINT_REGIONS, landmarkIndex)
-        ? JOINT_REGIONS[landmarkIndex]
-        : undefined;
+      // regionForDraggableLandmark (skeleton.ts), not a local JOINT_REGIONS-
+      // only hasOwn check: a proxy drag (Fix 4, e.g. LEFT_WRIST) must clamp
+      // against its TARGET region's own ANATOMICAL_LIMITS (ELBOW_LEFT's),
+      // not go unclamped just because the dragged landmark isn't in
+      // JOINT_REGIONS itself.
+      const region = regionForDraggableLandmark(landmarkIndex);
       const limits = region ? (ANATOMICAL_LIMITS[region] ?? null) : null;
 
       state.drag = {
