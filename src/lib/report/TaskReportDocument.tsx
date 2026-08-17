@@ -91,6 +91,19 @@ const styles = StyleSheet.create({
     color: COLOR.coral,
     marginBottom: 4,
   },
+  sampleHoldTime: {
+    fontFamily: "Courier",
+    fontSize: 8,
+    color: COLOR.sageDark,
+    marginBottom: 6,
+  },
+  sampleHoldTimeEscalated: {
+    fontFamily: "Courier",
+    fontSize: 8,
+    fontWeight: "bold",
+    color: COLOR.coral,
+    marginBottom: 6,
+  },
   table: { display: "flex", flexDirection: "column" },
   tableHeaderRow: {
     flexDirection: "row",
@@ -188,6 +201,7 @@ export function TaskReportDocument({ data }: { data: TaskReportData }) {
     methodologyError,
     samples,
     manualInputGroups,
+    manualHandlingResult,
   } = data;
   const company = task.workstation.site.company;
   const site = task.workstation.site;
@@ -245,14 +259,42 @@ export function TaskReportDocument({ data }: { data: TaskReportData }) {
 
         {samples.map((sample) => (
           <View key={sample.id} style={styles.sampleBlock} wrap={false}>
+            {/* Provenance, always shown (ERGO_COMPLIANCE_BY_DESIGN.md
+                §3.16): a manually entered angle and a camera-derived one
+                are not equally strong evidence and must never read the
+                same. cameraAngle is a real captured fact only for
+                CAMERA_MEDIAPIPE — MANUAL_ENTRY stores an inert placeholder
+                value there (see createPostureSample), so it's omitted
+                rather than shown as if it meant something. */}
             <Text style={styles.sampleMeta}>
-              {formatDate(sample.capturedAt)} — cameraAngle:{" "}
-              {sample.cameraAngle}
+              {formatDate(sample.capturedAt)} — source: {sample.source}
+              {sample.source === "CAMERA_MEDIAPIPE"
+                ? ` — cameraAngle: ${sample.cameraAngle}`
+                : ""}
             </Text>
 
             {sample.error && (
               <Text style={styles.sampleError}>
                 Error recomputing this sample: {sample.error}
+              </Text>
+            )}
+
+            {/* Hold-time sub-score (§6) — a parallel result to the
+                per-region table below, never blended into it. Only shown
+                when a hold duration was actually recorded. */}
+            {sample.holdTime && (
+              <Text
+                style={
+                  sample.holdTime.holdTimeBand
+                    ? styles.sampleHoldTimeEscalated
+                    : styles.sampleHoldTime
+                }
+              >
+                Held {sample.holdTime.holdDurationSeconds}s at posture{" "}
+                {sample.holdTime.worstPostureBand}
+                {sample.holdTime.holdTimeBand
+                  ? ` — exceeds safe hold duration for this posture — overall ${sample.holdTime.overallBand}`
+                  : ""}
               </Text>
             )}
 
@@ -323,6 +365,22 @@ export function TaskReportDocument({ data }: { data: TaskReportData }) {
             ))}
           </View>
         ))}
+
+        {/* §7 B8: a parallel sub-score against the most recently recorded
+            LOAD_WEIGHT_KG manual input — independent of posture/hold-time,
+            never blended into either. Only rendered when there's a load
+            weight to score. */}
+        {manualHandlingResult && (
+          <>
+            <Text style={styles.sectionTitle}>Manual handling assessment</Text>
+            <Text style={styles.manualInputRow}>
+              {manualHandlingResult.loadWeightKg} kg —{" "}
+              {manualHandlingResult.riskBand} ({manualHandlingResult.riskScore})
+              — §64 ASchG (no mandated method) — SLD threshold, inspired by ISO
+              11228-1 / EN 1005-2
+            </Text>
+          </>
+        )}
 
         <View style={styles.footer} fixed>
           <Text style={styles.footerCopyright}>© {year} Verumsell SRL</Text>

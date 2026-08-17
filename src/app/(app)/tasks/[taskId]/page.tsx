@@ -4,13 +4,14 @@ import {
   type PostureSampleSwitcherItem,
 } from "@/components/posture-sample-switcher";
 import { requireTaskAccess } from "@/lib/auth/require-access";
-import { buildRegionResults } from "@/lib/capture/build-region-results";
+import { buildRegionResultsForSample } from "@/lib/capture/build-region-results";
+import { computeHoldTimeResult } from "@/lib/capture/hold-time-result";
 import { describeManualInput } from "@/lib/capture/manual-input";
 import { getDashboardDictionary } from "@/lib/i18n/dictionaries/dashboard";
 import { getLocale } from "@/lib/i18n/get-locale";
-import type { PoseLandmarks } from "@/lib/pose/angles";
 import { prisma } from "@/lib/prisma";
 import { worstRiskBand } from "@/lib/risk/band-severity";
+import { computeManualHandlingResult } from "@/lib/scoring/manual-handling";
 import { getActiveMethodologyVersion } from "@/lib/scoring/methodology-version";
 import { reopenPostureSampleForEdit, validatePostureSample } from "./actions";
 
@@ -85,12 +86,22 @@ export default async function TaskHistoryPage({
       err instanceof Error ? err.message : "No active methodology version";
   }
 
+  // §7 B8: a parallel sub-score against the task's most recently recorded
+  // LOAD_WEIGHT_KG ManualInput — independent of posture/hold-time, never
+  // blended into either (§6/§11's "parallel sub-scores" discipline).
+  // Computed live, same "never a frozen snapshot" philosophy the rest of
+  // this scoring engine already has.
+  const manualHandlingResult = methodologyVersion
+    ? await computeManualHandlingResult({ taskId, methodologyVersion })
+    : null;
+
   const items: PostureSampleSwitcherItem[] = methodologyVersion
     ? await Promise.all(
         samples.map(async (sample): Promise<PostureSampleSwitcherItem> => {
           const base = {
             id: sample.id,
             capturedAt: sample.capturedAt,
+            source: sample.source,
             cameraAngle: sample.cameraAngle,
             keypoints: sample.keypoints,
             validatedKeypoints: sample.validatedKeypoints,
@@ -101,20 +112,27 @@ export default async function TaskHistoryPage({
               : null,
           };
           try {
-            const { regions } = await buildRegionResults({
-              keypoints: sample.keypoints as unknown as PoseLandmarks,
-              validatedKeypoints:
-                sample.validatedKeypoints as unknown as PoseLandmarks | null,
-              validationStatus: sample.validationStatus,
-              cameraAngle: sample.cameraAngle,
+            const { regions } = await buildRegionResultsForSample(
+              sample,
               methodologyVersion,
-            });
+            );
             const worstBand = worstRiskBand(
               Object.values(regions).flatMap((r) =>
                 r.status === "scored" ? [r.riskBand] : [],
               ),
             );
-            return { ...base, regionResults: regions, error: null, worstBand };
+            const holdTime = await computeHoldTimeResult({
+              regions,
+              holdDurationSeconds: sample.holdDurationSeconds,
+              methodologyVersion,
+            });
+            return {
+              ...base,
+              regionResults: regions,
+              error: null,
+              worstBand,
+              holdTime,
+            };
           } catch (err) {
             return {
               ...base,
@@ -124,6 +142,7 @@ export default async function TaskHistoryPage({
                   ? err.message
                   : "Could not compute body angles",
               worstBand: null,
+              holdTime: null,
             };
           }
         }),
@@ -131,6 +150,7 @@ export default async function TaskHistoryPage({
     : samples.map((sample) => ({
         id: sample.id,
         capturedAt: sample.capturedAt,
+        source: sample.source,
         cameraAngle: sample.cameraAngle,
         keypoints: sample.keypoints,
         validatedKeypoints: sample.validatedKeypoints,
@@ -142,6 +162,7 @@ export default async function TaskHistoryPage({
         regionResults: null,
         error: null,
         worstBand: null,
+        holdTime: null,
       }));
 
   return (
@@ -214,6 +235,27 @@ export default async function TaskHistoryPage({
           {dict.manualInputsHeading}
         </h2>
         <p className="text-sm text-border">{dict.manualInputsDescription}</p>
+
+        {/* §7 B8: "Note ... that Austria prescribes no method, and name
+            the one used" — this line is that sentence, shown whenever
+            there's a load weight to score, not hedged into a footnote. */}
+        {manualHandlingResult && (
+          <p className="rounded-lg border border-border bg-surface p-4 text-sm">
+            <span className="font-heading font-bold">
+              {dict.manualHandlingHeading}
+            </span>{" "}
+            <span className="font-technical">
+              {dict.manualHandlingResultLabel(
+                manualHandlingResult.loadWeightKg,
+                manualHandlingResult.riskBand,
+              )}
+            </span>
+            <br />
+            <span className="text-xs text-border">
+              {dict.manualHandlingDescription}
+            </span>
+          </p>
+        )}
 
         {manualInputs.length === 0 && (
           <p className="text-sm text-border">{dict.manualInputsEmpty}</p>

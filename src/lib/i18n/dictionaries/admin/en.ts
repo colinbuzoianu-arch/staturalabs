@@ -6,6 +6,15 @@
 export const en = {
   layout: {
     companiesNav: "Companies",
+    demoResetNav: "Demo reset",
+  },
+  demoResetPage: {
+    heading: "Reset demo fixture",
+    description:
+      "Wipes the demo company's data and reseeds it from scratch (same as running npm run reset:demo && npm run seed:demo from a terminal) — for recovering a demo mid-meeting without leaving the browser.",
+    resetButton: "Reset and reseed demo data",
+    successMessage: "Demo fixture reset and reseeded successfully.",
+    unknownError: "Reset failed — no error output captured.",
   },
   companiesPage: {
     heading: "Companies",
@@ -21,9 +30,11 @@ export const en = {
     companiesBreadcrumb: "Companies",
     heading: "Sites",
     namePlaceholder: "Site name",
+    countryLabel: "Country",
     create: "Create",
     empty: "No sites yet.",
     colName: "Name",
+    colCountry: "Country",
     colCreated: "Created",
     colWorkstations: "Workstations",
     workstationsLink: "Workstations",

@@ -71,6 +71,7 @@ export async function validatePostureSample(
     select: {
       id: true,
       taskId: true,
+      source: true,
       cameraAngle: true,
       validationStatus: true,
     },
@@ -80,6 +81,16 @@ export async function validatePostureSample(
   }
 
   const { user } = await requireTaskAccess(sample.taskId);
+
+  // This whole flow is about reviewing/adjusting camera-derived keypoints
+  // — a MANUAL_ENTRY sample has none (ERGO_COMPLIANCE_BY_DESIGN.md §3.16),
+  // so there is nothing here for it to validate. IMPORTED_MODEL is
+  // unreachable today (createPostureSample throws on it) but excluded on
+  // the same principle: this action only ever makes sense for a sample
+  // that actually has keypoints.
+  if (sample.source !== "CAMERA_MEDIAPIPE") {
+    throw new Error("Only a camera-captured posture sample can be validated.");
+  }
 
   // Once validated, a sample's result is final until explicitly reopened —
   // reopenPostureSampleForEdit (below) is the only way back to
@@ -112,6 +123,7 @@ export async function validatePostureSample(
   // read once validatedKeypoints is present, just required by the
   // function's signature.
   const { regions: regionResults } = await buildRegionResults({
+    source: "CAMERA_MEDIAPIPE",
     keypoints: validatedKeypoints,
     validatedKeypoints,
     validationStatus: "VALIDATED",
@@ -216,6 +228,7 @@ export async function reopenPostureSampleForEdit(
     select: {
       id: true,
       taskId: true,
+      source: true,
       keypoints: true,
       cameraAngle: true,
       validationStatus: true,
@@ -227,6 +240,15 @@ export async function reopenPostureSampleForEdit(
 
   const { user } = await requireTaskAccess(sample.taskId);
 
+  // Same reasoning as validatePostureSample's guard above: a MANUAL_ENTRY
+  // sample has no keypoints, so it can never actually reach VALIDATED (see
+  // that guard) and reopening it makes no sense either.
+  if (sample.source !== "CAMERA_MEDIAPIPE") {
+    throw new Error(
+      "Only a camera-captured posture sample can be reopened for edit.",
+    );
+  }
+
   if (sample.validationStatus !== "VALIDATED") {
     throw new Error(
       "Only a validated posture sample can be reopened for edit.",
@@ -235,6 +257,7 @@ export async function reopenPostureSampleForEdit(
 
   const methodologyVersion = await getActiveMethodologyVersion();
   const { regions: regionResults } = await buildRegionResults({
+    source: "CAMERA_MEDIAPIPE",
     keypoints: sample.keypoints as unknown as PoseLandmarks,
     validatedKeypoints: null,
     validationStatus: "PENDING_REVIEW",

@@ -21,9 +21,14 @@ export default async function AdminLayout({
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-8">
       <nav className="flex items-center justify-between text-sm">
-        <a href="/admin/companies" className="underline">
-          {dict.layout.companiesNav}
-        </a>
+        <div className="flex gap-4">
+          <a href="/admin/companies" className="underline">
+            {dict.layout.companiesNav}
+          </a>
+          <a href="/admin/demo-reset" className="underline">
+            {dict.layout.demoResetNav}
+          </a>
+        </div>
         {/* Upper-right corner, same as every other page — the one piece of
             chrome this deliberately-unstyled tool gets, since the language
             switch was asked for on every page without exception. */}

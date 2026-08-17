@@ -6,6 +6,15 @@ export const de: typeof en = {
     requestPilot: "Pilotprojekt anfragen",
     signIn: "Anmelden",
   },
+  countryChooser: {
+    metaTitle: "Markt wählen",
+    eyebrow: "Markt wählen",
+    h1: "Statura Labs Dynamics, nach Markt.",
+    lede: "Rechtliche Grenzwerte, Fachbegriffe und das erzeugte Dokument richten sich nach dem Land, in dem sich der Arbeitsplatz tatsächlich befindet — nicht umgekehrt. Wählen Sie Ihren Markt.",
+    countryLabels: { at: "Österreich", de: "Deutschland", ch: "Schweiz" },
+    statusAvailable: "Verfügbar",
+    statusInPreparation: "In Vorbereitung",
+  },
   hero: {
     eyebrow: "Gemessene Bewegung // Ergonomie am Arbeitsplatz",
     h1: "Ergonomisches Risiko, abgelesen wie von einem Messgerät.",
@@ -128,6 +137,14 @@ export const de: typeof en = {
     heading: "Erleben Sie es live in Ihrer eigenen Fertigung.",
     cta: "Pilotprojekt anfragen",
   },
+  countryContext: {
+    eyebrow: "Für diesen Markt aufgebaut",
+    verifiedHeading: "In der Sprache Ihrer Behörde.",
+    unverifiedHeading:
+      "Die rechtliche Einordnung für diesen Markt ist noch in Vorbereitung.",
+    unverifiedNote:
+      "Wir haben die rechtlichen Bezüge und Fachbegriffe für diesen Markt noch nicht anhand einer Primärquelle geprüft. Statt zu raten, bleibt diese Seite bis zum Abschluss dieser Prüfung reine Positionierung.",
+  },
   footer: {
     about: "Über uns",
     legal: "Rechtliches",
@@ -179,6 +196,11 @@ export const de: typeof en = {
     contact: {
       heading: "Kontakt",
       prefix: "Fragen zum Datenschutz oder zu dieser Website:",
+    },
+    jurisdictionNotice: {
+      heading: "Länderspezifischer Hinweis",
+      paragraph:
+        "Eine länderspezifische Fassung dieser Seite für diesen Markt (z. B. eine österreichische Offenlegung nach § 5 ECG, ein deutsches Impressum nach dem DDG oder eine Schweizer Fassung nach revDSG) wird vorbereitet und ist noch nicht rechtlich geprüft. Die obigen Inhalte gelten EU-weit und bleiben bis dahin gültig.",
     },
   },
 };

@@ -1,11 +1,13 @@
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PresentModeNav } from "@/components/present-mode-nav";
 import { ActionStatus, VerificationOutcome } from "@/generated/prisma/enums";
 import { ACTION_STATUS_TRANSITIONS, transitionAction } from "@/lib/action";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
+import { isPresentMode } from "@/lib/present-mode";
 import { prisma } from "@/lib/prisma";
 
 const VERIFICATION_OUTCOMES = Object.values(VerificationOutcome);
@@ -28,20 +30,41 @@ async function loadAction(actionId: string) {
 // own siteId — never confirms existence to a tenant that can't see it.
 export default async function ActionDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ actionId: string }>;
+  searchParams: Promise<{
+    present?: string;
+    workstationId?: string;
+    from?: string;
+  }>;
 }) {
   const { actionId } = await params;
+  const { present, workstationId, from } = await searchParams;
+  const presentMode = isPresentMode(present);
   const initial = await loadAction(actionId);
   const { site } = await requireSiteAdministrationAccess(initial.siteId);
   const locale = await getLocale();
-  const dict = getAdministrationDictionary(locale).actionDetailPage;
-  const commonDict = getAdministrationDictionary(locale).common;
-  const statusLabels = getAdministrationDictionary(locale).actionStatusLabels;
-  const hierarchyLabels =
-    getAdministrationDictionary(locale).hierarchyOfControlLabels;
+  const administrationDict = getAdministrationDictionary(locale);
+  const dict = administrationDict.actionDetailPage;
+  const commonDict = administrationDict.common;
+  const statusLabels = administrationDict.actionStatusLabels;
+  const hierarchyLabels = administrationDict.hierarchyOfControlLabels;
   const verificationOutcomeLabels =
-    getAdministrationDictionary(locale).verificationOutcomeLabels;
+    administrationDict.verificationOutcomeLabels;
+
+  // §7 B6 present-mode sequence's 4th stop. workstationId arrives
+  // threaded from the assessment-detail page's own next link (falling
+  // back to this action's own assessmentSession-derived workstation for
+  // an action reached a different way); next always loops back to the
+  // workstation risk page, this time framed as "verification history"
+  // (step=verify) rather than the sequence's first visit there.
+  const effectiveWorkstationId =
+    workstationId ?? initial.assessmentSession?.workstationId ?? null;
+  const currentHref = `/administration/actions/${actionId}?present=1${effectiveWorkstationId ? `&workstationId=${effectiveWorkstationId}` : ""}`;
+  const presentNextHref = effectiveWorkstationId
+    ? `/workstations/${effectiveWorkstationId}/risk?present=1&step=verify&from=${encodeURIComponent(currentHref)}`
+    : null;
 
   async function transitionActionAction(formData: FormData) {
     "use server";
@@ -188,6 +211,15 @@ export default async function ActionDetailPage({
           )}
         </dl>
       </div>
+
+      {presentMode && (
+        <PresentModeNav
+          prevHref={from ?? null}
+          nextHref={presentNextHref}
+          prevLabel={administrationDict.presentMode.assessmentLabel}
+          nextLabel={administrationDict.presentMode.verificationLabel}
+        />
+      )}
 
       {availableTransitions.length === 0 ? (
         <p className="text-sm text-border">{dict.noTransitionsAvailable}</p>

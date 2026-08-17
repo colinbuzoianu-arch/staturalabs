@@ -4,6 +4,16 @@ import type { en } from "./en";
 export const ro: typeof en = {
   layout: {
     companiesNav: "Companii",
+    demoResetNav: "Resetare demo",
+  },
+  demoResetPage: {
+    heading: "Resetare date demo",
+    description:
+      "Șterge datele companiei demo și le regenerează de la zero (echivalent cu npm run reset:demo && npm run seed:demo din terminal) — pentru a recupera o demonstrație în timpul unei întâlniri, fără a părăsi browserul.",
+    resetButton: "Resetează și regenerează datele demo",
+    successMessage: "Datele demo au fost resetate și regenerate cu succes.",
+    unknownError:
+      "Resetarea a eșuat — nu a fost capturat niciun mesaj de eroare.",
   },
   companiesPage: {
     heading: "Companii",
@@ -19,9 +29,11 @@ export const ro: typeof en = {
     companiesBreadcrumb: "Companii",
     heading: "Locații",
     namePlaceholder: "Numele locației",
+    countryLabel: "Țară",
     create: "Creează",
     empty: "Nu există încă nicio locație.",
     colName: "Nume",
+    colCountry: "Țară",
     colCreated: "Creat",
     colWorkstations: "Locuri de muncă",
     workstationsLink: "Locuri de muncă",

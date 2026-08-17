@@ -6,6 +6,20 @@
 // parallel technical vocabulary that doesn't match the data itself. See
 // CLAUDE.md i18n notes for the full rule.
 export const en = {
+  // Present mode (SLD_IMPLEMENTATION_PLAN_austria-first.md §7 B6): shared
+  // shell chrome (exitLabel) plus one label per stop in the fixed keyboard
+  // ←/→ sequence (site map → workstation risk → assessment detail →
+  // action detail → verification history → SGD), used to prefix each
+  // page's prev/next PresentModeNav buttons.
+  presentMode: {
+    exitLabel: "✕ Exit present mode",
+    siteMapLabel: "Site map",
+    workstationRiskLabel: "Workstation risk",
+    assessmentLabel: "Assessment",
+    actionLabel: "Action",
+    verificationLabel: "Verification history",
+    sgdLabel: "SGD (PDF)",
+  },
   // ManualInputType labels ARE translated (unlike BodyRegion etc.) — these
   // are already a hand-authored presentation layer over the enum
   // (LOAD_WEIGHT_KG -> "Load weight"), not the raw enum value itself.
@@ -43,6 +57,14 @@ export const en = {
     VERIFIED: "Verified",
     CANCELLED: "Cancelled",
   },
+  // Duplicated from administration/en.ts, same reasoning as
+  // hazardCategoryLabels/actionStatusLabels above — no cross-area
+  // dictionary imports.
+  verificationOutcomeLabels: {
+    EFFECTIVE: "Effective",
+    PARTIALLY_EFFECTIVE: "Partially effective",
+    NOT_EFFECTIVE: "Not effective",
+  },
   footer: {
     copyright: (year: number) =>
       `© ${year} Verumsell SRL · Statura Labs Dynamics is a product of Verumsell SRL.`,
@@ -57,8 +79,9 @@ export const en = {
     eyebrow: "Site //",
     empty: "No workstations at this site yet.",
     riskOverviewLink: "Risk overview →",
-    siteMapLink: "Site map →",
     workerBriefingLink: "Worker representative briefing (PDF) →",
+    sgdLink: "Generate SGD (PDF) →",
+    presentModeLink: "▶ Present →",
   },
   workstationPage: {
     breadcrumbSites: "Sites",
@@ -77,6 +100,16 @@ export const en = {
     manualInputsDescription:
       "Load, force, and tool context recorded for this task — not tied to a specific posture sample. Creation-only for now; nothing here can be edited or removed from this view.",
     manualInputsEmpty: "No manual inputs recorded for this task yet.",
+    // §64 ASchG requires manual load handling to be evaluated but Austria
+    // sets no mandated method (no Lastenhandhabungsverordnung) — SLD
+    // supplies one, cited, computed live from the most recent
+    // LOAD_WEIGHT_KG manual input (SLD_IMPLEMENTATION_PLAN_austria-
+    // first.md §7 B8).
+    manualHandlingHeading: "Manual handling assessment",
+    manualHandlingResultLabel: (kg: number, band: string) =>
+      `${kg} kg — ${band}`,
+    manualHandlingDescription:
+      "Austria (§64 ASchG) requires manual load handling to be evaluated but prescribes no method — SLD applies its own thresholds, inspired by ISO 11228-1/EN 1005-2, cited in the generated SGD.",
     postureSamplesHeading: "Posture samples",
     postureSamplesEmpty: "No captures yet for this task.",
     cannotRecompute: (error: string) =>
@@ -136,17 +169,45 @@ export const en = {
     submitFailed: "Submit failed",
     detectionFailed: "Detection failed",
     requestFailed: (status: number) => `Request failed: ${status}`,
+    // Manual entry (SLD_IMPLEMENTATION_PLAN_austria-first.md §5): a
+    // goniometer/tape-measure alternative to the camera flow above,
+    // switched via a tab on this same page — not a separate route. Region
+    // names themselves stay untranslated everywhere in this dictionary
+    // (see the file-level i18n scope note) — angleDegreesLabel takes the
+    // raw BodyRegion string and only wraps it with translated framing.
+    captureTabLabel: "Capture",
+    manualEntryTabLabel: "Manual entry",
+    manualEntryHeading: "Enter measured angles",
+    manualEntryDescription:
+      "For every region below, enter the flexion angle from neutral (0° = upright, increasing = more flexed) as measured with a goniometer or estimated by eye. All eight are required for a complete sample.",
+    angleDegreesLabel: (region: string) => `${region} (°)`,
+    manualEntryNotScored: "not scored yet",
+    manualEntrySubmit: "Submit manual entry",
+    manualEntrySubmitting: "Submitting…",
+    manualEntryAnother: "Enter another manual sample",
+    manualEntryRulesLoading: "Loading scoring rules…",
+    manualEntryRulesFailed: (message: string) =>
+      `Could not load scoring rules for live preview: ${message}`,
+    // Hold time (§6): optional on both the camera flow and manual entry —
+    // "how long was this specific posture held," feeding a parallel
+    // sub-score, never blended into the posture band itself.
+    holdDurationLabel: "Hold duration (seconds, optional)",
+    holdDurationPlaceholder: "e.g. 30",
+    holdTimeSummary: (seconds: number, postureBand: string) =>
+      `Held ${seconds}s at posture ${postureBand}.`,
+    holdTimeEscalated: (overallBand: string) =>
+      `Exceeds the safe hold duration for this posture — overall ${overallBand}.`,
   },
   workstationRiskPage: {
     breadcrumbSites: "Sites",
     breadcrumbLabel: "Risk assessment",
     eyebrow: "Risk assessment //",
     backToWorkstation: "← Back to workstation",
+    sgdLink: "Generate SGD for this workstation (PDF) →",
     noApprovedAssessment:
       "No approved risk assessment yet for this workstation.",
     latestAssessmentHeading: "Latest approved risk assessment",
     assessedAtLabel: "Assessed:",
-    colAssessedAt: "Assessed",
     viewLink: "View / manage →",
     findingsHeading: "Findings",
     colCategory: "Category",
@@ -156,6 +217,7 @@ export const en = {
     colControls: "Existing controls",
     measurementsLabel: "Measurements:",
     overLimit: "over limit",
+    overActionValue: "over action value",
     ergonomicHeading: "Ergonomic scores",
     ergonomicDescription:
       "Most recent posture sample per task at this workstation — full per-region detail is on each task's page.",
@@ -173,7 +235,7 @@ export const en = {
     colDue: "Due",
     bandTrendHeading: "Risk band trend",
     bandTrendEmpty: "No risk assessments recorded yet.",
-    colOverallBand: "Overall band",
+    verifiedByPrefix: "Verified by:",
   },
   siteRiskOverviewPage: {
     breadcrumbSites: "Sites",
@@ -207,11 +269,6 @@ export const en = {
   // themselves stay untranslated on the map too, same reasoning as
   // workstationRiskPage/siteRiskOverviewPage above.
   siteMapPage: {
-    breadcrumbSites: "Sites",
-    eyebrow: "Site map //",
-    heading: "Site map",
-    backToSite: "← Back to site",
-    empty: "No floor plans uploaded yet.",
     manageFloorPlansLink: "Manage floor plans →",
     categoryFilterHeading: "Filter by hazard category",
     allCategoriesLabel: "All categories",

@@ -5,6 +5,17 @@ export const en = {
     requestPilot: "Request a pilot",
     signIn: "Sign in",
   },
+  // The "/" country-chooser page — SLD_IMPLEMENTATION_PLAN_austria-first.md
+  // §4.2: a real page with explicit links, never a geo-redirect.
+  countryChooser: {
+    metaTitle: "Choose your market",
+    eyebrow: "Choose your market",
+    h1: "Statura Labs Dynamics, by market.",
+    lede: "Legal limits, terminology, and the generated document all follow the country a workplace is actually in — not the other way around. Pick yours.",
+    countryLabels: { at: "Austria", de: "Germany", ch: "Switzerland" },
+    statusAvailable: "Available",
+    statusInPreparation: "In preparation",
+  },
   hero: {
     eyebrow: "Measured motion // workplace ergonomics",
     h1: "Ergonomic risk, read like an instrument reads it.",
@@ -121,6 +132,18 @@ export const en = {
     heading: "See it measure your own floor.",
     cta: "Request a pilot",
   },
+  // Rendered by CountryContextSection on a /[country] homepage — see
+  // SLD_IMPLEMENTATION_PLAN_austria-first.md §4.1/§4.2. The verified
+  // branch's actual terminology/positioning line comes from the country
+  // pack (src/lib/country/packs/**), not from here; this dictionary only
+  // holds the section chrome, which stays the same shape across markets.
+  countryContext: {
+    eyebrow: "Built for this market",
+    verifiedHeading: "Speaking your regulator's language.",
+    unverifiedHeading: "This market's legal framing is still in preparation.",
+    unverifiedNote:
+      "We haven't yet checked this market's legal references and terminology against a primary source. Rather than guess, this page stays positioning-only until that review is done.",
+  },
   footer: {
     about: "About",
     legal: "Legal",
@@ -172,6 +195,17 @@ export const en = {
     contact: {
       heading: "Contact",
       prefix: "Questions about privacy or this website:",
+    },
+    // Shown on every /[country]/legal page — see
+    // SLD_IMPLEMENTATION_PLAN_austria-first.md §7 B1: the content above
+    // applies EU-wide and is already reviewed; a jurisdiction-specific
+    // variant (an Austrian Offenlegung under §5 ECG, a German Impressum
+    // under the DDG, Swiss revDSG framing) is new verbatim text that
+    // still needs legal review, not something to paraphrase here.
+    jurisdictionNotice: {
+      heading: "Jurisdiction-specific notice",
+      paragraph:
+        "A jurisdiction-specific variant of this page for this market (for example an Austrian Offenlegung under §5 ECG, a German Impressum under the DDG, or Swiss-specific framing under revDSG) is in preparation and pending legal review. The content above applies EU-wide and remains accurate in the meantime.",
     },
   },
 };

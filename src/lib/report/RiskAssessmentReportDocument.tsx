@@ -1,4 +1,8 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import {
+  type ExposureThresholdStatus,
+  exposureThresholdStatus,
+} from "@/lib/risk/exposure-threshold-status";
 import { BrandMark } from "./brand-mark";
 import type { RiskAssessmentReportData } from "./get-risk-assessment-report-data";
 
@@ -110,6 +114,11 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   overLimit: { color: COLOR.coral, fontFamily: "Courier-Bold" },
+  // Distinct, less severe than overLimit — the Auslösewert/action-value
+  // tier obliges the employer to plan measures, but isn't the
+  // never-exceed Expositionsgrenzwert itself (§4.4). Amber, not coral, so
+  // the two tiers stay visually as well as textually distinct.
+  overActionValue: { color: "#b45309", fontFamily: "Courier-Bold" },
   footer: {
     position: "absolute",
     bottom: 24,
@@ -147,24 +156,32 @@ function formatDate(date: Date): string {
 function formatMeasurement(m: {
   value: number;
   unit: string;
+  actionValue: number | null;
+  actionValueReference: string | null;
   limitValue: number | null;
   limitReference: string | null;
   instrument: string | null;
   method: string | null;
   measuredAt: Date;
-}): { text: string; overLimit: boolean } {
-  const overLimit = m.limitValue !== null && m.value > m.limitValue;
+}): { text: string; status: ExposureThresholdStatus } {
+  const status = exposureThresholdStatus(m);
   const parts = [`${m.value} ${m.unit}`];
+  if (m.actionValue !== null) {
+    parts.push(
+      `action ${m.actionValue} ${m.unit}${status === "over-action-value" ? " (OVER ACTION VALUE)" : ""}`,
+    );
+    if (m.actionValueReference) parts.push(m.actionValueReference);
+  }
   if (m.limitValue !== null) {
     parts.push(
-      `limit ${m.limitValue} ${m.unit}${overLimit ? " (OVER LIMIT)" : ""}`,
+      `limit ${m.limitValue} ${m.unit}${status === "over-limit-value" ? " (OVER LIMIT)" : ""}`,
     );
+    if (m.limitReference) parts.push(m.limitReference);
   }
-  if (m.limitReference) parts.push(m.limitReference);
   if (m.instrument) parts.push(m.instrument);
   if (m.method) parts.push(m.method);
   parts.push(formatDate(m.measuredAt));
-  return { text: parts.join(" — "), overLimit };
+  return { text: parts.join(" — "), status };
 }
 
 // Same non-negotiable as TaskReportDocument: no identity fields anywhere.
@@ -268,16 +285,15 @@ export function RiskAssessmentReportDocument({
                   Exposure measurements ({finding.measurements.length})
                 </Text>
                 {finding.measurements.map((m) => {
-                  const { text, overLimit } = formatMeasurement(m);
+                  const { text, status } = formatMeasurement(m);
+                  const style =
+                    status === "over-limit-value"
+                      ? [styles.measurementRow, styles.overLimit]
+                      : status === "over-action-value"
+                        ? [styles.measurementRow, styles.overActionValue]
+                        : styles.measurementRow;
                   return (
-                    <Text
-                      key={m.id}
-                      style={
-                        overLimit
-                          ? [styles.measurementRow, styles.overLimit]
-                          : styles.measurementRow
-                      }
-                    >
+                    <Text key={m.id} style={style}>
                       {text}
                     </Text>
                   );

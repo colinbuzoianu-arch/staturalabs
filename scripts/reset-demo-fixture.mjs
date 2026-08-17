@@ -145,6 +145,17 @@ async function main() {
     );
     await del(
       db,
+      "PostureSampleValidationEvent",
+      `DELETE FROM "PostureSampleValidationEvent" WHERE "postureSampleId" IN (
+         SELECT ps.id FROM "PostureSample" ps
+         JOIN "Task" t ON t.id = ps."taskId"
+         JOIN "Workstation" w ON w.id = t."workstationId"
+         WHERE w."siteId" = ANY($1)
+       )`,
+      [siteIds],
+    );
+    await del(
+      db,
       "PostureSample",
       `DELETE FROM "PostureSample" WHERE "taskId" IN (
          SELECT t.id FROM "Task" t JOIN "Workstation" w ON w.id = t."workstationId" WHERE w."siteId" = ANY($1)

@@ -2,6 +2,15 @@ import type { en } from "./en";
 
 // Meaning-based translation, not word-for-word — see CLAUDE.md i18n notes.
 export const de: typeof en = {
+  presentMode: {
+    exitLabel: "✕ Präsentationsmodus beenden",
+    siteMapLabel: "Standortplan",
+    workstationRiskLabel: "Arbeitsplatzrisiko",
+    assessmentLabel: "Beurteilung",
+    actionLabel: "Maßnahme",
+    verificationLabel: "Wirksamkeitshistorie",
+    sgdLabel: "SGD (PDF)",
+  },
   manualInputLabels: {
     LOAD_WEIGHT_KG: "Lastgewicht",
     PUSH_FORCE_N: "Schubkraft",
@@ -32,6 +41,11 @@ export const de: typeof en = {
     VERIFIED: "Verifiziert",
     CANCELLED: "Storniert",
   },
+  verificationOutcomeLabels: {
+    EFFECTIVE: "Wirksam",
+    PARTIALLY_EFFECTIVE: "Teilweise wirksam",
+    NOT_EFFECTIVE: "Nicht wirksam",
+  },
   footer: {
     copyright: (year: number) =>
       `© ${year} Verumsell SRL · Statura Labs Dynamics ist ein Produkt von Verumsell SRL.`,
@@ -46,8 +60,9 @@ export const de: typeof en = {
     eyebrow: "Standort //",
     empty: "An diesem Standort sind noch keine Arbeitsplätze angelegt.",
     riskOverviewLink: "Risikoübersicht →",
-    siteMapLink: "Standortplan →",
     workerBriefingLink: "Information für die Arbeitnehmervertretung (PDF) →",
+    sgdLink: "SGD erstellen (PDF) →",
+    presentModeLink: "▶ Präsentationsmodus →",
   },
   workstationPage: {
     breadcrumbSites: "Standorte",
@@ -67,6 +82,11 @@ export const de: typeof en = {
       "Last-, Kraft- und Werkzeugkontext, der für diese Aufgabe erfasst wurde — nicht an eine bestimmte Haltungsaufnahme gebunden. Aktuell nur zum Erfassen; nichts kann in dieser Ansicht bearbeitet oder entfernt werden.",
     manualInputsEmpty:
       "Für diese Aufgabe wurden noch keine manuellen Eingaben erfasst.",
+    manualHandlingHeading: "Bewertung der manuellen Handhabung",
+    manualHandlingResultLabel: (kg: number, band: string) =>
+      `${kg} kg — ${band}`,
+    manualHandlingDescription:
+      "§64 ASchG verlangt die Bewertung manueller Lastenhandhabung, schreibt aber keine Methode vor — SLD wendet eigene Schwellenwerte an, orientiert an ISO 11228-1/EN 1005-2, im generierten SGD zitiert.",
     postureSamplesHeading: "Haltungsaufnahmen",
     postureSamplesEmpty: "Für diese Aufgabe liegen noch keine Aufnahmen vor.",
     cannotRecompute: (error: string) =>
@@ -128,17 +148,36 @@ export const de: typeof en = {
     submitFailed: "Senden fehlgeschlagen",
     detectionFailed: "Erkennung fehlgeschlagen",
     requestFailed: (status: number) => `Anfrage fehlgeschlagen: ${status}`,
+    captureTabLabel: "Aufnahme",
+    manualEntryTabLabel: "Manuelle Eingabe",
+    manualEntryHeading: "Gemessene Winkel eingeben",
+    manualEntryDescription:
+      "Geben Sie für jede Region unten den Beugewinkel ausgehend von der neutralen Haltung ein (0° = aufrecht, zunehmend = stärker gebeugt), gemessen mit einem Goniometer oder nach Augenmaß geschätzt. Alle acht Werte sind für eine vollständige Probe erforderlich.",
+    angleDegreesLabel: (region: string) => `${region} (°)`,
+    manualEntryNotScored: "noch nicht bewertet",
+    manualEntrySubmit: "Manuelle Eingabe absenden",
+    manualEntrySubmitting: "Wird gesendet…",
+    manualEntryAnother: "Weitere manuelle Probe eingeben",
+    manualEntryRulesLoading: "Bewertungsregeln werden geladen…",
+    manualEntryRulesFailed: (message: string) =>
+      `Bewertungsregeln für die Live-Vorschau konnten nicht geladen werden: ${message}`,
+    holdDurationLabel: "Haltedauer (Sekunden, optional)",
+    holdDurationPlaceholder: "z. B. 30",
+    holdTimeSummary: (seconds: number, postureBand: string) =>
+      `${seconds}s gehalten bei Haltung ${postureBand}.`,
+    holdTimeEscalated: (overallBand: string) =>
+      `Überschreitet die sichere Haltedauer für diese Haltung — gesamt ${overallBand}.`,
   },
   workstationRiskPage: {
     breadcrumbSites: "Standorte",
     breadcrumbLabel: "Gefährdungsbeurteilung",
     eyebrow: "Gefährdungsbeurteilung //",
     backToWorkstation: "← Zurück zum Arbeitsplatz",
+    sgdLink: "SGD für diesen Arbeitsplatz erstellen (PDF) →",
     noApprovedAssessment:
       "Für diesen Arbeitsplatz liegt noch keine freigegebene Gefährdungsbeurteilung vor.",
     latestAssessmentHeading: "Letzte freigegebene Gefährdungsbeurteilung",
     assessedAtLabel: "Beurteilt:",
-    colAssessedAt: "Beurteilt",
     viewLink: "Ansehen / verwalten →",
     findingsHeading: "Feststellungen",
     colCategory: "Kategorie",
@@ -148,6 +187,7 @@ export const de: typeof en = {
     colControls: "Bestehende Maßnahmen",
     measurementsLabel: "Messungen:",
     overLimit: "über Grenzwert",
+    overActionValue: "über Auslösewert",
     ergonomicHeading: "Ergonomische Bewertung",
     ergonomicDescription:
       "Neueste Haltungsaufnahme je Aufgabe an diesem Arbeitsplatz — die vollständige regionale Auswertung ist auf der jeweiligen Aufgabenseite.",
@@ -167,7 +207,7 @@ export const de: typeof en = {
     colDue: "Fällig",
     bandTrendHeading: "Verlauf des Risikobands",
     bandTrendEmpty: "Noch keine Gefährdungsbeurteilungen erfasst.",
-    colOverallBand: "Gesamtband",
+    verifiedByPrefix: "Verifiziert durch:",
   },
   siteRiskOverviewPage: {
     breadcrumbSites: "Standorte",
@@ -196,11 +236,6 @@ export const de: typeof en = {
     viewLink: "Ansehen →",
   },
   siteMapPage: {
-    breadcrumbSites: "Standorte",
-    eyebrow: "Standortplan //",
-    heading: "Standortplan",
-    backToSite: "← Zurück zum Standort",
-    empty: "Noch keine Lagepläne hochgeladen.",
     manageFloorPlansLink: "Lagepläne verwalten →",
     categoryFilterHeading: "Nach Gefährdungskategorie filtern",
     allCategoriesLabel: "Alle Kategorien",

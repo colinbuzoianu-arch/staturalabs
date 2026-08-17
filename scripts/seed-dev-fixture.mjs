@@ -96,6 +96,9 @@ async function main() {
         id: crypto.randomUUID(),
         companyId: company.id,
         name: SITE_NAME,
+        // Dev fixture's home jurisdiction, per
+        // SLD_IMPLEMENTATION_PLAN_austria-first.md §4.3/§7 B1b.
+        country: "RO",
         updatedAt: new Date(),
       },
     );
@@ -109,6 +112,7 @@ async function main() {
         id: crypto.randomUUID(),
         companyId: company.id,
         name: SITE_2_NAME,
+        country: "RO",
         updatedAt: new Date(),
       },
     );

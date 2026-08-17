@@ -9,10 +9,10 @@ import {
   type PostureSampleSwitcherItem,
 } from "@/components/posture-sample-switcher";
 import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
-import { buildRegionResults } from "@/lib/capture/build-region-results";
+import { buildRegionResultsForSample } from "@/lib/capture/build-region-results";
+import { computeHoldTimeResult } from "@/lib/capture/hold-time-result";
 import { getAdminDictionary } from "@/lib/i18n/dictionaries/admin";
 import { getLocale } from "@/lib/i18n/get-locale";
-import type { PoseLandmarks } from "@/lib/pose/angles";
 import { prisma } from "@/lib/prisma";
 import { worstRiskBand } from "@/lib/risk/band-severity";
 import { getActiveMethodologyVersion } from "@/lib/scoring/methodology-version";
@@ -80,6 +80,7 @@ export default async function TaskResultsPage({
           const base = {
             id: sample.id,
             capturedAt: sample.capturedAt,
+            source: sample.source,
             cameraAngle: sample.cameraAngle,
             keypoints: sample.keypoints,
             validatedKeypoints: sample.validatedKeypoints,
@@ -90,20 +91,27 @@ export default async function TaskResultsPage({
               : null,
           };
           try {
-            const { regions } = await buildRegionResults({
-              keypoints: sample.keypoints as unknown as PoseLandmarks,
-              validatedKeypoints:
-                sample.validatedKeypoints as unknown as PoseLandmarks | null,
-              validationStatus: sample.validationStatus,
-              cameraAngle: sample.cameraAngle,
+            const { regions } = await buildRegionResultsForSample(
+              sample,
               methodologyVersion,
-            });
+            );
             const worstBand = worstRiskBand(
               Object.values(regions).flatMap((r) =>
                 r.status === "scored" ? [r.riskBand] : [],
               ),
             );
-            return { ...base, regionResults: regions, error: null, worstBand };
+            const holdTime = await computeHoldTimeResult({
+              regions,
+              holdDurationSeconds: sample.holdDurationSeconds,
+              methodologyVersion,
+            });
+            return {
+              ...base,
+              regionResults: regions,
+              error: null,
+              worstBand,
+              holdTime,
+            };
           } catch (err) {
             return {
               ...base,
@@ -113,6 +121,7 @@ export default async function TaskResultsPage({
                   ? err.message
                   : "Could not compute body angles",
               worstBand: null,
+              holdTime: null,
             };
           }
         }),
@@ -120,6 +129,7 @@ export default async function TaskResultsPage({
     : samples.map((sample) => ({
         id: sample.id,
         capturedAt: sample.capturedAt,
+        source: sample.source,
         cameraAngle: sample.cameraAngle,
         keypoints: sample.keypoints,
         validatedKeypoints: sample.validatedKeypoints,
@@ -131,6 +141,7 @@ export default async function TaskResultsPage({
         regionResults: null,
         error: null,
         worstBand: null,
+        holdTime: null,
       }));
 
   return (

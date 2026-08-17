@@ -1,8 +1,8 @@
-import { type BodyRegion, CameraAngle } from "@/generated/prisma/enums";
+import { CameraAngle } from "@/generated/prisma/enums";
 import { getCurrentPlatformUser } from "@/lib/auth/current-user";
 import { canAccessSite } from "@/lib/auth/rbac";
-import { buildRegionResults } from "@/lib/capture/build-region-results";
-import type { PostureSampleResponse, RegionResult } from "@/lib/capture/types";
+import { createPostureSample } from "@/lib/capture/create-posture-sample";
+import { validateHoldDurationSeconds } from "@/lib/capture/hold-duration";
 import type { PoseLandmark } from "@/lib/pose/angles";
 import { prisma } from "@/lib/prisma";
 import { getActiveMethodologyVersion } from "@/lib/scoring/methodology-version";
@@ -53,7 +53,8 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-  const { landmarks, cameraAngle, taskId } = body as Record<string, unknown>;
+  const { landmarks, cameraAngle, taskId, holdDurationSeconds } =
+    body as Record<string, unknown>;
 
   if (!isValidLandmarks(landmarks)) {
     return Response.json(
@@ -77,6 +78,11 @@ export async function POST(request: Request) {
       { error: "taskId must be a non-empty string" },
       { status: 400 },
     );
+  }
+  const validatedHoldDuration =
+    validateHoldDurationSeconds(holdDurationSeconds);
+  if (typeof validatedHoldDuration === "string") {
+    return Response.json({ error: validatedHoldDuration }, { status: 400 });
   }
 
   const task = await prisma.task.findUnique({
@@ -106,22 +112,23 @@ export async function POST(request: Request) {
     );
   }
 
-  let regionResults: Record<BodyRegion, RegionResult>;
   try {
-    // A brand-new sample has no validatedKeypoints yet and is about to be
-    // created PENDING_REVIEW — always scores from the raw `landmarks` just
-    // submitted, never a stale validated snapshot (there isn't one).
-    ({ regions: regionResults } = await buildRegionResults({
-      keypoints: landmarks,
-      validatedKeypoints: null,
-      validationStatus: "PENDING_REVIEW",
+    // Delegates to createPostureSample (src/lib/capture/create-posture-
+    // sample.ts) — the single gate every posture-sample creation path now
+    // goes through, camera and manual entry alike. buildRegionResults'
+    // NECK indeterminate-facing-direction throw (or any other geometry
+    // anomaly) surfaces here as a 422 — a real problem with this specific
+    // sample, not a server error.
+    const response = await createPostureSample({
+      source: "CAMERA_MEDIAPIPE",
+      taskId,
       cameraAngle,
+      landmarks,
       methodologyVersion,
-    }));
+      holdDurationSeconds: validatedHoldDuration,
+    });
+    return Response.json(response, { status: 201 });
   } catch (err) {
-    // signedNeckFlexion's indeterminate-facing-direction throw (or any
-    // other geometry anomaly) — a real problem with this specific sample,
-    // not a server error.
     return Response.json(
       {
         error:
@@ -130,58 +137,4 @@ export async function POST(request: Request) {
       { status: 422 },
     );
   }
-
-  const scoredRows = Object.entries(regionResults).flatMap(
-    ([region, result]) =>
-      result.status === "scored"
-        ? [
-            {
-              bodyRegion: region as BodyRegion,
-              score: result.riskScore,
-              scoringRuleVersion: result.methodologyVersion,
-            },
-          ]
-        : [],
-  );
-
-  const postureSample = await prisma.$transaction(async (tx) => {
-    // validationStatus starts PENDING_REVIEW on every new sample — a human
-    // hasn't reviewed/validated it yet (ERGO_COMPLIANCE_BY_DESIGN.md §3.4).
-    // The BodyRegionScore rows created below from this same capture are
-    // deliberately still persisted alongside it: they give the operator
-    // something to see immediately, before validation, but
-    // validationStatus is what tells any reader they're preliminary, not
-    // final — see validatePostureSample ((app)/tasks/[taskId]/actions.ts),
-    // which replaces them wholesale once the sample is actually validated.
-    const sample = await tx.postureSample.create({
-      data: {
-        taskId,
-        capturedAt: new Date(),
-        cameraAngle,
-        keypoints: landmarks,
-        validationStatus: "PENDING_REVIEW",
-      },
-    });
-
-    if (scoredRows.length > 0) {
-      await tx.bodyRegionScore.createMany({
-        data: scoredRows.map((row) => ({
-          postureSampleId: sample.id,
-          bodyRegion: row.bodyRegion,
-          score: row.score,
-          scoringRuleVersion: row.scoringRuleVersion,
-        })),
-      });
-    }
-
-    return sample;
-  });
-
-  const response: PostureSampleResponse = {
-    postureSampleId: postureSample.id,
-    methodologyVersion,
-    regions: regionResults,
-  };
-
-  return Response.json(response, { status: 201 });
 }

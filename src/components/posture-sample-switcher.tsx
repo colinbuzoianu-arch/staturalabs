@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import type {
+import {
   BodyRegion,
-  CameraAngle,
-  RiskBand,
-  ValidationStatus,
+  type CameraAngle,
+  type PostureSampleSource,
+  type RiskBand,
+  type ValidationStatus,
 } from "@/generated/prisma/enums";
-import type { RegionResult } from "@/lib/capture/types";
+import { describeRegionResult } from "@/lib/capture/describe-region-result";
+import type { HoldTimeResult, RegionResult } from "@/lib/capture/types";
 import {
   NOT_ASSESSED_COLOR,
   riskBandColors,
@@ -28,12 +30,21 @@ type Json = unknown;
 // etc.) rather than reaching for Tailwind's semantic color utilities.
 const VALIDATED_BADGE_COLOR = "#16a34a"; // green-600
 const PENDING_BADGE_COLOR = "#d97706"; // amber-600
+// Provenance, not a workflow status or a risk severity — its own neutral
+// color so it never reads as "this is worse/better" the way amber/green
+// would (ERGO_COMPLIANCE_BY_DESIGN.md §3.16: a manually entered angle and
+// a camera-derived one are different kinds of evidence, not different
+// quality tiers).
+const MANUAL_ENTRY_BADGE_COLOR = "#475569"; // slate-600
 
 export type PostureSampleSwitcherItem = {
   id: string;
   capturedAt: Date;
+  source: PostureSampleSource;
+  /** Only meaningful when source is CAMERA_MEDIAPIPE — MANUAL_ENTRY samples carry an inert placeholder here (see createPostureSample) and every render below hides it accordingly. */
   cameraAngle: CameraAngle;
-  keypoints: Json;
+  /** Null for a MANUAL_ENTRY sample — there are no keypoints to show a skeleton for. */
+  keypoints: Json | null;
   /** Null when buildRegionResults threw for this sample (see `error`) — nothing to show in the editor. */
   regionResults: Record<BodyRegion, RegionResult> | null;
   error: string | null;
@@ -44,6 +55,8 @@ export type PostureSampleSwitcherItem = {
   validatedByName: string | null;
   /** Worst scored RiskBand across this sample's regions, or null if none scored — computed server-side (worstRiskBand) from the same `regionResults` shown when selected, so the selector chip and the editor below it can never disagree. */
   worstBand: RiskBand | null;
+  /** The hold-time sub-score (SLD_IMPLEMENTATION_PLAN_austria-first.md §6), computed server-side via computeHoldTimeResult — null when no holdDurationSeconds was recorded for this sample. Parallel to `worstBand`/`regionResults`, never blended into either. */
+  holdTime: HoldTimeResult;
 };
 
 function BandBadge({ band }: { band: RiskBand | null }) {
@@ -93,6 +106,98 @@ function ValidationBadge({
     >
       Pending review
     </span>
+  );
+}
+
+// Manual entry has no keypoints, so it never goes through the
+// validate/reopen workflow the badge above describes (see the source
+// guard in validatePostureSample/reopenPostureSampleForEdit) — showing
+// "Pending review" on a sample with nothing to review would read as a
+// stuck workflow rather than what it actually is. This badge replaces
+// ValidationBadge for a MANUAL_ENTRY sample, in both the chip strip and
+// the detail header, so the two badges are never shown side by side.
+function ManualEntryBadge({ small }: { small?: boolean }) {
+  return (
+    <span
+      className={
+        small
+          ? "rounded-full px-1.5 py-0.5 font-technical text-[10px] font-bold text-white"
+          : "rounded-full px-2.5 py-1 font-technical text-[11px] font-bold text-white"
+      }
+      style={{ backgroundColor: MANUAL_ENTRY_BADGE_COLOR }}
+    >
+      Manual entry
+    </span>
+  );
+}
+
+// Hold-time sub-score (§6) — a parallel result to the posture bands
+// above it, never blended in. Only rendered when a hold duration was
+// actually recorded; silent otherwise, since most samples won't have one.
+function HoldTimeInfo({ holdTime }: { holdTime: HoldTimeResult }) {
+  if (!holdTime) return null;
+  const escalated = holdTime.holdTimeBand !== null;
+  return (
+    <p className="mb-3 flex flex-wrap items-center gap-2 font-technical text-xs">
+      <span className="text-border">
+        Held {holdTime.holdDurationSeconds}s — posture{" "}
+        {holdTime.worstPostureBand}
+      </span>
+      {escalated && (
+        <span
+          className="rounded-full px-2 py-0.5 font-bold text-white"
+          style={{ backgroundColor: riskBandColors.HIGH }}
+        >
+          hold time exceeds safe duration — {holdTime.overallBand}
+        </span>
+      )}
+    </p>
+  );
+}
+
+// Fallback for a MANUAL_ENTRY sample, which has no keypoints and
+// therefore nothing for PostureEditor (frozen — see
+// SLD_POSTURE_EDITOR_FIDELITY_PLAN.md) to render a skeleton from. Same
+// region/status/detail shape the capture page's own immediate result
+// view and the PDF report use (describeRegionResult), just as a plain
+// table — no scoring decision depends on how this looks, only that the
+// numbers are there.
+function ManualRegionTable({
+  regionResults,
+}: {
+  regionResults: Record<BodyRegion, RegionResult>;
+}) {
+  return (
+    <table className="w-full text-left text-sm">
+      <thead>
+        <tr className="border-b border-border">
+          <th className="py-1 pr-4 font-technical text-xs text-border">
+            Region
+          </th>
+          <th className="py-1 pr-4 font-technical text-xs text-border">
+            Status
+          </th>
+          <th className="py-1 font-technical text-xs text-border">Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        {Object.values(BodyRegion).map((region) => {
+          const result = regionResults[region];
+          if (!result || result.status === "not-yet-supported") return null;
+          return (
+            <tr key={region} className="border-b border-border last:border-0">
+              <td className="py-1 pr-4 font-technical text-xs">{region}</td>
+              <td className="py-1 pr-4 font-technical text-xs">
+                {result.status}
+              </td>
+              <td className="py-1 font-technical text-xs">
+                {describeRegionResult(result)}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
 
@@ -228,11 +333,15 @@ export function PostureSampleSwitcher({
                 }`}
               >
                 <span className="font-technical text-xs text-border">
-                  {item.capturedAt.toISOString()} — {item.cameraAngle}
+                  {item.capturedAt.toISOString()}
+                  {item.source === "CAMERA_MEDIAPIPE" &&
+                    ` — ${item.cameraAngle}`}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <BandBadge band={worstBand} />
-                  {validationStatus === "VALIDATED" ? (
+                  {item.source !== "CAMERA_MEDIAPIPE" ? (
+                    <ManualEntryBadge small />
+                  ) : validationStatus === "VALIDATED" ? (
                     <span
                       className="rounded-full px-1.5 py-0.5 font-technical text-[10px] font-bold text-white"
                       style={{ backgroundColor: VALIDATED_BADGE_COLOR }}
@@ -268,39 +377,54 @@ export function PostureSampleSwitcher({
               ? currentUserName
               : selectedItem.validatedByName;
 
+          const isManual = selectedItem.source !== "CAMERA_MEDIAPIPE";
+
           return (
             <div className="rounded-lg border border-border bg-surface p-4">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                 <span className="font-technical text-xs text-border">
-                  {selectedItem.capturedAt.toISOString()} —{" "}
-                  {selectedItem.cameraAngle}
+                  {selectedItem.capturedAt.toISOString()}
+                  {!isManual && ` — ${selectedItem.cameraAngle}`}
                 </span>
-                <ValidationBadge
-                  status={validationStatus}
-                  validatedAt={validatedAt}
-                  validatedByName={validatedByName}
-                />
+                {isManual ? (
+                  <ManualEntryBadge />
+                ) : (
+                  <ValidationBadge
+                    status={validationStatus}
+                    validatedAt={validatedAt}
+                    validatedByName={validatedByName}
+                  />
+                )}
               </div>
 
               {selectedItem.error && (
                 <p className="mb-3 text-sm text-accent">{selectedItem.error}</p>
               )}
-              {selectedItem.regionResults && (
-                <PostureEditor
-                  key={selectedItem.id}
-                  postureSampleId={selectedItem.id}
-                  keypoints={selectedItem.keypoints}
-                  cameraAngle={selectedItem.cameraAngle}
-                  regionResults={selectedItem.regionResults}
-                  validatedKeypoints={selectedItem.validatedKeypoints}
-                  validationStatus={selectedItem.validationStatus}
-                  validatedAt={selectedItem.validatedAt}
-                  onValidate={(validatedKeypoints) =>
-                    handleValidate(selectedItem.id, validatedKeypoints)
-                  }
-                  onReopen={(note) => handleReopen(selectedItem.id, note)}
-                />
-              )}
+              <HoldTimeInfo holdTime={selectedItem.holdTime} />
+              {selectedItem.regionResults &&
+                (isManual ? (
+                  // No keypoints to hand PostureEditor (frozen — see
+                  // SLD_POSTURE_EDITOR_FIDELITY_PLAN.md) — a plain region
+                  // table instead, same data, no skeleton.
+                  <ManualRegionTable
+                    regionResults={selectedItem.regionResults}
+                  />
+                ) : (
+                  <PostureEditor
+                    key={selectedItem.id}
+                    postureSampleId={selectedItem.id}
+                    keypoints={selectedItem.keypoints}
+                    cameraAngle={selectedItem.cameraAngle}
+                    regionResults={selectedItem.regionResults}
+                    validatedKeypoints={selectedItem.validatedKeypoints}
+                    validationStatus={selectedItem.validationStatus}
+                    validatedAt={selectedItem.validatedAt}
+                    onValidate={(validatedKeypoints) =>
+                      handleValidate(selectedItem.id, validatedKeypoints)
+                    }
+                    onReopen={(note) => handleReopen(selectedItem.id, note)}
+                  />
+                ))}
             </div>
           );
         })()}

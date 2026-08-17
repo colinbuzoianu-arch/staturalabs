@@ -139,6 +139,22 @@ async function getScoringRule(db, methodologyVersion, bodyRegion, degrees) {
   return result.rows[0];
 }
 
+// Mirrors lookupExposureLimits (src/lib/risk/exposure-limit-lookup.ts):
+// reads the same ExposureLimit table rather than hardcoding the Austrian
+// action/limit values a second time in this script.
+async function getExposureLimit(db, catalogVersion, country, parameterKey) {
+  const result = await db.query(
+    `SELECT * FROM "ExposureLimit" WHERE "catalogVersion" = $1 AND country = $2 AND "parameterKey" = $3`,
+    [catalogVersion, country, parameterKey],
+  );
+  if (result.rows.length !== 1) {
+    throw new Error(
+      `Expected exactly one ExposureLimit for ${parameterKey} in ${country} under ${catalogVersion}, found ${result.rows.length}`,
+    );
+  }
+  return result.rows[0];
+}
+
 async function getSystemHazard(db, code) {
   const result = await db.query(
     `SELECT id FROM "Hazard" WHERE code = $1 AND "companyId" IS NULL LIMIT 1`,
@@ -279,7 +295,11 @@ async function main() {
         id: crypto.randomUUID(),
         companyId: company.id,
         name: DEMO_SITE_NAME,
-        address: "14 Riverside Way, Cluj-Napoca, Romania",
+        // Austria, per SLD_IMPLEMENTATION_PLAN_austria-first.md §4.3/§7
+        // B1b — the demo company is the Austria-first build's reference
+        // deployment, so its address and country now agree.
+        address: "14 Riverside Way, Vienna, Austria",
+        country: "AT",
         updatedAt: new Date(),
       },
     );
@@ -636,6 +656,10 @@ async function main() {
         db,
         "MethodologyVersion",
       );
+      const exposureLimitCatalog = await getActiveVersion(
+        db,
+        "ExposureLimitCatalogVersion",
+      );
       const assessedAt = monthsAgo(5);
 
       async function createApprovedAssessment(workstationName) {
@@ -684,8 +708,13 @@ async function main() {
       // 1. The hero workstation — ERGONOMIC_MSD at HIGH (the finding the
       // action below is raised against) + a NOISE finding deliberately
       // left without a seeded measurement, so the live demo can add
-      // exactly the walkthrough's own example (89 dB(A) vs the 87 dB(A)
-      // limit) and show it flagged as over limit.
+      // exactly the walkthrough's own example (89 dB(A) LAeq,8h) live and
+      // watch it get flagged against Austria's real two-tier VOLV
+      // thresholds: over the 80 dB(A) Auslösewert (action value, obliges
+      // measures) AND over the 85 dB(A) Expositionsgrenzwert (exposure
+      // limit value, must never be exceeded) — a better demo beat than a
+      // single EU-directive number, since it shows two thresholds
+      // crossing at once (SLD_IMPLEMENTATION_PLAN_austria-first.md §4.4).
       const heroAssessment = await createApprovedAssessment(
         "Panel Assembly Station 1",
       );
@@ -709,7 +738,10 @@ async function main() {
 
       // 2. Press Brake Station — NOISE at HIGH, with a real over-limit
       // measurement already on file (contrasts with the hero finding's
-      // deliberately-empty one).
+      // deliberately-empty one). Pinned to the real seeded AT ExposureLimit
+      // catalog row (v1-at-2026, VOLV) via exposureLimitId, same provenance
+      // discipline as RiskAssessment.matrixVersion — not the old placeholder
+      // EU-directive figure.
       const pressBrakeAssessment = await createApprovedAssessment(
         "Press Brake Station",
       );
@@ -720,13 +752,22 @@ async function main() {
         4,
         "Hearing protection zone signage in place.",
       );
+      const pressBrakeNoiseLimit = await getExposureLimit(
+        db,
+        exposureLimitCatalog,
+        "AT",
+        "LA_EX_8H",
+      );
       await insertRow(db, "ExposureMeasurement", {
         id: crypto.randomUUID(),
         riskFindingId: pressBrakeNoise.id,
         value: 92,
-        unit: "dB(A)",
-        limitValue: 87,
-        limitReference: "EU noise exposure limit value (Directive 2003/10/EC)",
+        unit: pressBrakeNoiseLimit.unit,
+        actionValue: pressBrakeNoiseLimit.actionValue,
+        actionValueReference: pressBrakeNoiseLimit.legalReference,
+        limitValue: pressBrakeNoiseLimit.limitValue,
+        limitReference: pressBrakeNoiseLimit.legalReference,
+        exposureLimitId: pressBrakeNoiseLimit.id,
         instrument: "Class 2 sound level meter",
         method: "Point measurement, 1m from operator ear position",
         measuredAt: assessedAt,
@@ -888,7 +929,21 @@ async function main() {
           taskId: task.id,
           capturedAt,
           cameraAngle: "SAGITTAL",
+          // Real MediaPipe-shaped keypoints, so this is a camera-sourced
+          // sample (SLD_IMPLEMENTATION_PLAN_austria-first.md §5/§7 B2) —
+          // required now that "source" is NOT NULL with no column
+          // default.
+          source: "CAMERA_MEDIAPIPE",
           keypoints: JSON.stringify(keypoints),
+          // Also fixes a latent gap from before "source" existed: this
+          // column has been NOT NULL with no default since
+          // 20260810120100_add_posture_sample_validation, so this insert
+          // was already missing a required value. PENDING_REVIEW, not
+          // VALIDATED — there's no real reviewer/validatedAt/
+          // validatedKeypoints to backfill for scripted seed data, and
+          // claiming VALIDATED without them would violate
+          // PostureSample_validation_completeness_check.
+          validationStatus: "PENDING_REVIEW",
         });
         for (const [bodyRegion, degrees] of Object.entries(
           POOR_POSTURE_DEGREES,

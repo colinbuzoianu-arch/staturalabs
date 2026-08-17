@@ -17,6 +17,16 @@ export const en = {
     none: "—",
     unexpectedError: (message: string) => `Something went wrong: ${message}`,
   },
+  // Duplicated from dashboard/en.ts's presentMode block — same "no cross-
+  // area dictionary imports" reasoning as hazardCategoryLabels below. Only
+  // the two labels this area's present-mode-eligible pages (the risk-
+  // assessment and action detail pages) actually reference.
+  presentMode: {
+    workstationRiskLabel: "Workstation risk",
+    assessmentLabel: "Assessment",
+    actionLabel: "Action",
+    verificationLabel: "Verification history",
+  },
   orgUnitTypeLabels: {
     PLANT: "Plant",
     DEPARTMENT: "Department",
@@ -190,6 +200,32 @@ export const en = {
     findingsEmpty: "No findings recorded yet.",
     addFindingHeading: "Add finding",
     hazardLabel: "Hazard",
+    // Psychosocial (SLD_IMPLEMENTATION_PLAN_austria-first.md §7 B7):
+    // shown only when the selected hazard's category is PSYCHOSOCIAL
+    // (AddFindingFields). Dimension/method wording follows ÖNORM EN ISO
+    // 10075-1/-3 as adapted to English, not a literal translation of the
+    // German terms — the German dictionary uses those terms directly.
+    psychosocialDimensionLabel: "Dimension (ÖNORM EN ISO 10075)",
+    psychosocialDimensionLabels: {
+      TASK_AND_ACTIVITY: "Task and activity",
+      WORK_ORGANIZATION: "Work organisation",
+      WORK_ENVIRONMENT: "Work environment",
+      SOCIAL_CLIMATE: "Social and organisational climate",
+    },
+    psychosocialMethodLabel: "Assessment method",
+    psychosocialMethodLabels: {
+      QUESTIONNAIRE: "Questionnaire",
+      GROUP_DISCUSSION: "Group discussion",
+      OBSERVATION: "Observation",
+      INTERVIEW: "Interview",
+    },
+    psychosocialGroupSizeLabel: "Group size",
+    psychosocialGroupSizeDisplayLabel: "Group size:",
+    psychosocialGroupSizeQuestionnaireHint:
+      "Questionnaires require at least 15 people (anonymity can't be preserved below that scale) — use group discussion, observation, or interview for smaller groups.",
+    psychosocialExternalProcedureNameLabel:
+      "External procedure name (optional)",
+    psychosocialExternalProcedureNameDisplayLabel: "External procedure:",
     probabilityLabel: "Probability (1-5)",
     severityLabel: "Severity (1-5)",
     existingControlsLabel: "Existing controls (optional)",
@@ -202,14 +238,32 @@ export const en = {
     addMeasurementHeading: "Add measurement",
     valueLabel: "Value",
     unitLabel: "Unit",
+    // Two-tier (SLD_IMPLEMENTATION_PLAN_austria-first.md §4.4): action
+    // value (Auslösewert) obliges planning measures, limit value
+    // (Expositionsgrenzwert) must never be exceeded — kept as visibly
+    // distinct labels everywhere, never merged into one "limit."
+    parameterLabel: "Parameter (from catalog)",
+    parameterManualOption: "— manual entry —",
+    noExposureLimitForCountry: (country: string) =>
+      `No catalog limit configured for this hazard category in ${country} yet — enter values manually.`,
+    actionValueLabel: "Action value (optional)",
+    actionValueReferenceLabel: "Action value reference (optional)",
+    actionValueDisplayLabel: "Action value:",
     limitValueLabel: "Limit value (optional)",
     limitReferenceLabel: "Limit reference (optional)",
+    limitValueDisplayLabel: "Limit value:",
+    overActionValueBadge: "over action value",
+    overLimitValueBadge: "over exposure limit",
     instrumentLabel: "Instrument (optional)",
     methodLabel: "Method (optional)",
     measuredAtLabel: "Measured at",
     addMeasurement: "Add measurement",
     raiseAction: "Raise action from this finding",
     hazardRequired: "Select a hazard",
+    psychosocialDimensionRequired: "Select a psychosocial dimension",
+    psychosocialMethodRequired: "Select an assessment method",
+    psychosocialGroupSizeRequired:
+      "Group size is required and must be a whole number",
     probabilityRangeError: "Probability must be an integer from 1 to 5",
     severityRangeError: "Severity must be an integer from 1 to 5",
     noMatrixCellError:

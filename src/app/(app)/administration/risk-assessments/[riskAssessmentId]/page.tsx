@@ -1,12 +1,33 @@
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { RiskAssessmentStatus } from "@/generated/prisma/enums";
+import {
+  AddFindingFields,
+  type FindingHazardOption,
+} from "@/components/add-finding-fields";
+import {
+  ExposureLimitFields,
+  type ExposureLimitOption,
+} from "@/components/exposure-limit-fields";
+import { PresentModeNav } from "@/components/present-mode-nav";
+import {
+  PsychosocialDimension,
+  PsychosocialMethod,
+  RiskAssessmentStatus,
+} from "@/generated/prisma/enums";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
+import { isPresentMode } from "@/lib/present-mode";
 import { prisma } from "@/lib/prisma";
+import { getActiveExposureLimitCatalog } from "@/lib/risk/exposure-limit-catalog-version";
+import { matchExposureLimits } from "@/lib/risk/exposure-limit-lookup";
+import { exposureThresholdStatus } from "@/lib/risk/exposure-threshold-status";
 import { lookupRiskMatrixCell } from "@/lib/risk/matrix-lookup";
+import { createPsychosocialFinding } from "@/lib/risk/psychosocial-finding";
+
+const PSYCHOSOCIAL_DIMENSIONS = Object.values(PsychosocialDimension);
+const PSYCHOSOCIAL_METHODS = Object.values(PsychosocialMethod);
 
 async function loadRiskAssessment(riskAssessmentId: string) {
   const riskAssessment = await prisma.riskAssessment.findUnique({
@@ -18,6 +39,7 @@ async function loadRiskAssessment(riskAssessmentId: string) {
         include: {
           hazard: true,
           measurements: { orderBy: { measuredAt: "desc" } },
+          psychosocialDetail: true,
         },
         orderBy: { createdAt: "asc" },
       },
@@ -34,18 +56,26 @@ async function loadRiskAssessment(riskAssessmentId: string) {
 // requireTaskAccess (never reveals "exists but you can't see it").
 export default async function RiskAssessmentDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ riskAssessmentId: string }>;
+  searchParams: Promise<{
+    present?: string;
+    actionId?: string;
+    workstationId?: string;
+    from?: string;
+  }>;
 }) {
   const { riskAssessmentId } = await params;
+  const { present, actionId, workstationId, from } = await searchParams;
+  const presentMode = isPresentMode(present);
   const initial = await loadRiskAssessment(riskAssessmentId);
   const { site } = await requireSiteAdministrationAccess(initial.siteId);
   const locale = await getLocale();
-  const dict = getAdministrationDictionary(locale).riskAssessmentDetailPage;
-  const statusLabels =
-    getAdministrationDictionary(locale).riskAssessmentStatusLabels;
-  const categoryLabels =
-    getAdministrationDictionary(locale).hazardCategoryLabels;
+  const administrationDict = getAdministrationDictionary(locale);
+  const dict = administrationDict.riskAssessmentDetailPage;
+  const statusLabels = administrationDict.riskAssessmentStatusLabels;
+  const categoryLabels = administrationDict.hazardCategoryLabels;
 
   async function submitForReviewAction() {
     "use server";
@@ -145,18 +175,89 @@ export default async function RiskAssessmentDetailPage({
       throw new Error(commonDict.unexpectedError(dict.noMatrixCellError));
     }
 
-    await prisma.riskFinding.create({
-      data: {
-        riskAssessmentId,
-        hazardId,
-        probability,
-        severity,
-        riskScore: cell.riskScore,
-        riskBand: cell.riskBand,
-        existingControls,
-        notes,
-      },
+    // Re-fetched here rather than trusted from the page's own `hazards`
+    // closure — a Server Action runs as its own invocation, not a
+    // continuation of whichever render produced the form, so it must not
+    // rely on data computed elsewhere in that render for correctness
+    // (same discipline as `current`/`site` being re-fetched above rather
+    // than trusted from outer scope).
+    const hazard = await prisma.hazard.findUnique({
+      where: { id: hazardId },
+      select: { category: true },
     });
+    if (!hazard) {
+      throw new Error(dict.hazardRequired);
+    }
+
+    if (hazard.category === "PSYCHOSOCIAL") {
+      const dimensionRaw = formData.get("dimension");
+      if (
+        typeof dimensionRaw !== "string" ||
+        !PSYCHOSOCIAL_DIMENSIONS.includes(dimensionRaw as never)
+      ) {
+        throw new Error(dict.psychosocialDimensionRequired);
+      }
+
+      const methodRaw = formData.get("method");
+      if (
+        typeof methodRaw !== "string" ||
+        !PSYCHOSOCIAL_METHODS.includes(methodRaw as never)
+      ) {
+        throw new Error(dict.psychosocialMethodRequired);
+      }
+
+      const groupSizeRaw = formData.get("groupSize");
+      const groupSize =
+        typeof groupSizeRaw === "string"
+          ? Number.parseInt(groupSizeRaw, 10)
+          : NaN;
+      if (!Number.isInteger(groupSize)) {
+        throw new Error(dict.psychosocialGroupSizeRequired);
+      }
+
+      const externalProcedureNameRaw = formData.get("externalProcedureName");
+      const externalProcedureName =
+        typeof externalProcedureNameRaw === "string" &&
+        externalProcedureNameRaw.trim().length > 0
+          ? externalProcedureNameRaw.trim()
+          : null;
+
+      try {
+        await createPsychosocialFinding({
+          riskAssessmentId,
+          hazardId,
+          probability,
+          severity,
+          riskScore: cell.riskScore,
+          riskBand: cell.riskBand,
+          existingControls,
+          notes,
+          dimension: dimensionRaw as PsychosocialDimension,
+          method: methodRaw as PsychosocialMethod,
+          groupSize,
+          externalProcedureName,
+        });
+      } catch (error) {
+        throw new Error(
+          commonDict.unexpectedError(
+            error instanceof Error ? error.message : String(error),
+          ),
+        );
+      }
+    } else {
+      await prisma.riskFinding.create({
+        data: {
+          riskAssessmentId,
+          hazardId,
+          probability,
+          severity,
+          riskScore: cell.riskScore,
+          riskBand: cell.riskBand,
+          existingControls,
+          notes,
+        },
+      });
+    }
 
     revalidatePath(`/administration/risk-assessments/${riskAssessmentId}`);
   }
@@ -186,6 +287,19 @@ export default async function RiskAssessmentDetailPage({
       throw new Error(dict.unitRequired);
     }
 
+    const actionValueRaw = formData.get("actionValue");
+    const actionValue =
+      typeof actionValueRaw === "string" && actionValueRaw.trim().length > 0
+        ? Number.parseFloat(actionValueRaw)
+        : null;
+
+    const actionValueReferenceRaw = formData.get("actionValueReference");
+    const actionValueReference =
+      typeof actionValueReferenceRaw === "string" &&
+      actionValueReferenceRaw.trim().length > 0
+        ? actionValueReferenceRaw.trim()
+        : null;
+
     const limitValueRaw = formData.get("limitValue");
     const limitValue =
       typeof limitValueRaw === "string" && limitValueRaw.trim().length > 0
@@ -197,6 +311,16 @@ export default async function RiskAssessmentDetailPage({
       typeof limitReferenceRaw === "string" &&
       limitReferenceRaw.trim().length > 0
         ? limitReferenceRaw.trim()
+        : null;
+
+    // Provenance only (see ExposureMeasurement's schema comment) — not
+    // re-validated against the catalog here, the same trust-from-context
+    // level RiskAssessment.matrixVersion already gets. An invalid id
+    // would fail at the DB's own FK constraint, which is enough.
+    const exposureLimitIdRaw = formData.get("exposureLimitId");
+    const exposureLimitId =
+      typeof exposureLimitIdRaw === "string" && exposureLimitIdRaw.length > 0
+        ? exposureLimitIdRaw
         : null;
 
     const instrumentRaw = formData.get("instrument");
@@ -228,8 +352,11 @@ export default async function RiskAssessmentDetailPage({
         riskFindingId,
         value,
         unit: unit.trim(),
+        actionValue,
+        actionValueReference,
         limitValue,
         limitReference,
+        exposureLimitId,
         instrument,
         method,
         measuredAt,
@@ -251,7 +378,45 @@ export default async function RiskAssessmentDetailPage({
   ]);
   const hazards = [...systemHazards, ...companyHazards];
 
+  // Fetched once for the whole page (not per finding) — every finding's
+  // "Parameter" picker below filters this same set by its own hazard
+  // category via the pure matchExposureLimits, rather than each issuing
+  // its own lookupExposureLimits query. Scoped to site.country at the
+  // query level, so a site outside AT (e.g. CH, no seeded rows yet) gets
+  // an empty set here and every finding's form falls back to manual entry
+  // — never another country's numbers (ERGO_COMPLIANCE_BY_DESIGN.md
+  // §3.15). A missing/inactive catalog degrades the same way: the rest of
+  // the page (and the pre-existing free-text fields) keeps working.
+  let exposureLimits: Awaited<
+    ReturnType<typeof prisma.exposureLimit.findMany>
+  > = [];
+  try {
+    const catalogVersion = await getActiveExposureLimitCatalog();
+    exposureLimits = await prisma.exposureLimit.findMany({
+      where: { catalogVersion, country: site.country },
+    });
+  } catch {
+    exposureLimits = [];
+  }
+
   const subjectName = initial.workstation?.name ?? initial.process?.name ?? "";
+
+  // §7 B6 present-mode sequence's 3rd stop. prevHref/workstationId both
+  // arrive threaded from the workstation risk page's own next link (no
+  // new query here); nextHref only exists when that same threading
+  // supplied an actionId (a workstation with no qualifying open action
+  // simply ends the sequence at this page).
+  const effectiveWorkstationId = workstationId ?? initial.workstationId;
+  const currentHref = `/administration/risk-assessments/${riskAssessmentId}?present=1${effectiveWorkstationId ? `&workstationId=${effectiveWorkstationId}` : ""}`;
+  const presentPrevHref =
+    from ??
+    (effectiveWorkstationId
+      ? `/workstations/${effectiveWorkstationId}/risk?present=1`
+      : null);
+  const presentNextHref =
+    actionId && effectiveWorkstationId
+      ? `/administration/actions/${actionId}?present=1&workstationId=${effectiveWorkstationId}&from=${encodeURIComponent(currentHref)}`
+      : null;
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-8 px-6 py-12">
@@ -291,6 +456,15 @@ export default async function RiskAssessmentDetailPage({
           )}
         </dl>
       </div>
+
+      {presentMode && (
+        <PresentModeNav
+          prevHref={presentPrevHref}
+          nextHref={presentNextHref}
+          prevLabel={administrationDict.presentMode.workstationRiskLabel}
+          nextLabel={administrationDict.presentMode.actionLabel}
+        />
+      )}
 
       <div className="flex gap-2">
         {/* Plain <a>, not next/link: a real file download
@@ -335,19 +509,27 @@ export default async function RiskAssessmentDetailPage({
         >
           <h3 className="text-sm font-semibold">{dict.addFindingHeading}</h3>
           <div className="flex flex-wrap gap-2">
-            <label className="flex flex-col gap-1 text-sm">
-              {dict.hazardLabel}
-              <select
-                name="hazardId"
-                className="rounded border border-border bg-background px-2 py-1"
-              >
-                {hazards.map((hazard) => (
-                  <option key={hazard.id} value={hazard.id}>
-                    [{categoryLabels[hazard.category]}] {hazard.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <AddFindingFields
+              hazards={hazards.map(
+                (hazard): FindingHazardOption => ({
+                  id: hazard.id,
+                  category: hazard.category,
+                  label: `[${categoryLabels[hazard.category]}] ${hazard.name}`,
+                }),
+              )}
+              labels={{
+                hazardLabel: dict.hazardLabel,
+                dimensionLabel: dict.psychosocialDimensionLabel,
+                dimensionOptions: dict.psychosocialDimensionLabels,
+                methodLabel: dict.psychosocialMethodLabel,
+                methodOptions: dict.psychosocialMethodLabels,
+                groupSizeLabel: dict.psychosocialGroupSizeLabel,
+                groupSizeQuestionnaireHint:
+                  dict.psychosocialGroupSizeQuestionnaireHint,
+                externalProcedureNameLabel:
+                  dict.psychosocialExternalProcedureNameLabel,
+              }}
+            />
             <label className="flex flex-col gap-1 text-sm">
               {dict.probabilityLabel}
               <input
@@ -420,6 +602,25 @@ export default async function RiskAssessmentDetailPage({
                 {finding.notes && (
                   <p className="text-sm text-border">{finding.notes}</p>
                 )}
+                {finding.psychosocialDetail && (
+                  <p className="text-sm text-border">
+                    {
+                      dict.psychosocialDimensionLabels[
+                        finding.psychosocialDetail.dimension
+                      ]
+                    }{" "}
+                    ·{" "}
+                    {
+                      dict.psychosocialMethodLabels[
+                        finding.psychosocialDetail.method
+                      ]
+                    }{" "}
+                    · {dict.psychosocialGroupSizeDisplayLabel}{" "}
+                    {finding.psychosocialDetail.groupSize}
+                    {finding.psychosocialDetail.externalProcedureName &&
+                      ` · ${dict.psychosocialExternalProcedureNameDisplayLabel} ${finding.psychosocialDetail.externalProcedureName}`}
+                  </p>
+                )}
 
                 <div>
                   <h4 className="text-sm font-semibold">
@@ -431,15 +632,27 @@ export default async function RiskAssessmentDetailPage({
                     </p>
                   ) : (
                     <ul className="text-sm">
-                      {finding.measurements.map((measurement) => (
-                        <li key={measurement.id}>
-                          {measurement.value} {measurement.unit}
-                          {measurement.limitValue !== null &&
-                            ` (${dict.limitValueLabel.replace(" (optional)", "")}: ${measurement.limitValue} ${measurement.unit}${measurement.limitReference ? `, ${measurement.limitReference}` : ""})`}
-                          {" — "}
-                          {measurement.measuredAt.toISOString()}
-                        </li>
-                      ))}
+                      {finding.measurements.map((measurement) => {
+                        const status = exposureThresholdStatus(measurement);
+                        return (
+                          <li key={measurement.id}>
+                            {measurement.value} {measurement.unit}
+                            {measurement.actionValue !== null &&
+                              ` (${dict.actionValueDisplayLabel} ${measurement.actionValue} ${measurement.unit}${measurement.actionValueReference ? `, ${measurement.actionValueReference}` : ""})`}
+                            {measurement.limitValue !== null &&
+                              ` (${dict.limitValueDisplayLabel} ${measurement.limitValue} ${measurement.unit}${measurement.limitReference ? `, ${measurement.limitReference}` : ""})`}
+                            {status !== "within-limits" && (
+                              <span className="ml-1 rounded-full bg-accent px-1.5 py-0.5 text-xs font-bold text-background">
+                                {status === "over-limit-value"
+                                  ? dict.overLimitValueBadge
+                                  : dict.overActionValueBadge}
+                              </span>
+                            )}
+                            {" — "}
+                            {measurement.measuredAt.toISOString()}
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
 
@@ -462,30 +675,35 @@ export default async function RiskAssessmentDetailPage({
                         className="w-24 rounded border border-border bg-background px-2 py-1"
                       />
                     </label>
-                    <label className="flex flex-col gap-1 text-sm">
-                      {dict.unitLabel}
-                      <input
-                        name="unit"
-                        required
-                        className="w-24 rounded border border-border bg-background px-2 py-1"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1 text-sm">
-                      {dict.limitValueLabel}
-                      <input
-                        type="number"
-                        step="any"
-                        name="limitValue"
-                        className="w-24 rounded border border-border bg-background px-2 py-1"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1 text-sm">
-                      {dict.limitReferenceLabel}
-                      <input
-                        name="limitReference"
-                        className="w-32 rounded border border-border bg-background px-2 py-1"
-                      />
-                    </label>
+                    <ExposureLimitFields
+                      options={matchExposureLimits(
+                        exposureLimits,
+                        site.country,
+                        finding.hazard.category,
+                      ).map(
+                        (limit): ExposureLimitOption => ({
+                          id: limit.id,
+                          parameterKey: limit.parameterKey,
+                          parameterLabel: limit.parameterLabel,
+                          unit: limit.unit,
+                          actionValue: limit.actionValue,
+                          limitValue: limit.limitValue,
+                          legalReference: limit.legalReference,
+                        }),
+                      )}
+                      labels={{
+                        parameterLabel: dict.parameterLabel,
+                        parameterManualOption: dict.parameterManualOption,
+                        noExposureLimitForCountry:
+                          dict.noExposureLimitForCountry(site.country),
+                        unitLabel: dict.unitLabel,
+                        actionValueLabel: dict.actionValueLabel,
+                        actionValueReferenceLabel:
+                          dict.actionValueReferenceLabel,
+                        limitValueLabel: dict.limitValueLabel,
+                        limitReferenceLabel: dict.limitReferenceLabel,
+                      }}
+                    />
                     <label className="flex flex-col gap-1 text-sm">
                       {dict.instrumentLabel}
                       <input

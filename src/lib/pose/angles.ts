@@ -214,6 +214,24 @@ export type ComputedBodyRegion =
   | typeof BodyRegion.KNEE_LEFT
   | typeof BodyRegion.KNEE_RIGHT;
 
+// Runtime companion to the type above — the same 8 BodyRegion values
+// computeBodyAngles produces a reading for, as an actual array rather than
+// a union that only exists at compile time. The single source of truth
+// for "which regions does the scoring engine support," reused by
+// build-region-results.ts (replacing what used to be its own private
+// copy of this list) and by manual-angles.ts (which computed regions a
+// manual-entry form must collect).
+export const COMPUTED_BODY_REGIONS: readonly ComputedBodyRegion[] = [
+  BodyRegion.TRUNK,
+  BodyRegion.NECK,
+  BodyRegion.SHOULDER_LEFT,
+  BodyRegion.SHOULDER_RIGHT,
+  BodyRegion.ELBOW_LEFT,
+  BodyRegion.ELBOW_RIGHT,
+  BodyRegion.KNEE_LEFT,
+  BodyRegion.KNEE_RIGHT,
+];
+
 // A landmark that failed the visibility gate, reported by name so the
 // caller (and the operator, ultimately) knows exactly which joint wasn't
 // actually observed.

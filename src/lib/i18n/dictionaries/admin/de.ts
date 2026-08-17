@@ -4,6 +4,15 @@ import type { en } from "./en";
 export const de: typeof en = {
   layout: {
     companiesNav: "Unternehmen",
+    demoResetNav: "Demo zurücksetzen",
+  },
+  demoResetPage: {
+    heading: "Demo-Fixture zurücksetzen",
+    description:
+      "Löscht die Daten des Demo-Unternehmens und erstellt sie neu (entspricht npm run reset:demo && npm run seed:demo im Terminal) — um eine Demo mitten in einem Meeting wiederherzustellen, ohne den Browser zu verlassen.",
+    resetButton: "Demo-Daten zurücksetzen und neu erstellen",
+    successMessage: "Demo-Fixture erfolgreich zurückgesetzt und neu erstellt.",
+    unknownError: "Zurücksetzen fehlgeschlagen — keine Fehlerausgabe erfasst.",
   },
   companiesPage: {
     heading: "Unternehmen",
@@ -19,9 +28,11 @@ export const de: typeof en = {
     companiesBreadcrumb: "Unternehmen",
     heading: "Standorte",
     namePlaceholder: "Standortname",
+    countryLabel: "Land",
     create: "Erstellen",
     empty: "Noch keine Standorte vorhanden.",
     colName: "Name",
+    colCountry: "Land",
     colCreated: "Erstellt",
     colWorkstations: "Arbeitsplätze",
     workstationsLink: "Arbeitsplätze",

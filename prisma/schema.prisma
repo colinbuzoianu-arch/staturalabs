@@ -33,12 +33,21 @@ model Company {
 /// A physical location/department within a company (conversationally
 /// "workplace"). Belongs to exactly one company.
 model Site {
-  id        String   @id @default(cuid())
+  id        String      @id @default(cuid())
   companyId String
   name      String
   address   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // Which legal/jurisdiction frame applies to this site's data (limit
+  // catalog, SGD generator, exposure evaluation) — deliberately NOT on
+  // Company: a company can have sites in more than one country, and the
+  // legal frame follows the physical site, not the tenant
+  // (SLD_IMPLEMENTATION_PLAN_austria-first.md §4.3). Always explicit, never
+  // defaulted or inferred (ERGO_COMPLIANCE_BY_DESIGN.md §3.15) — every
+  // existing row was backfilled explicitly in the migration that added this
+  // column, same discipline as AssessmentSession.mode.
+  country   CountryCode
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
   // Restrict: forces explicit offboarding of a company's sites rather than
   // an accidental cascade wipe of everything under it.
@@ -52,6 +61,20 @@ model Site {
   floorPlans      FloorPlan[]
 
   @@index([companyId])
+}
+
+/// Jurisdiction a Site is physically located in — drives which legal limit
+/// catalog, SGD template, and country-pack terminology apply
+/// (ERGO_COMPLIANCE_BY_DESIGN.md §3.15,
+/// SLD_IMPLEMENTATION_PLAN_austria-first.md §4). Not the same axis as
+/// Locale (src/lib/i18n/locale.ts, en/de/ro, "what language") — country
+/// answers "which law/limits/terminology," language answers "what words."
+/// The two are deliberately kept on separate objects; do not merge them.
+enum CountryCode {
+  AT
+  DE
+  CH
+  RO
 }
 
 /// Platform roles, from broadest to narrowest scope. See
@@ -246,6 +269,21 @@ enum CameraAngle {
   OBLIQUE
 }
 
+/// How a PostureSample's angles were obtained (ERGO_COMPLIANCE_BY_DESIGN.md
+/// §3.16, SLD_IMPLEMENTATION_PLAN_austria-first.md §5) — recorded on every
+/// sample, never inferred, so a generated artifact can always state
+/// whether a value is camera-measured or manually entered rather than
+/// presenting the two as interchangeable. IMPORTED_MODEL is reserved, no
+/// implementation anywhere in the app — createPostureSample()
+/// (src/lib/capture/create-posture-sample.ts) throws if asked for it, same
+/// discipline as createAssessmentSession() throwing on
+/// AssessmentMode.CONTINUOUS.
+enum PostureSampleSource {
+  CAMERA_MEDIAPIPE
+  MANUAL_ENTRY
+  IMPORTED_MODEL
+}
+
 /// Whether a PostureSample's keypoints have been reviewed/adjusted by a
 /// human yet. PENDING_REVIEW is the state every new sample is created in —
 /// the scoring pipeline (POST /api/posture-samples) always scores from the
@@ -264,11 +302,31 @@ enum ValidationStatus {
 }
 
 /// A single derived-pose snapshot captured while a task is performed.
+/// `source` records how it was obtained (ERGO_COMPLIANCE_BY_DESIGN.md
+/// §3.16) — never inferred, always explicit, backfilled to
+/// CAMERA_MEDIAPIPE for every pre-existing row.
+///
 /// `keypoints` holds only joint positions/angles produced by client-side
 /// MediaPipe processing — never a raw video frame, and never data
 /// reusable to re-identify a person (§3.2, §4). This column is NEVER
 /// overwritten once written: it stays the immutable audit-trail record of
 /// exactly what MediaPipe produced, even after a human review adjusts it.
+/// Nullable, and only actually null for `source = MANUAL_ENTRY` — see
+/// `manualAngles` below and the hand-added
+/// `PostureSample_source_shape_check` CHECK (migration SQL) that enforces
+/// keypoints/manualAngles presence by source, same pattern as
+/// `ManualInput_value_shape_check`.
+///
+/// `manualAngles` is the manual-entry counterpart to `keypoints`: the raw
+/// angle an assessor entered per computed BodyRegion (goniometer/tape
+/// measure, flexion-from-neutral convention — see CLAUDE.md "Scoring
+/// methodology"), stored regardless of whether it matched a ScoringRule.
+/// It exists specifically so a region that didn't match any rule can still
+/// be reported honestly at read time (`no-matching-rule`, with the actual
+/// entered degrees) without recomputing — `BodyRegionScore` only ever
+/// holds rows for regions that DID match (see that model's own comment),
+/// so an unmatched manual angle has nowhere else to live. Never set
+/// alongside `keypoints`.
 ///
 /// `validatedKeypoints` holds a reviewer's adjusted landmark positions,
 /// separate from `keypoints` above. `validationStatus = VALIDATED`
@@ -281,27 +339,43 @@ enum ValidationStatus {
 /// mid-adjustment draft — the CHECK only fires once `validationStatus`
 /// flips to VALIDATED. `validatedByUserId` references PlatformUser only, a
 /// plain @db.Uuid column not a DB-level FK — same pattern as
-/// RiskAssessment.assessorUserId.
+/// RiskAssessment.assessorUserId. This whole validation workflow is about
+/// reviewing/adjusting *keypoints* — it doesn't apply to a MANUAL_ENTRY
+/// sample (no keypoints exist to adjust), so those samples stay
+/// PENDING_REVIEW permanently; `validatePostureSample`/
+/// `reopenPostureSampleForEdit` ((app)/tasks/[taskId]/actions.ts) both
+/// reject any sample whose `source` isn't CAMERA_MEDIAPIPE.
 ///
-/// Samples that predate this column were backfilled to VALIDATED
-/// explicitly in the migration that added it (they were already
+/// Samples that predate the `validationStatus` column were backfilled to
+/// VALIDATED explicitly in the migration that added it (they were already
 /// human-reviewed through the old capture confirmation flow) — treating
 /// them as PENDING_REVIEW would retroactively downgrade data already
 /// acted on. Those specific rows have no real validatedKeypoints/
 /// validatedAt/validatedByUserId (nothing to backfill them with), which is
 /// exactly what the CHECK's NOT VALID addition permanently exempts.
 model PostureSample {
-  id                 String            @id @default(cuid())
-  taskId             String
-  capturedAt         DateTime
-  cameraAngle        CameraAngle
-  frameIndex         Int?
-  keypoints          Json
-  validatedKeypoints Json?
-  validationStatus   ValidationStatus
-  validatedAt        DateTime?
-  validatedByUserId  String?           @db.Uuid
-  createdAt          DateTime          @default(now())
+  id                  String              @id @default(cuid())
+  taskId              String
+  capturedAt          DateTime
+  cameraAngle         CameraAngle
+  source              PostureSampleSource
+  frameIndex          Int?
+  keypoints           Json?
+  manualAngles        Json?
+  /// How long THIS specific captured/entered posture was held, in seconds
+  /// (SLD_IMPLEMENTATION_PLAN_austria-first.md §6) — feeds the hold-time
+  /// sub-score (see HoldTimeRule below), never the posture-band scoring
+  /// itself. Optional: most samples don't record it. NOT the same quantity
+  /// as `ManualInput.DURATION_SECONDS`, which is a task-level "how long
+  /// does one cycle of this task take" figure, unrelated to any single
+  /// posture — see that enum value's own comment. Conflating the two was
+  /// flagged as a real risk when this column was added; don't.
+  holdDurationSeconds Int?
+  validatedKeypoints  Json?
+  validationStatus    ValidationStatus
+  validatedAt         DateTime?
+  validatedByUserId   String?             @db.Uuid
+  createdAt           DateTime            @default(now())
 
   task             Task                           @relation(fields: [taskId], references: [id], onDelete: Restrict)
   bodyRegionScores BodyRegionScore[]
@@ -338,11 +412,25 @@ model PostureSampleValidationEvent {
 /// vintage (methodologyVersion) produced the score; the lookup itself
 /// (matching an angle to a ScoringRule row) is scoring-engine logic and is
 /// intentionally not modeled/implemented here.
+///
+/// `riskBand` is nullable and, deliberately, only ever populated for
+/// MANUAL_ENTRY-sourced rows (createPostureSample,
+/// src/lib/capture/create-posture-sample.ts, persists it at write time
+/// from the same ScoringRule match that produced `score`). The camera
+/// path leaves it null: buildRegionResults' CAMERA_MEDIAPIPE branch always
+/// recomputes region results live from `PostureSample.keypoints`, exactly
+/// as before, so it never needs a persisted band. A manual sample has no
+/// keypoints to recompute from, so its read side (buildRegionResults'
+/// MANUAL_ENTRY branch) reads this column directly instead — deriving a
+/// band back from `score` alone would be unreliable, since NECK's
+/// non-monotonic rule set gives its two HIGH-band rows two *different*
+/// riskScore values (see CLAUDE.md "Scoring methodology").
 model BodyRegionScore {
   id                 String     @id @default(cuid())
   postureSampleId    String
   bodyRegion         BodyRegion
   score              Float
+  riskBand           RiskBand?
   scoringRuleVersion String?
   createdAt          DateTime   @default(now())
 
@@ -426,7 +514,9 @@ model MethodologyVersion {
   isActive    Boolean  @default(false)
   activatedAt DateTime @default(now())
 
-  scoringRules ScoringRule[]
+  scoringRules        ScoringRule[]
+  holdTimeRules       HoldTimeRule[]
+  manualHandlingRules ManualHandlingRule[]
 }
 
 /// Versioned scoring thresholds (§3.8): the "rule content" that
@@ -462,12 +552,83 @@ model ScoringRule {
   @@index([methodologyVersion, bodyRegion])
 }
 
+/// Versioned hold-time ceilings (SLD_IMPLEMENTATION_PLAN_austria-first.md
+/// §6): "how long is it acceptable to sustain a posture that already
+/// scores this severely." Independently designed by SLD, inspired by ISO
+/// 11226's general "duration allowance shrinks as posture severity rises"
+/// principle — not a reproduction of that standard's own figures, same
+/// arm's-length relationship the rest of this scoring engine has to ISO
+/// 11228/EN 1005 (ERGO_COMPLIANCE_BY_DESIGN.md §3.7). Keyed by the
+/// *posture's own* riskBand (its worst scored region), not by raw angle —
+/// a deliberately coarser grain than ScoringRule's angle ranges, since
+/// this is a severity-tier ceiling, not a region-specific curve.
+/// `maxHoldSeconds = null` means no ceiling at that severity (a LOW-band
+/// posture is fine to sustain). One row per (methodologyVersion,
+/// postureRiskBand) — see `HoldTimeRule_methodologyVersion_postureRiskBand_key`.
+model HoldTimeRule {
+  id                 String   @id @default(cuid())
+  methodologyVersion String
+  postureRiskBand    RiskBand
+  maxHoldSeconds     Int?
+  createdAt          DateTime @default(now())
+
+  // Restrict: same reasoning as ScoringRule.methodology.
+  methodology MethodologyVersion @relation(fields: [methodologyVersion], references: [version], onDelete: Restrict)
+
+  @@unique([methodologyVersion, postureRiskBand])
+}
+
+/// Versioned manual-handling load-weight bands (SLD_IMPLEMENTATION_PLAN_
+/// austria-first.md §7 B8): a parallel sub-score against `ManualInput`'s
+/// `LOAD_WEIGHT_KG` value, closing the "§64 ASchG requires manual load
+/// handling to be evaluated but Austria has no Lastenhandhabungsverordnung
+/// (no mandated method)" gap the plan's §2(c) documents. Independently
+/// designed by SLD, inspired by ISO 11228-1's general "the further above
+/// the ~25 kg ideal-conditions reference mass, the higher the risk"
+/// principle — deliberately NOT a reproduction of ISO 11228-1's own
+/// Recommended Mass Limit tables or the Revised NIOSH Lifting Equation (a
+/// multiplier chain over posture × load × frequency is structurally an
+/// EAWS clone, forbidden by ERGO_COMPLIANCE_BY_DESIGN.md §3.7) — same
+/// arm's-length relationship HoldTimeRule already has to ISO 11226.
+///
+/// Keyed by raw kg, same [min, max) inclusive-min/exclusive-max shape as
+/// ScoringRule's angle ranges (matchManualHandlingRule mirrors
+/// matchScoringRule directly) — a fresh, independent scoring axis, not
+/// derived from or blended with the posture band the way HoldTimeRule is
+/// (§6/§11: "parallel sub-scores, not a blended composite").
+///
+/// Folded into the existing `v2-2026-08` MethodologyVersion rather than a
+/// new version, per the plan's explicit instruction ("folded into the
+/// same v2 methodology version") — versioning per factor would turn
+/// MethodologyVersion from an audit anchor into a matrix nobody can
+/// reason about.
+model ManualHandlingRule {
+  id                 String   @id @default(cuid())
+  methodologyVersion String
+  riskBand           RiskBand
+  riskScore          Int
+  minKg              Float?
+  maxKg              Float?
+  createdAt          DateTime @default(now())
+
+  // Restrict: same reasoning as ScoringRule.methodology.
+  methodology MethodologyVersion @relation(fields: [methodologyVersion], references: [version], onDelete: Restrict)
+
+  @@index([methodologyVersion])
+}
+
 enum ManualInputType {
   LOAD_WEIGHT_KG
   PUSH_FORCE_N
   PULL_FORCE_N
   TOOL_USED
   REPETITION_COUNT
+  /// Task-cycle duration — "how long does one run of this task take,"
+  /// unrelated to any single posture. NOT the same quantity as
+  /// `PostureSample.holdDurationSeconds` ("how long was THIS captured
+  /// posture held"); the two look similar but answer different questions
+  /// and must not be conflated (SLD_IMPLEMENTATION_PLAN_austria-first.md
+  /// §6 flagged this explicitly when holdDurationSeconds was added).
   DURATION_SECONDS
 }
 
@@ -691,34 +852,184 @@ model RiskFinding {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  riskAssessment RiskAssessment        @relation(fields: [riskAssessmentId], references: [id], onDelete: Restrict)
-  hazard         Hazard                @relation(fields: [hazardId], references: [id], onDelete: Restrict)
-  measurements   ExposureMeasurement[]
-  actions        Action[]
+  riskAssessment     RiskAssessment             @relation(fields: [riskAssessmentId], references: [id], onDelete: Restrict)
+  hazard             Hazard                     @relation(fields: [hazardId], references: [id], onDelete: Restrict)
+  measurements       ExposureMeasurement[]
+  actions            Action[]
+  psychosocialDetail PsychosocialFindingDetail?
 
   @@index([riskAssessmentId])
 }
 
 /// Instrument or survey measurement supporting a finding, with the legal
-/// limit it is compared against recorded alongside it.
+/// limit(s) it is compared against recorded alongside it.
 ///
 /// Deliberately NOT merged with ManualInput despite the similar shape:
 /// ManualInput is task-level input feeding the CV scoring path, this is
 /// environmental data supporting a risk finding. Same shape, different
 /// lifecycle and consumer — do not "DRY" them together.
+///
+/// Two-tier (SLD_IMPLEMENTATION_PLAN_austria-first.md §4.4): Austrian
+/// noise/vibration law sets both a lower "Auslösewert" (action value —
+/// crossing it obliges the employer to plan measures) and a higher
+/// "Expositionsgrenzwert" (exposure limit value — must never be
+/// exceeded). `limitValue`/`limitReference` (pre-existing) are the
+/// exposure-limit tier; `actionValue`/`actionValueReference` are the new
+/// action-value tier. Both are free-editable fields, not a hard copy of
+/// `exposureLimit`'s row — a human can still override them — but
+/// `exposureLimitId`, when set, records *which* catalog row (and
+/// therefore which country and which `ExposureLimitCatalogVersion`)
+/// originally informed the prefill, the same "never recomputed against
+/// whatever is active now" reasoning `RiskAssessment.matrixVersion`
+/// already follows. Null when a measurement was entered fully manually
+/// (no matching catalog row for this market/parameter yet, e.g. CHEMICAL
+/// or a non-AT site) — the pre-existing free-text fallback, unchanged.
 model ExposureMeasurement {
-  id             String   @id @default(cuid())
-  riskFindingId  String
-  value          Float
-  unit           String
-  limitValue     Float?
-  limitReference String?
-  instrument     String?
-  method         String?
-  measuredAt     DateTime
-  notes          String?
-  createdAt      DateTime @default(now())
+  id                   String   @id @default(cuid())
+  riskFindingId        String
+  value                Float
+  unit                 String
+  actionValue          Float?
+  actionValueReference String?
+  limitValue           Float?
+  limitReference       String?
+  exposureLimitId      String?
+  instrument           String?
+  method               String?
+  measuredAt           DateTime
+  notes                String?
+  createdAt            DateTime @default(now())
 
+  riskFinding   RiskFinding    @relation(fields: [riskFindingId], references: [id], onDelete: Restrict)
+  // Restrict: a catalog row a real measurement points to for provenance
+  // can't be deleted out from under it — matches every other FK in this
+  // schema's "versioned data is never removed" discipline.
+  exposureLimit ExposureLimit? @relation(fields: [exposureLimitId], references: [id], onDelete: Restrict)
+
+  @@index([riskFindingId])
+  @@index([exposureLimitId])
+}
+
+/// Tracks which ExposureLimit catalog vintage is "current," as real data
+/// rather than a code constant — the exact same fail-closed,
+/// single-active-version contract as MethodologyVersion/RiskMatrixVersion
+/// (ERGO_COMPLIANCE_BY_DESIGN.md §3.14/§3.15). At most one row may have
+/// isActive = true, enforced by a HAND-ADDED partial unique index in
+/// migration SQL (`ExposureLimitCatalogVersion_isActive_unique_when_true`,
+/// mirroring `MethodologyVersion_isActive_unique_when_true` exactly) since
+/// Prisma's schema language can't express one. A lookup that finds zero
+/// active rows must fail closed (throw), never silently fall back to
+/// another version or another country's catalog.
+model ExposureLimitCatalogVersion {
+  version     String   @id
+  label       String
+  isActive    Boolean  @default(false)
+  activatedAt DateTime @default(now())
+
+  limits ExposureLimit[]
+}
+
+/// One legal exposure limit for one parameter in one country, under one
+/// catalog version (SLD_IMPLEMENTATION_PLAN_austria-first.md §4.5).
+/// `actionValue`/`limitValue` are BOTH nullable, independently — a row
+/// with both null and only `legalReference` set is a legitimate,
+/// deliberately-modeled state meaning "the law requires this to be
+/// evaluated but sets no single number" (e.g. ERGONOMIC_MSD, or CHEMICAL
+/// where MAK/TRK values are substance-specific, not one figure). The UI
+/// must render that as an obligation, not as a blank row.
+///
+/// `country` + `hazardCategory` + `parameterKey` is the lookup key
+/// (`lookupExposureLimits`, src/lib/risk/exposure-limit-lookup.ts) —
+/// never resolved with a fallback to a different country's row for the
+/// same parameter (ERGO_COMPLIANCE_BY_DESIGN.md §3.15/§4 — showing a
+/// German or generic number to an Austrian customer is a defect, not a
+/// rounding error).
+model ExposureLimit {
+  id                String         @id @default(cuid())
+  catalogVersion    String
+  country           CountryCode
+  hazardCategory    HazardCategory
+  parameterKey      String
+  parameterLabel    String
+  unit              String
+  actionValue       Float?
+  limitValue        Float?
+  legalReference    String
+  legalReferenceUrl String?
+  notes             String?
+  createdAt         DateTime       @default(now())
+
+  catalog      ExposureLimitCatalogVersion @relation(fields: [catalogVersion], references: [version], onDelete: Restrict)
+  measurements ExposureMeasurement[]
+
+  @@unique([catalogVersion, country, parameterKey])
+  @@index([catalogVersion, country, hazardCategory])
+}
+
+/// The four dimensions Austrian guidance uses for evaluating
+/// arbeitsbedingte psychische Belastungen (aligned to ÖNORM EN ISO
+/// 10075-1/-3), SLD_IMPLEMENTATION_PLAN_austria-first.md §7 B7. A closed,
+/// structural set the SGD reports on systematically — deliberately a real
+/// enum, not four Hazard catalog rows a company_admin could rename or
+/// delete (see PsychosocialFindingDetail below).
+enum PsychosocialDimension {
+  /// Arbeitsaufgabe und Tätigkeit
+  TASK_AND_ACTIVITY
+  /// Arbeitsorganisation und Arbeitsabläufe
+  WORK_ORGANIZATION
+  /// Arbeitsumgebung
+  WORK_ENVIRONMENT
+  /// Sozial- und Organisationsklima
+  SOCIAL_CLIMATE
+}
+
+/// How a psychosocial finding's band was derived — recorded because the
+/// Arbeitsinspektion asks, and because it gates the group-size CHECK below
+/// (§7 B7: questionnaire instruments are unsuitable below 15 employees;
+/// smaller groups use one of the other three methods instead).
+enum PsychosocialMethod {
+  QUESTIONNAIRE
+  GROUP_DISCUSSION
+  OBSERVATION
+  INTERVIEW
+}
+
+/// Structured detail for a PSYCHOSOCIAL-category RiskFinding
+/// (SLD_IMPLEMENTATION_PLAN_austria-first.md §7 B7) — "structured
+/// findings, not a survey platform." One row per RiskFinding (1:1, see
+/// the unique riskFindingId), same "related table rather than nullable
+/// columns bolted onto RiskFinding" shape ExposureMeasurement already
+/// uses for its own hazard-category-specific detail.
+///
+/// Deliberately absent from this model, permanently, per
+/// ERGO_COMPLIANCE_BY_DESIGN.md §3.12/§4 and the locked decision recorded
+/// there: any per-respondent field, any free-text verbatim response
+/// field, any table keyed by an individual. `groupSize` is an aggregate
+/// headcount the finding covers, never a link to who was in it.
+/// `externalProcedureName` records *that* a named external Verfahren
+/// (e.g. COPSOQ, AVEM) was used, never its raw responses — the
+/// finding's own riskBand/notes (on RiskFinding) are what it concluded.
+///
+/// The group-size floor is real but conditional, not a blanket "always
+/// ≥15": Austrian guidance (WKO/Arbeitsinspektion) says QUESTIONNAIRE
+/// instruments specifically are unsuitable below 15 employees because
+/// anonymity can't be preserved at that scale, and directs smaller
+/// operations toward GROUP_DISCUSSION/OBSERVATION/INTERVIEW instead — so
+/// the hand-added CHECK
+/// (`PsychosocialFindingDetail_group_size_check`) only enforces the
+/// floor when method = QUESTIONNAIRE.
+model PsychosocialFindingDetail {
+  id                    String                @id @default(cuid())
+  riskFindingId         String                @unique
+  dimension             PsychosocialDimension
+  method                PsychosocialMethod
+  groupSize             Int
+  externalProcedureName String?
+  createdAt             DateTime              @default(now())
+
+  // Restrict: a psychosocial finding's structured detail can't be
+  // deleted out from under the finding it describes — same discipline
+  // as every other FK in this schema.
   riskFinding RiskFinding @relation(fields: [riskFindingId], references: [id], onDelete: Restrict)
 
   @@index([riskFindingId])
@@ -757,25 +1068,25 @@ enum VerificationOutcome {
 /// is a function rather than an account, use responsibleRoleLabel — a role,
 /// never a person's name.
 model Action {
-  id                        String               @id @default(cuid())
-  siteId                    String
-  riskFindingId             String?
-  assessmentSessionId       String?
-  title                     String
-  description               String?
-  hierarchyOfControl        HierarchyOfControl?
-  responsibleUserId         String?              @db.Uuid
-  responsibleRoleLabel      String?
-  dueDate                   DateTime?
-  status                    ActionStatus         @default(OPEN)
-  implementedAt             DateTime?
-  verifiedAt                DateTime?
-  verifiedByUserId          String?              @db.Uuid
-  verificationOutcome       VerificationOutcome?
-  verificationAssessmentId  String?
-  verificationNote          String?
-  createdAt                 DateTime             @default(now())
-  updatedAt                 DateTime             @updatedAt
+  id                       String               @id @default(cuid())
+  siteId                   String
+  riskFindingId            String?
+  assessmentSessionId      String?
+  title                    String
+  description              String?
+  hierarchyOfControl       HierarchyOfControl?
+  responsibleUserId        String?              @db.Uuid
+  responsibleRoleLabel     String?
+  dueDate                  DateTime?
+  status                   ActionStatus         @default(OPEN)
+  implementedAt            DateTime?
+  verifiedAt               DateTime?
+  verifiedByUserId         String?              @db.Uuid
+  verificationOutcome      VerificationOutcome?
+  verificationAssessmentId String?
+  verificationNote         String?
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
 
   site                   Site                @relation(fields: [siteId], references: [id], onDelete: Restrict)
   riskFinding            RiskFinding?        @relation(fields: [riskFindingId], references: [id], onDelete: Restrict)

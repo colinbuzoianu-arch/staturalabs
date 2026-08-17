@@ -580,8 +580,10 @@ One prompt per milestone; front-load the constraints CC can't infer.
 
 ## 14. What not to let drift
 
+**Superseded (August 2026) — see `SLD_IMPLEMENTATION_PLAN_austria-first.md` §1.** The paragraph below described camera-based scoring as the moat. That framing has been retired, not the underlying architecture: the risk register, versioned scoring, and the verification loop it enabled are exactly what made the reframe possible. The differentiator is now stated as *a country-scoped, version-pinned, fully traceable assessment record that produces the legally required document — and then proves, against a re-assessment, that the measures actually worked.* The camera is kept as an optional evidence-quality upgrade on an input the tool accepts either way, not the reason to buy. Original text preserved below for the historical record of how this plan reasoned at the time.
+
 The moat is camera-based ergonomic scoring on public ISO 11228 / EN 1005 standards, with versioned reproducible rules and honest failure modes. The risk register and action tracking are table stakes — every established EHS suite has them — and they're worth building because they make SLD a system of record rather than a gadget. But they are not the differentiator.
 
-The one genuinely differentiated feature in this whole plan is **effectiveness verification against a re-assessment that shows the score actually fell**, and it only works *because* objective assessment data is already there.
+The one genuinely differentiated feature in this whole plan is **effectiveness verification against a re-assessment that shows the score actually fell**, and it only works *because* objective assessment data is already there. This part held: it's exactly what `SLD_IMPLEMENTATION_PLAN_austria-first.md` promotes to the top of the priority table (B6) rather than revising.
 
 Build the register so the loop closes around the camera, not the other way round.

@@ -4,14 +4,19 @@ import type {
   BodyRegion,
   CameraAngle,
   ManualInputType,
+  PostureSampleSource,
 } from "@/generated/prisma/enums";
 import type { ManualInputModel } from "@/generated/prisma/models";
 import type { requireTaskAccess } from "@/lib/auth/require-access";
-import { buildRegionResults } from "@/lib/capture/build-region-results";
+import { buildRegionResultsForSample } from "@/lib/capture/build-region-results";
+import { computeHoldTimeResult } from "@/lib/capture/hold-time-result";
 import { MANUAL_INPUT_TYPES } from "@/lib/capture/manual-input";
-import type { RegionResult } from "@/lib/capture/types";
-import type { PoseLandmarks } from "@/lib/pose/angles";
+import type { HoldTimeResult, RegionResult } from "@/lib/capture/types";
 import { prisma } from "@/lib/prisma";
+import {
+  computeManualHandlingResult,
+  type ManualHandlingResult,
+} from "@/lib/scoring/manual-handling";
 import { getActiveMethodologyVersion } from "@/lib/scoring/methodology-version";
 
 // Same shape requireTaskAccess already fetches (task + workstation + site +
@@ -24,9 +29,11 @@ export type TaskWithChain = Awaited<
 export type TaskReportSample = {
   id: string;
   capturedAt: Date;
+  source: PostureSampleSource;
   cameraAngle: CameraAngle;
   regions: Partial<Record<BodyRegion, RegionResult>> | null;
   error: string | null;
+  holdTime: HoldTimeResult;
 };
 
 export type ManualInputGroup = {
@@ -41,6 +48,7 @@ export type TaskReportData = {
   methodologyError: string | null;
   samples: TaskReportSample[];
   manualInputGroups: ManualInputGroup[];
+  manualHandlingResult: ManualHandlingResult;
 };
 
 // Assembles every piece of stored data for a task's report — the full
@@ -79,31 +87,36 @@ export async function getTaskReportData(
     ? await Promise.all(
         rawSamples.map(async (sample) => {
           try {
-            const { regions } = await buildRegionResults({
-              keypoints: sample.keypoints as unknown as PoseLandmarks,
-              validatedKeypoints:
-                sample.validatedKeypoints as unknown as PoseLandmarks | null,
-              validationStatus: sample.validationStatus,
-              cameraAngle: sample.cameraAngle,
+            const { regions } = await buildRegionResultsForSample(
+              sample,
+              methodologyVersion,
+            );
+            const holdTime = await computeHoldTimeResult({
+              regions,
+              holdDurationSeconds: sample.holdDurationSeconds,
               methodologyVersion,
             });
             return {
               id: sample.id,
               capturedAt: sample.capturedAt,
+              source: sample.source,
               cameraAngle: sample.cameraAngle,
               regions,
               error: null,
+              holdTime,
             };
           } catch (err) {
             return {
               id: sample.id,
               capturedAt: sample.capturedAt,
+              source: sample.source,
               cameraAngle: sample.cameraAngle,
               regions: null,
               error:
                 err instanceof Error
                   ? err.message
                   : "Could not compute body angles",
+              holdTime: null,
             };
           }
         }),
@@ -111,9 +124,11 @@ export async function getTaskReportData(
     : rawSamples.map((sample) => ({
         id: sample.id,
         capturedAt: sample.capturedAt,
+        source: sample.source,
         cameraAngle: sample.cameraAngle,
         regions: null,
         error: null,
+        holdTime: null,
       }));
 
   // Grouped in MANUAL_INPUT_TYPES order (not creation order) so the report
@@ -127,6 +142,15 @@ export async function getTaskReportData(
     }),
   ).filter((group) => group.rows.length > 0);
 
+  // §7 B8: parallel sub-score, computed live the same way every other
+  // read view does — never a frozen snapshot of what a past capture saw.
+  const manualHandlingResult = methodologyVersion
+    ? await computeManualHandlingResult({
+        taskId: task.id,
+        methodologyVersion,
+      })
+    : null;
+
   return {
     task,
     generatedAt: new Date(),
@@ -134,5 +158,6 @@ export async function getTaskReportData(
     methodologyError,
     samples,
     manualInputGroups,
+    manualHandlingResult,
   };
 }

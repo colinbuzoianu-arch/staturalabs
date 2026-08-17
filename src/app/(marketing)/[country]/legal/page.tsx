@@ -70,6 +70,15 @@ export default async function LegalPage() {
               </a>
             </p>
           </section>
+
+          <section>
+            <h2 className="font-heading text-lg font-bold text-teal">
+              {dict.jurisdictionNotice.heading}
+            </h2>
+            <p className="mt-3 rounded-md border border-dashed border-teal/30 px-4 py-3 font-technical text-sm text-teal/70">
+              {dict.jurisdictionNotice.paragraph}
+            </p>
+          </section>
         </div>
       </div>
     </div>

@@ -38,8 +38,25 @@ export type RegionResult =
   | { status: "no-matching-rule"; degrees: number }
   | { status: "not-yet-supported" };
 
+// The hold-time sub-score (SLD_IMPLEMENTATION_PLAN_austria-first.md §6) —
+// a parallel result alongside `regions`, never blended into it. null when
+// no `holdDurationSeconds` was recorded for this sample, or when nothing
+// scored at all (no posture severity to anchor a hold-time ceiling
+// against). `holdTimeBand` is null when the hold duration stayed within
+// the safe ceiling for `worstPostureBand`'s severity — see
+// src/lib/scoring/hold-time.ts. `overallBand` is the "rolled up worst-of"
+// value (§6): `holdTimeBand` when the ceiling was exceeded, otherwise
+// `worstPostureBand` unchanged.
+export type HoldTimeResult = {
+  holdDurationSeconds: number;
+  worstPostureBand: RiskBand;
+  holdTimeBand: RiskBand | null;
+  overallBand: RiskBand;
+} | null;
+
 export type PostureSampleResponse = {
   postureSampleId: string;
   methodologyVersion: string;
   regions: Record<BodyRegion, RegionResult>;
+  holdTime: HoldTimeResult;
 };

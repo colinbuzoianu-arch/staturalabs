@@ -7,11 +7,13 @@ import {
   use,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import { CameraAngle, ManualInputType } from "@/generated/prisma/enums";
 import { describeRegionResult } from "@/lib/capture/describe-region-result";
+import type { ManualAngles } from "@/lib/capture/manual-angles";
 import {
   describeManualInput,
   isTextManualInputType,
@@ -22,11 +24,14 @@ import {
 import type { PostureSampleResponse, RegionResult } from "@/lib/capture/types";
 import { getDashboardDictionary } from "@/lib/i18n/dictionaries/dashboard";
 import { useLocale } from "@/lib/i18n/locale-context";
+import { COMPUTED_BODY_REGIONS } from "@/lib/pose/angles";
 import { boundingBox, drawSkeleton } from "@/lib/pose/draw-skeleton";
 import {
   getActivePoseDelegate,
   getPoseLandmarker,
 } from "@/lib/pose/mediapipe-client";
+import { NOT_ASSESSED_COLOR, riskBandColors } from "@/lib/risk/band-severity";
+import { matchScoringRule } from "@/lib/scoring/match";
 
 // A stable id assigned once per detected person, so the picker below has a
 // real React key instead of the raw array index.
@@ -44,6 +49,8 @@ type Phase =
 const CAMERA_ANGLE_OPTIONS = Object.values(CameraAngle);
 const SKELETON_COLORS = ["#22d3ee", "#f97316", "#a3e635"];
 
+type EntryMode = "camera" | "manual";
+
 export default function CapturePage({
   params,
 }: {
@@ -53,6 +60,15 @@ export default function CapturePage({
   const { locale } = useLocale();
   const dict = getDashboardDictionary(locale).capturePage;
 
+  // Which flow is showing — the camera phase machine below, or
+  // ManualAngleEntryPanel further down this file
+  // (SLD_IMPLEMENTATION_PLAN_austria-first.md §5). Defaults to "camera":
+  // the camera path stays the primary, unchanged experience for anyone
+  // who doesn't switch tabs — CLAUDE.md "Frozen and demoted work" is
+  // about priority and new-feature focus, not about hiding a path that
+  // still works.
+  const [mode, setMode] = useState<EntryMode>("camera");
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -61,6 +77,10 @@ export default function CapturePage({
   const [cameraAngle, setCameraAngle] = useState<CameraAngle>(
     CameraAngle.SAGITTAL,
   );
+  // Optional — how long this specific posture was held, in seconds
+  // (SLD_IMPLEMENTATION_PLAN_austria-first.md §6). Blank means "not
+  // recorded," a legitimate, common case, not an error.
+  const [holdDurationSeconds, setHoldDurationSeconds] = useState("");
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [noPersonNotice, setNoPersonNotice] = useState(false);
   const [poseDelegate, setPoseDelegate] = useState<"GPU" | "CPU" | null>(null);
@@ -190,6 +210,10 @@ export default function CapturePage({
             })),
             cameraAngle,
             taskId,
+            holdDurationSeconds:
+              holdDurationSeconds.trim() === ""
+                ? null
+                : Number(holdDurationSeconds),
           }),
         });
         if (!res.ok) {
@@ -205,7 +229,7 @@ export default function CapturePage({
         });
       }
     },
-    [cameraAngle, taskId, dict],
+    [cameraAngle, taskId, dict, holdDurationSeconds],
   );
 
   const handleCapture = useCallback(async () => {
@@ -290,125 +314,187 @@ export default function CapturePage({
       </Link>
       <h1 className="text-xl font-semibold">{dict.heading}</h1>
 
-      {phase.kind === "error" && (
+      {/* Capture vs. manual entry — a tab on this same page, not a
+          separate route (SLD_IMPLEMENTATION_PLAN_austria-first.md §5).
+          "Camera" stays the default tab; switching tabs never resets
+          either flow's own in-progress state (the video element below
+          stays mounted throughout — see its own comment — and
+          ManualAngleEntryPanel keeps its own state internally). */}
+      <div role="tablist" aria-label="Entry mode" className="flex gap-2">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "camera"}
+          onClick={() => setMode("camera")}
+          className={`rounded-md px-4 py-2 text-sm font-semibold ${
+            mode === "camera"
+              ? "bg-black text-white dark:bg-white dark:text-black"
+              : "border border-zinc-300 dark:border-zinc-700"
+          }`}
+        >
+          {dict.captureTabLabel}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "manual"}
+          onClick={() => setMode("manual")}
+          className={`rounded-md px-4 py-2 text-sm font-semibold ${
+            mode === "manual"
+              ? "bg-black text-white dark:bg-white dark:text-black"
+              : "border border-zinc-300 dark:border-zinc-700"
+          }`}
+        >
+          {dict.manualEntryTabLabel}
+        </button>
+      </div>
+
+      {mode === "camera" && phase.kind === "error" && (
         <div className="rounded border border-red-400 bg-red-50 p-3 text-red-800 dark:bg-red-950 dark:text-red-200">
           {phase.message}
         </div>
       )}
 
       {/*
-        Always mounted, regardless of phase — never conditionally rendered.
-        Its srcObject is attached once, in the camera-setup effect above; if
-        this element were unmounted (e.g. only rendered outside "selecting"/
-        "result") and later remounted, that assignment wouldn't re-run, and
+        Always mounted, regardless of phase OR mode — never conditionally
+        rendered. Its srcObject is attached once, in the camera-setup
+        effect above; if this element were unmounted (e.g. only rendered
+        outside "selecting"/"result", or while the Manual entry tab is
+        active) and later remounted, that assignment wouldn't re-run, and
         the fresh <video> would sit at 0x0 until manually reattached. A
         capture off a 0x0 frame doesn't fail cleanly — MediaPipe's native
         code throws an opaque "ROI width and height must be > 0" error deep
         inside detect() (this is exactly the "second capture" bug this
         component used to have: the result screen unmounted the element,
         and returning to capture another sample remounted it with no
-        stream). Hidden via CSS during "selecting"/"result", not unmounted.
+        stream). Hidden via CSS during "selecting"/"result"/the Manual
+        entry tab, not unmounted.
       */}
       <video
         ref={videoRef}
         autoPlay
         playsInline
         muted
-        hidden={phase.kind === "selecting" || phase.kind === "result"}
+        hidden={
+          mode !== "camera" ||
+          phase.kind === "selecting" ||
+          phase.kind === "result"
+        }
         className="w-full rounded border bg-black"
       />
 
-      {phase.kind !== "selecting" && phase.kind !== "result" && (
+      {mode === "camera" && (
         <>
-          <div className="flex flex-wrap gap-4">
-            <label className="flex flex-col gap-1 text-sm">
-              {dict.cameraLabel}
-              <select
-                className="rounded border px-2 py-1"
-                value={deviceId}
-                onChange={(e) => switchDevice(e.target.value)}
+          {phase.kind !== "selecting" && phase.kind !== "result" && (
+            <>
+              <div className="flex flex-wrap gap-4">
+                <label className="flex flex-col gap-1 text-sm">
+                  {dict.cameraLabel}
+                  <select
+                    className="rounded border px-2 py-1"
+                    value={deviceId}
+                    onChange={(e) => switchDevice(e.target.value)}
+                  >
+                    {devices.map((d) => (
+                      <option key={d.deviceId} value={d.deviceId}>
+                        {d.label || d.deviceId}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="flex flex-col gap-1 text-sm">
+                  {dict.cameraAngleLabel}
+                  <select
+                    className="rounded border px-2 py-1"
+                    value={cameraAngle}
+                    onChange={(e) =>
+                      setCameraAngle(e.target.value as CameraAngle)
+                    }
+                  >
+                    {CAMERA_ANGLE_OPTIONS.map((angle) => (
+                      <option key={angle} value={angle}>
+                        {angle}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="flex flex-col gap-1 text-sm">
+                  {dict.holdDurationLabel}
+                  <input
+                    type="number"
+                    min={0}
+                    step="any"
+                    placeholder={dict.holdDurationPlaceholder}
+                    value={holdDurationSeconds}
+                    onChange={(e) => setHoldDurationSeconds(e.target.value)}
+                    className="rounded border px-2 py-1"
+                  />
+                </label>
+              </div>
+
+              {/* Which regions score at all depends on this being right (see
+                  computeBodyAngles's camera-angle gate) — unmissable on a phone,
+                  not just implied by the dropdown label. */}
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                {dict.cameraAngleHint[cameraAngle]}
+              </p>
+
+              {/* Dev-only: which MediaPipe delegate actually initialized — the
+                  GPU delegate failing silently on mobile with no fallback was
+                  the top suspected M0 risk; this makes a CPU fallback visible
+                  during testing instead of indistinguishable from GPU. */}
+              {process.env.NODE_ENV !== "production" && poseDelegate && (
+                <p className="font-mono text-xs text-zinc-400">
+                  pose delegate: {poseDelegate}
+                </p>
+              )}
+
+              {noPersonNotice && (
+                <p className="text-sm text-amber-700 dark:text-amber-400">
+                  {dict.noPersonDetected}
+                </p>
+              )}
+
+              <button
+                type="button"
+                onClick={handleCapture}
+                disabled={busy}
+                className="self-start rounded bg-black px-4 py-2 text-white disabled:opacity-50 dark:bg-white dark:text-black"
               >
-                {devices.map((d) => (
-                  <option key={d.deviceId} value={d.deviceId}>
-                    {d.label || d.deviceId}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="flex flex-col gap-1 text-sm">
-              {dict.cameraAngleLabel}
-              <select
-                className="rounded border px-2 py-1"
-                value={cameraAngle}
-                onChange={(e) => setCameraAngle(e.target.value as CameraAngle)}
-              >
-                {CAMERA_ANGLE_OPTIONS.map((angle) => (
-                  <option key={angle} value={angle}>
-                    {angle}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          {/* Which regions score at all depends on this being right (see
-              computeBodyAngles's camera-angle gate) — unmissable on a phone,
-              not just implied by the dropdown label. */}
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {dict.cameraAngleHint[cameraAngle]}
-          </p>
-
-          {/* Dev-only: which MediaPipe delegate actually initialized — the
-              GPU delegate failing silently on mobile with no fallback was
-              the top suspected M0 risk; this makes a CPU fallback visible
-              during testing instead of indistinguishable from GPU. */}
-          {process.env.NODE_ENV !== "production" && poseDelegate && (
-            <p className="font-mono text-xs text-zinc-400">
-              pose delegate: {poseDelegate}
-            </p>
+                {phase.kind === "loading"
+                  ? dict.loadingPoseModel
+                  : phase.kind === "detecting"
+                    ? dict.detecting
+                    : phase.kind === "submitting"
+                      ? dict.submitting
+                      : dict.captureSample}
+              </button>
+            </>
           )}
 
-          {noPersonNotice && (
-            <p className="text-sm text-amber-700 dark:text-amber-400">
-              {dict.noPersonDetected}
-            </p>
+          {phase.kind === "selecting" && (
+            <SkeletonPicker
+              frame={phase.frame}
+              candidates={phase.candidates}
+              onSelect={(candidate) => submitLandmarks(candidate.landmarks)}
+              onCancel={reset}
+              dict={dict}
+            />
           )}
 
-          <button
-            type="button"
-            onClick={handleCapture}
-            disabled={busy}
-            className="self-start rounded bg-black px-4 py-2 text-white disabled:opacity-50 dark:bg-white dark:text-black"
-          >
-            {phase.kind === "loading"
-              ? dict.loadingPoseModel
-              : phase.kind === "detecting"
-                ? dict.detecting
-                : phase.kind === "submitting"
-                  ? dict.submitting
-                  : dict.captureSample}
-          </button>
+          {phase.kind === "result" && (
+            <ResultView
+              response={phase.response}
+              onCaptureAnother={reset}
+              dict={dict}
+            />
+          )}
         </>
       )}
 
-      {phase.kind === "selecting" && (
-        <SkeletonPicker
-          frame={phase.frame}
-          candidates={phase.candidates}
-          onSelect={(candidate) => submitLandmarks(candidate.landmarks)}
-          onCancel={reset}
-          dict={dict}
-        />
-      )}
-
-      {phase.kind === "result" && (
-        <ResultView
-          response={phase.response}
-          onCaptureAnother={reset}
-          dict={dict}
-        />
-      )}
+      {mode === "manual" && <ManualAngleEntryPanel taskId={taskId} />}
 
       {/*
         Independent of the pose-capture phase machine above — the operator
@@ -504,12 +590,26 @@ function ResultView({
   dict: CaptureDict;
 }) {
   const regions = Object.entries(response.regions) as [string, RegionResult][];
+  const holdTime = response.holdTime;
 
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
         {dict.sampleMeta(response.postureSampleId, response.methodologyVersion)}
       </p>
+      {holdTime && (
+        <p className="text-sm">
+          {dict.holdTimeSummary(
+            holdTime.holdDurationSeconds,
+            holdTime.worstPostureBand,
+          )}{" "}
+          {holdTime.holdTimeBand && (
+            <span className="font-bold text-red-700 dark:text-red-400">
+              {dict.holdTimeEscalated(holdTime.overallBand)}
+            </span>
+          )}
+        </p>
+      )}
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b">
@@ -536,6 +636,225 @@ function ResultView({
         {dict.captureAnother}
       </button>
     </div>
+  );
+}
+
+// Mirrors GET /api/scoring-rules's response shape exactly (see that
+// route's own comment) — field names match ScoringRule's own columns so a
+// fetched row satisfies matchScoringRule's AngleRangeRule with no mapping
+// step. Defined locally rather than imported from the frozen posture
+// editor's ScoringRuleRow (src/lib/pose/posture-editor.ts, which this
+// panel deliberately doesn't depend on — see SLD_POSTURE_EDITOR_FIDELITY
+// _PLAN.md) so this feature has zero coupling to that frozen module.
+type ScoringRulePreviewRow = {
+  bodyRegion: (typeof COMPUTED_BODY_REGIONS)[number];
+  angleMin: number | null;
+  angleMax: number | null;
+  riskBand: "LOW" | "MODERATE" | "ELEVATED" | "HIGH";
+  riskScore: number;
+};
+
+// Manual posture entry (SLD_IMPLEMENTATION_PLAN_austria-first.md §5): the
+// goniometer/tape-measure alternative to the camera flow above — an
+// ergonomist can produce a fully scored, fully traceable PostureSample
+// with the camera never opened. All 8 computed regions are required
+// (mirrors createPostureSample's own validateManualAngles gate; the
+// per-region live-band feedback below is the actual reason a real
+// assessor would want this over the plain camera capture page: they see
+// the methodology's judgment as they type, rather than after a
+// round-trip).
+function ManualAngleEntryPanel({ taskId }: { taskId: string }) {
+  const { locale } = useLocale();
+  const dict = getDashboardDictionary(locale).capturePage;
+
+  const [rules, setRules] = useState<ScoringRulePreviewRow[] | null>(null);
+  const [rulesError, setRulesError] = useState<string | null>(null);
+  const [angleInputs, setAngleInputs] = useState<Record<string, string>>(() =>
+    Object.fromEntries(COMPUTED_BODY_REGIONS.map((region) => [region, ""])),
+  );
+  const [holdDurationSeconds, setHoldDurationSeconds] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [response, setResponse] = useState<PostureSampleResponse | null>(null);
+
+  // Fetched once — the active rule set is fixed for the life of this
+  // panel, so every keystroke afterward matches locally
+  // (matchScoringRule, the same pure per-row range check the server uses)
+  // with zero further round-trips.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/scoring-rules")
+      .then((res) => {
+        if (!res.ok) throw new Error(dict.requestFailed(res.status));
+        return res.json() as Promise<{ rules: ScoringRulePreviewRow[] }>;
+      })
+      .then((data) => {
+        if (!cancelled) setRules(data.rules);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setRulesError(err instanceof Error ? err.message : String(err));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dict]);
+
+  const rulesByRegion = useMemo(() => {
+    const map = new Map<string, ScoringRulePreviewRow[]>();
+    for (const rule of rules ?? []) {
+      const existing = map.get(rule.bodyRegion) ?? [];
+      existing.push(rule);
+      map.set(rule.bodyRegion, existing);
+    }
+    return map;
+  }, [rules]);
+
+  function livePreview(region: string) {
+    const raw = angleInputs[region]?.trim();
+    if (!raw) return null;
+    const degrees = Number(raw);
+    if (!Number.isFinite(degrees)) return null;
+    return matchScoringRule(rulesByRegion.get(region) ?? [], degrees);
+  }
+
+  const allFilled = COMPUTED_BODY_REGIONS.every((region) => {
+    const raw = angleInputs[region]?.trim();
+    return !!raw && Number.isFinite(Number(raw));
+  });
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      const angles: Partial<ManualAngles> = {};
+      for (const region of COMPUTED_BODY_REGIONS) {
+        angles[region] = Number(angleInputs[region]);
+      }
+      const res = await fetch("/api/posture-samples/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          angles,
+          taskId,
+          holdDurationSeconds:
+            holdDurationSeconds.trim() === ""
+              ? null
+              : Number(holdDurationSeconds),
+        }),
+      });
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => null);
+        throw new Error(errorBody?.error ?? dict.requestFailed(res.status));
+      }
+      setResponse((await res.json()) as PostureSampleResponse);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : dict.submitFailed);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function reset() {
+    setResponse(null);
+    setAngleInputs(
+      Object.fromEntries(COMPUTED_BODY_REGIONS.map((region) => [region, ""])),
+    );
+    setHoldDurationSeconds("");
+  }
+
+  if (response) {
+    return (
+      <ResultView
+        response={response}
+        onCaptureAnother={reset}
+        dict={{ ...dict, captureAnother: dict.manualEntryAnother }}
+      />
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-lg font-semibold">{dict.manualEntryHeading}</h2>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          {dict.manualEntryDescription}
+        </p>
+      </div>
+
+      {rulesError && (
+        <p className="text-sm text-red-700 dark:text-red-400">
+          {dict.manualEntryRulesFailed(rulesError)}
+        </p>
+      )}
+      {!rules && !rulesError && (
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          {dict.manualEntryRulesLoading}
+        </p>
+      )}
+      {error && (
+        <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+      )}
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {COMPUTED_BODY_REGIONS.map((region) => {
+          const preview = livePreview(region);
+          return (
+            <label key={region} className="flex flex-col gap-1 text-sm">
+              {dict.angleDegreesLabel(region)}
+              <input
+                type="number"
+                step="any"
+                required
+                value={angleInputs[region] ?? ""}
+                onChange={(e) =>
+                  setAngleInputs((prev) => ({
+                    ...prev,
+                    [region]: e.target.value,
+                  }))
+                }
+                className="rounded border px-2 py-1"
+              />
+              <span
+                className="font-technical text-xs font-bold"
+                style={{
+                  color: preview
+                    ? riskBandColors[preview.riskBand]
+                    : NOT_ASSESSED_COLOR,
+                }}
+              >
+                {preview
+                  ? `${preview.riskBand} (${preview.riskScore})`
+                  : dict.manualEntryNotScored}
+              </span>
+            </label>
+          );
+        })}
+      </div>
+
+      <label className="flex max-w-xs flex-col gap-1 text-sm">
+        {dict.holdDurationLabel}
+        <input
+          type="number"
+          min={0}
+          step="any"
+          placeholder={dict.holdDurationPlaceholder}
+          value={holdDurationSeconds}
+          onChange={(e) => setHoldDurationSeconds(e.target.value)}
+          className="rounded border px-2 py-1"
+        />
+      </label>
+
+      <button
+        type="submit"
+        disabled={!allFilled || submitting || !rules}
+        className="self-start rounded bg-black px-4 py-2 text-white disabled:opacity-50 dark:bg-white dark:text-black"
+      >
+        {submitting ? dict.manualEntrySubmitting : dict.manualEntrySubmit}
+      </button>
+    </form>
   );
 }
 

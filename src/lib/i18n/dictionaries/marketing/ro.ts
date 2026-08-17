@@ -6,6 +6,15 @@ export const ro: typeof en = {
     requestPilot: "Solicită un proiect pilot",
     signIn: "Autentificare",
   },
+  countryChooser: {
+    metaTitle: "Alege piața",
+    eyebrow: "Alege piața",
+    h1: "Statura Labs Dynamics, pe piețe.",
+    lede: "Limitele legale, terminologia și documentul generat urmează țara în care se află efectiv locul de muncă — nu invers. Alege-o pe a ta.",
+    countryLabels: { at: "Austria", de: "Germania", ch: "Elveția" },
+    statusAvailable: "Disponibil",
+    statusInPreparation: "În pregătire",
+  },
   hero: {
     eyebrow: "Mișcare măsurată // ergonomia la locul de muncă",
     h1: "Riscul ergonomic, citit ca de un instrument de măsură.",
@@ -125,6 +134,14 @@ export const ro: typeof en = {
     heading: "Vezi cum îți măsoară propria hală de producție.",
     cta: "Solicită un proiect pilot",
   },
+  countryContext: {
+    eyebrow: "Construit pentru această piață",
+    verifiedHeading: "Vorbim limbajul autorității tale de reglementare.",
+    unverifiedHeading:
+      "Cadrul legal pentru această piață este încă în pregătire.",
+    unverifiedNote:
+      "Nu am verificat încă referințele legale și terminologia pentru această piață în raport cu o sursă primară. În loc să presupunem, această pagină rămâne doar de poziționare până la finalizarea acelei verificări.",
+  },
   footer: {
     about: "Despre",
     legal: "Legal",
@@ -176,6 +193,11 @@ export const ro: typeof en = {
     contact: {
       heading: "Contact",
       prefix: "Întrebări despre confidențialitate sau despre acest website:",
+    },
+    jurisdictionNotice: {
+      heading: "Notă specifică jurisdicției",
+      paragraph:
+        "O variantă specifică acestei piețe a paginii (de exemplu o Offenlegung austriacă conform §5 ECG, un Impressum german conform DDG, sau o încadrare specifică elvețiană conform revDSG) este în pregătire și în așteptarea unei revizuiri juridice. Conținutul de mai sus se aplică la nivelul UE și rămâne valabil până atunci.",
     },
   },
 };

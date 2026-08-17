@@ -2,6 +2,15 @@ import type { en } from "./en";
 
 // Meaning-based translation, not word-for-word — see CLAUDE.md i18n notes.
 export const ro: typeof en = {
+  presentMode: {
+    exitLabel: "✕ Ieșire din modul prezentare",
+    siteMapLabel: "Harta locației",
+    workstationRiskLabel: "Riscul locului de muncă",
+    assessmentLabel: "Evaluare",
+    actionLabel: "Măsură",
+    verificationLabel: "Istoric de verificare",
+    sgdLabel: "SGD (PDF)",
+  },
   manualInputLabels: {
     LOAD_WEIGHT_KG: "Greutate sarcină",
     PUSH_FORCE_N: "Forță de împingere",
@@ -32,6 +41,11 @@ export const ro: typeof en = {
     VERIFIED: "Verificată",
     CANCELLED: "Anulată",
   },
+  verificationOutcomeLabels: {
+    EFFECTIVE: "Eficientă",
+    PARTIALLY_EFFECTIVE: "Parțial eficientă",
+    NOT_EFFECTIVE: "Ineficientă",
+  },
   footer: {
     copyright: (year: number) =>
       `© ${year} Verumsell SRL · Statura Labs Dynamics este un produs Verumsell SRL.`,
@@ -46,8 +60,9 @@ export const ro: typeof en = {
     eyebrow: "Locație //",
     empty: "Această locație nu are încă niciun loc de muncă definit.",
     riskOverviewLink: "Prezentare generală a riscurilor →",
-    siteMapLink: "Harta locației →",
     workerBriefingLink: "Informare pentru reprezentanții salariaților (PDF) →",
+    sgdLink: "Generează SGD (PDF) →",
+    presentModeLink: "▶ Mod prezentare →",
   },
   workstationPage: {
     breadcrumbSites: "Locații",
@@ -67,6 +82,11 @@ export const ro: typeof en = {
       "Context privind greutatea, forța și uneltele, înregistrat pentru această sarcină — nelegat de o anumită captură de postură. Momentan doar pentru înregistrare; nimic de aici nu poate fi editat sau șters din această vizualizare.",
     manualInputsEmpty:
       "Pentru această sarcină nu au fost încă înregistrate date manuale.",
+    manualHandlingHeading: "Evaluarea manipulării manuale",
+    manualHandlingResultLabel: (kg: number, band: string) =>
+      `${kg} kg — ${band}`,
+    manualHandlingDescription:
+      "§64 ASchG impune evaluarea manipulării manuale a sarcinilor, dar nu prescrie o metodă — SLD aplică propriile praguri, inspirate din ISO 11228-1/EN 1005-2, citate în SGD-ul generat.",
     postureSamplesHeading: "Capturi de postură",
     postureSamplesEmpty: "Pentru această sarcină nu există încă nicio captură.",
     cannotRecompute: (error: string) =>
@@ -128,17 +148,36 @@ export const ro: typeof en = {
     submitFailed: "Trimiterea a eșuat",
     detectionFailed: "Detectarea a eșuat",
     requestFailed: (status: number) => `Cererea a eșuat: ${status}`,
+    captureTabLabel: "Captură",
+    manualEntryTabLabel: "Introducere manuală",
+    manualEntryHeading: "Introduceți unghiurile măsurate",
+    manualEntryDescription:
+      "Pentru fiecare regiune de mai jos, introduceți unghiul de flexie față de poziția neutră (0° = poziție dreaptă, valori mai mari = flexie mai accentuată), măsurat cu un goniometru sau estimat vizual. Toate cele opt valori sunt necesare pentru o probă completă.",
+    angleDegreesLabel: (region: string) => `${region} (°)`,
+    manualEntryNotScored: "neevaluat încă",
+    manualEntrySubmit: "Trimite introducerea manuală",
+    manualEntrySubmitting: "Se trimite…",
+    manualEntryAnother: "Introdu o altă probă manuală",
+    manualEntryRulesLoading: "Se încarcă regulile de evaluare…",
+    manualEntryRulesFailed: (message: string) =>
+      `Regulile de evaluare pentru previzualizarea live nu au putut fi încărcate: ${message}`,
+    holdDurationLabel: "Durata menținerii (secunde, opțional)",
+    holdDurationPlaceholder: "ex. 30",
+    holdTimeSummary: (seconds: number, postureBand: string) =>
+      `Menținut ${seconds}s la postura ${postureBand}.`,
+    holdTimeEscalated: (overallBand: string) =>
+      `Depășește durata sigură de menținere pentru această postură — general ${overallBand}.`,
   },
   workstationRiskPage: {
     breadcrumbSites: "Locații",
     breadcrumbLabel: "Evaluare de riscuri",
     eyebrow: "Evaluare de riscuri //",
     backToWorkstation: "← Înapoi la locul de muncă",
+    sgdLink: "Generează SGD pentru acest loc de muncă (PDF) →",
     noApprovedAssessment:
       "Nu există încă o evaluare de riscuri aprobată pentru acest loc de muncă.",
     latestAssessmentHeading: "Ultima evaluare de riscuri aprobată",
     assessedAtLabel: "Evaluat:",
-    colAssessedAt: "Evaluat",
     viewLink: "Vezi / gestionează →",
     findingsHeading: "Constatări",
     colCategory: "Categorie",
@@ -148,6 +187,7 @@ export const ro: typeof en = {
     colControls: "Măsuri existente",
     measurementsLabel: "Măsurători:",
     overLimit: "peste limită",
+    overActionValue: "peste valoarea de declanșare",
     ergonomicHeading: "Evaluare ergonomică",
     ergonomicDescription:
       "Cea mai recentă captură de postură pentru fiecare activitate a acestui loc de muncă — detalierea completă pe regiuni se află pe pagina fiecărei activități.",
@@ -166,7 +206,7 @@ export const ro: typeof en = {
     colDue: "Termen",
     bandTrendHeading: "Evoluția nivelului de risc",
     bandTrendEmpty: "Nu există încă evaluări de riscuri înregistrate.",
-    colOverallBand: "Nivel general",
+    verifiedByPrefix: "Verificat prin:",
   },
   siteRiskOverviewPage: {
     breadcrumbSites: "Locații",
@@ -195,11 +235,6 @@ export const ro: typeof en = {
     viewLink: "Vezi →",
   },
   siteMapPage: {
-    breadcrumbSites: "Locații",
-    eyebrow: "Harta locației //",
-    heading: "Harta locației",
-    backToSite: "← Înapoi la locație",
-    empty: "Niciun plan de amplasare încărcat încă.",
     manageFloorPlansLink: "Gestionează planurile de amplasare →",
     categoryFilterHeading: "Filtrează după categoria de pericol",
     allCategoriesLabel: "Toate categoriile",

@@ -1,0 +1,15 @@
+-- B2 of the Austria-first plan (SLD_IMPLEMENTATION_PLAN_austria-first.md
+-- §5, §7 B2). Enum only, no columns: a brand-new enum *value* can't be
+-- referenced (in a CHECK, a backfill UPDATE, a NOT NULL column, etc.) in
+-- the same migration that adds it — same rule already documented in
+-- CLAUDE.md's "known gotchas" and followed for CountryCode/AssessmentMode/
+-- the process-risk-action enums earlier. PostureSample.source lands in
+-- the next migration.
+--
+-- IMPORTED_MODEL is a reserved value with no implementation anywhere in
+-- the app — createPostureSample() (src/lib/capture/create-posture-
+-- sample.ts) throws a clear "not yet implemented" error if asked for
+-- source: IMPORTED_MODEL, same discipline as createAssessmentSession()
+-- throwing on AssessmentMode.CONTINUOUS.
+-- CreateEnum
+CREATE TYPE "PostureSampleSource" AS ENUM ('CAMERA_MEDIAPIPE', 'MANUAL_ENTRY', 'IMPORTED_MODEL');

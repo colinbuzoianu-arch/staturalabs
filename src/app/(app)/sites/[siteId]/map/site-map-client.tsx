@@ -223,6 +223,14 @@ export function SiteMapClient({
             {visibleWorkstationPins.map(({ pin, variant, band }) => {
               const key: PinKey = `workstation:${pin.workstationId}`;
               const dimmed = variant === "mixed";
+              // §7 B6: "unassessed workstations visually distinct (not
+              // just uncoloured — an unassessed workstation is a finding
+              // in itself under §4 ASchG)." A bare gray fill (same as any
+              // other band) reads as just another color in the legend;
+              // this needs to visually interrupt the pattern, not blend
+              // into it — larger, dashed, coral-stroked, same treatment
+              // this app already uses for an over-limit measurement.
+              const isUnassessed = !dimmed && band === null;
               return (
                 // biome-ignore lint/a11y/noStaticElementInteractions: decorative heatmap marker on a visual overlay — same tradeoff as the floor-plan placement page's task markers. The workstation it represents is always reachable via the "view workstation risk" link inside the popover this opens.
                 <circle
@@ -232,12 +240,15 @@ export function SiteMapClient({
                   r={
                     dimmed
                       ? WORKSTATION_MARKER_RADIUS_MIXED
-                      : WORKSTATION_MARKER_RADIUS
+                      : isUnassessed
+                        ? WORKSTATION_MARKER_RADIUS + 3
+                        : WORKSTATION_MARKER_RADIUS
                   }
                   fill={colorForBand(band)}
                   opacity={dimmed ? 0.55 : 1}
-                  stroke="var(--background)"
-                  strokeWidth={1.5}
+                  stroke={isUnassessed ? "var(--accent)" : "var(--background)"}
+                  strokeWidth={isUnassessed ? 2.5 : 1.5}
+                  strokeDasharray={isUnassessed ? "3 2" : undefined}
                   className="pointer-events-auto cursor-pointer"
                   onMouseEnter={() => setHoveredKey(key)}
                   onMouseLeave={() =>

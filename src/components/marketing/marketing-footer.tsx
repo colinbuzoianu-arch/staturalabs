@@ -1,8 +1,18 @@
 import Link from "next/link";
+import type { MarketingCountry } from "@/lib/country/countries";
 import { getMarketingDictionary } from "@/lib/i18n/dictionaries/marketing";
 import { getLocale } from "@/lib/i18n/get-locale";
 
-export async function MarketingFooter() {
+// `country` scopes the About/Legal links to the current market
+// (/at/about vs. /de/about, etc.) — defaults to "at" for the one caller
+// with no country in scope (the top-level country-chooser page), matching
+// "the existing /, /about, /legal content becomes /at/* first"
+// (SLD_IMPLEMENTATION_PLAN_austria-first.md §4.2).
+export async function MarketingFooter({
+  country = "at",
+}: {
+  country?: MarketingCountry;
+}) {
   const year = new Date().getFullYear();
   const locale = await getLocale();
   const dict = getMarketingDictionary(locale);
@@ -16,10 +26,10 @@ export async function MarketingFooter() {
             SLD
           </span>
           <nav className="flex gap-5 text-xs text-sage-light">
-            <Link href="/about" className="hover:text-ivory">
+            <Link href={`/${country}/about`} className="hover:text-ivory">
               {dict.footer.about}
             </Link>
-            <Link href="/legal" className="hover:text-ivory">
+            <Link href={`/${country}/legal`} className="hover:text-ivory">
               {dict.footer.legal}
             </Link>
           </nav>

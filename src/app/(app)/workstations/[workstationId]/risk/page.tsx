@@ -1,12 +1,15 @@
 import Link from "next/link";
+import { PresentModeNav } from "@/components/present-mode-nav";
 import { BodyRegion } from "@/generated/prisma/enums";
 import { requireWorkstationAccess } from "@/lib/auth/require-access";
-import { buildRegionResults } from "@/lib/capture/build-region-results";
+import { buildRegionResultsForSample } from "@/lib/capture/build-region-results";
 import { getDashboardDictionary } from "@/lib/i18n/dictionaries/dashboard";
 import { getLocale } from "@/lib/i18n/get-locale";
-import type { PoseLandmarks } from "@/lib/pose/angles";
+import { isPresentMode } from "@/lib/present-mode";
 import { prisma } from "@/lib/prisma";
+import { resolveSgdCountryPack } from "@/lib/report/sgd-availability";
 import { worstRiskBand } from "@/lib/risk/band-severity";
+import { exposureThresholdStatus } from "@/lib/risk/exposure-threshold-status";
 import { getActiveMethodologyVersion } from "@/lib/scoring/methodology-version";
 
 const ALL_BODY_REGIONS = Object.values(BodyRegion);
@@ -21,16 +24,27 @@ const ALL_BODY_REGIONS = Object.values(BodyRegion);
 // surface at (app)/administration.
 export default async function WorkstationRiskPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ workstationId: string }>;
+  searchParams: Promise<{ present?: string; step?: string; from?: string }>;
 }) {
   const { workstationId } = await params;
+  const { present, step, from } = await searchParams;
+  const presentMode = isPresentMode(present);
+  // "verify" marks this as the sequence's second visit to this same
+  // route — reached from the action detail page, framed as "verification
+  // history" (§7 B6's 5th stop) rather than the first, default visit
+  // reached from the site map. Same page, different position in the
+  // fixed sequence, so its present-mode next target differs (see below).
+  const isVerifyStep = step === "verify";
   const { workstation } = await requireWorkstationAccess(workstationId);
   const locale = await getLocale();
-  const dict = getDashboardDictionary(locale).workstationRiskPage;
-  const hazardCategoryLabels =
-    getDashboardDictionary(locale).hazardCategoryLabels;
-  const actionStatusLabels = getDashboardDictionary(locale).actionStatusLabels;
+  const dashboardDict = getDashboardDictionary(locale);
+  const dict = dashboardDict.workstationRiskPage;
+  const hazardCategoryLabels = dashboardDict.hazardCategoryLabels;
+  const actionStatusLabels = dashboardDict.actionStatusLabels;
+  const verificationOutcomeLabels = dashboardDict.verificationOutcomeLabels;
 
   const [latestApproved, allAssessments, tasks, actions] = await Promise.all([
     prisma.riskAssessment.findFirst({
@@ -64,6 +78,32 @@ export default async function WorkstationRiskPage({
     }),
   ]);
 
+  // §7 B6 "make the verification loop legible": the action(s) that were
+  // verified against one of these assessments — i.e. what CAUSED the band
+  // to move between the "before" and "after" rows below. A small,
+  // targeted query (not a new data path — it reads the pre-existing
+  // Action.verificationAssessmentId FK), scoped to this page rather than
+  // reused elsewhere, since only this trend view needs the causal link
+  // named between two specific assessments.
+  const verifyingActions = await prisma.action.findMany({
+    where: {
+      verificationAssessmentId: { in: allAssessments.map((a) => a.id) },
+    },
+    select: {
+      id: true,
+      title: true,
+      verificationOutcome: true,
+      verificationAssessmentId: true,
+    },
+  });
+  const verifyingActionByAssessmentId = new Map(
+    verifyingActions
+      .filter((a): a is typeof a & { verificationAssessmentId: string } =>
+        Boolean(a.verificationAssessmentId),
+      )
+      .map((a) => [a.verificationAssessmentId, a]),
+  );
+
   let methodologyVersion: string | null = null;
   try {
     methodologyVersion = await getActiveMethodologyVersion();
@@ -78,14 +118,10 @@ export default async function WorkstationRiskPage({
         return { task, sample: null, concerningCount: null as number | null };
       }
       try {
-        const { regions } = await buildRegionResults({
-          keypoints: sample.keypoints as unknown as PoseLandmarks,
-          validatedKeypoints:
-            sample.validatedKeypoints as unknown as PoseLandmarks | null,
-          validationStatus: sample.validationStatus,
-          cameraAngle: sample.cameraAngle,
+        const { regions } = await buildRegionResultsForSample(
+          sample,
           methodologyVersion,
-        });
+        );
         const concerningCount = ALL_BODY_REGIONS.filter((region) => {
           const result = regions[region];
           return (
@@ -99,6 +135,24 @@ export default async function WorkstationRiskPage({
       }
     }),
   );
+
+  // §7 B6 present-mode sequence: prev retraces where this page's own
+  // "next" links came from (site map by default, action detail when
+  // revisited as "verification history"); next depends on which visit
+  // this is — the default visit goes to the latest approved assessment
+  // (threading the first qualifying open action's id forward, so the
+  // assessment-detail page can link to it without a new query of its
+  // own), the "verify" revisit goes to the SGD instead of looping back.
+  const currentHref = `/workstations/${workstationId}/risk?present=1${isVerifyStep ? "&step=verify" : ""}`;
+  const presentPrevHref =
+    from ?? (isVerifyStep ? null : `/sites/${workstation.siteId}?present=1`);
+  const presentNextHref = isVerifyStep
+    ? resolveSgdCountryPack(workstation.site.country)
+      ? `/api/workstations/${workstation.id}/sgd`
+      : null
+    : latestApproved
+      ? `/administration/risk-assessments/${latestApproved.id}?present=1&workstationId=${workstation.id}${actions[0] ? `&actionId=${actions[0].id}` : ""}&from=${encodeURIComponent(currentHref)}`
+      : null;
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-12">
@@ -134,7 +188,36 @@ export default async function WorkstationRiskPage({
         >
           {dict.backToWorkstation}
         </Link>
+        {/* Per-workstation SGD scope (SLD_IMPLEMENTATION_PLAN_austria-
+            first.md §7 B5) — only rendered when the site's country has a
+            verified pack with a real template, same gate as the site-wide
+            link on the site page. */}
+        {resolveSgdCountryPack(workstation.site.country) && (
+          <a
+            href={`/api/workstations/${workstation.id}/sgd`}
+            className="text-sm text-accent hover:underline"
+          >
+            {dict.sgdLink}
+          </a>
+        )}
       </div>
+
+      {presentMode && (
+        <PresentModeNav
+          prevHref={presentPrevHref}
+          nextHref={presentNextHref}
+          prevLabel={
+            isVerifyStep
+              ? dashboardDict.presentMode.actionLabel
+              : dashboardDict.presentMode.siteMapLabel
+          }
+          nextLabel={
+            isVerifyStep
+              ? dashboardDict.presentMode.sgdLabel
+              : dashboardDict.presentMode.assessmentLabel
+          }
+        />
+      )}
 
       <section className="flex flex-col gap-4">
         <div className="flex items-baseline justify-between">
@@ -171,9 +254,15 @@ export default async function WorkstationRiskPage({
               </thead>
               <tbody>
                 {latestApproved.findings.map((finding) => {
-                  const overLimitMeasurements = finding.measurements.filter(
-                    (m) => m.limitValue !== null && m.value > m.limitValue,
+                  const statuses = finding.measurements.map((m) =>
+                    exposureThresholdStatus(m),
                   );
+                  const overLimitCount = statuses.filter(
+                    (s) => s === "over-limit-value",
+                  ).length;
+                  const overActionCount = statuses.filter(
+                    (s) => s === "over-action-value",
+                  ).length;
                   return (
                     <tr
                       key={finding.id}
@@ -191,13 +280,23 @@ export default async function WorkstationRiskPage({
                           <p className="text-xs text-border">
                             {dict.measurementsLabel}{" "}
                             {finding.measurements
-                              .map(
-                                (m) =>
-                                  `${m.value} ${m.unit}${m.limitValue !== null ? ` (${m.limitValue} ${m.unit})` : ""}`,
-                              )
-                              .join(", ")}
-                            {overLimitMeasurements.length > 0 &&
-                              ` — ${overLimitMeasurements.length} ${dict.overLimit}`}
+                              .map((m) => {
+                                const parts = [`${m.value} ${m.unit}`];
+                                if (m.actionValue !== null) {
+                                  parts.push(
+                                    `action ${m.actionValue} ${m.unit}`,
+                                  );
+                                }
+                                if (m.limitValue !== null) {
+                                  parts.push(`limit ${m.limitValue} ${m.unit}`);
+                                }
+                                return parts.join(", ");
+                              })
+                              .join(" · ")}
+                            {overLimitCount > 0 &&
+                              ` — ${overLimitCount} ${dict.overLimit}`}
+                            {overActionCount > 0 &&
+                              ` — ${overActionCount} ${dict.overActionValue}`}
                           </p>
                         )}
                       </td>
@@ -309,33 +408,48 @@ export default async function WorkstationRiskPage({
         {allAssessments.length === 0 ? (
           <p className="text-sm text-border">{dict.bandTrendEmpty}</p>
         ) : (
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="py-1 pr-4">{dict.colAssessedAt}</th>
-                <th className="py-1 pr-4">{dict.colStatus}</th>
-                <th className="py-1">{dict.colOverallBand}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {allAssessments.map((assessment) => (
-                <tr
-                  key={assessment.id}
-                  className="border-b border-border last:border-0"
-                >
-                  <td className="py-1 pr-4">
-                    {assessment.assessedAt.toISOString()}
-                  </td>
-                  <td className="py-1 pr-4">{assessment.status}</td>
-                  <td className="py-1">
-                    {worstRiskBand(
-                      assessment.findings.map((f) => f.riskBand),
-                    ) ?? ""}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          // §7 B6 "make the verification loop legible": a vertical
+          // before → after timeline rather than a plain table, so the
+          // action that moved the band between two assessments is named
+          // in the connector between them — not just implied by two
+          // adjacent rows a reader has to correlate themselves.
+          <ol className="flex flex-col">
+            {allAssessments.map((assessment, index) => {
+              const verifyingAction = verifyingActionByAssessmentId.get(
+                assessment.id,
+              );
+              return (
+                <li key={assessment.id} className="flex flex-col">
+                  {index > 0 && (
+                    <div className="flex items-center gap-2 py-1 pl-2 text-xs text-border">
+                      <span aria-hidden="true">↓</span>
+                      {verifyingAction ? (
+                        <Link
+                          href={`/administration/actions/${verifyingAction.id}`}
+                          className="text-accent underline hover:no-underline"
+                        >
+                          {dict.verifiedByPrefix} {verifyingAction.title}
+                          {verifyingAction.verificationOutcome &&
+                            ` (${verificationOutcomeLabels[verifyingAction.verificationOutcome]})`}
+                        </Link>
+                      ) : null}
+                    </div>
+                  )}
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-border py-2">
+                    <span className="text-border">
+                      {assessment.assessedAt.toISOString()}
+                    </span>
+                    <span className="text-border">{assessment.status}</span>
+                    <span className="font-semibold">
+                      {worstRiskBand(
+                        assessment.findings.map((f) => f.riskBand),
+                      ) ?? ""}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
         )}
       </section>
     </div>
