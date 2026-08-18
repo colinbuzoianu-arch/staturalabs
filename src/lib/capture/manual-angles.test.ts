@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   MANUAL_ENTRY_BODY_REGIONS,
+  resolveEntryMode,
   validateManualAngles,
 } from "./manual-angles";
 
@@ -11,14 +12,17 @@ function completeAngles(overrides: Partial<Record<string, number>> = {}) {
 }
 
 describe("validateManualAngles", () => {
-  it("accepts an object with a finite number for every manual-entry region", () => {
+  it("accepts an object with a finite number for every manual-entry region, defaulting entryMode to degrees", () => {
     const result = validateManualAngles(completeAngles({ NECK: -12.5 }));
     expect(typeof result).not.toBe("string");
-    const angles = result as Record<string, number>;
+    const angles = result as Record<string, unknown>;
     expect(angles.NECK).toBe(-12.5);
-    expect(Object.keys(angles).sort()).toEqual(
-      [...MANUAL_ENTRY_BODY_REGIONS].sort(),
-    );
+    expect(angles.entryMode).toBe("degrees");
+    expect(
+      Object.keys(angles)
+        .filter((k) => k !== "entryMode")
+        .sort(),
+    ).toEqual([...MANUAL_ENTRY_BODY_REGIONS].sort());
   });
 
   it("rejects a non-object value", () => {
@@ -28,42 +32,78 @@ describe("validateManualAngles", () => {
     expect(validateManualAngles(["array"])).toBe("angles must be an object");
   });
 
-  it("rejects a missing region", () => {
-    const angles = completeAngles();
-    delete angles.NECK;
-    const result = validateManualAngles(angles);
-    expect(result).toBe("angles.NECK must be a finite number of degrees");
+  it("accepts a partial entry — B11 no longer requires every region", () => {
+    const result = validateManualAngles({ TRUNK: 25, NECK: 5 });
+    expect(typeof result).not.toBe("string");
+    const angles = result as Record<string, unknown>;
+    expect(angles.TRUNK).toBe(25);
+    expect(angles.NECK).toBe(5);
+    expect(angles).not.toHaveProperty("SHOULDER_LEFT");
+    expect(angles.entryMode).toBe("degrees");
   });
 
-  it("rejects a missing wrist region", () => {
-    const angles = completeAngles();
-    delete angles.WRIST_LEFT;
-    const result = validateManualAngles(angles);
-    expect(result).toBe("angles.WRIST_LEFT must be a finite number of degrees");
+  it("rejects zero regions — at least one must be present", () => {
+    expect(validateManualAngles({})).toBe(
+      "at least one region must be entered",
+    );
+    expect(validateManualAngles({ entryMode: "category" })).toBe(
+      "at least one region must be entered",
+    );
+  });
+
+  it('accepts entryMode: "category" and passes it through', () => {
+    const result = validateManualAngles({ TRUNK: 10, entryMode: "category" });
+    expect(typeof result).not.toBe("string");
+    expect((result as Record<string, unknown>).entryMode).toBe("category");
+  });
+
+  it("rejects an invalid entryMode value", () => {
+    expect(validateManualAngles({ TRUNK: 10, entryMode: "precise" })).toBe(
+      'entryMode must be "category" or "degrees"',
+    );
   });
 
   it("rejects a non-numeric region value", () => {
-    const result = validateManualAngles(
-      completeAngles({ TRUNK: "12" as unknown as number }),
-    );
+    const result = validateManualAngles({ TRUNK: "12" });
     expect(result).toBe("angles.TRUNK must be a finite number of degrees");
   });
 
   it("rejects NaN/Infinity", () => {
-    expect(
-      validateManualAngles(completeAngles({ SHOULDER_LEFT: Number.NaN })),
-    ).toBe("angles.SHOULDER_LEFT must be a finite number of degrees");
-    expect(
-      validateManualAngles(
-        completeAngles({ KNEE_RIGHT: Number.POSITIVE_INFINITY }),
-      ),
-    ).toBe("angles.KNEE_RIGHT must be a finite number of degrees");
+    expect(validateManualAngles({ SHOULDER_LEFT: Number.NaN })).toBe(
+      "angles.SHOULDER_LEFT must be a finite number of degrees",
+    );
+    expect(validateManualAngles({ KNEE_RIGHT: Number.POSITIVE_INFINITY })).toBe(
+      "angles.KNEE_RIGHT must be a finite number of degrees",
+    );
+  });
+
+  it("rejects a missing wrist region when every OTHER region is present but wrist is explicitly invalid", () => {
+    const angles = completeAngles({ WRIST_LEFT: "bad" as unknown as number });
+    expect(validateManualAngles(angles)).toBe(
+      "angles.WRIST_LEFT must be a finite number of degrees",
+    );
   });
 
   it("ignores extra keys not in MANUAL_ENTRY_BODY_REGIONS", () => {
     const result = validateManualAngles(completeAngles({ HIP: 5 }));
     expect(typeof result).not.toBe("string");
-    const angles = result as Record<string, number>;
+    const angles = result as Record<string, unknown>;
     expect(angles).not.toHaveProperty("HIP");
+  });
+});
+
+describe("resolveEntryMode", () => {
+  it('returns "category" only when entryMode is exactly "category"', () => {
+    expect(resolveEntryMode({ entryMode: "category" })).toBe("category");
+  });
+
+  it('defaults to "degrees" for a historical row with no entryMode key', () => {
+    expect(resolveEntryMode({})).toBe("degrees");
+    expect(resolveEntryMode(null)).toBe("degrees");
+    expect(resolveEntryMode(undefined)).toBe("degrees");
+  });
+
+  it('defaults to "degrees" for any unrecognized entryMode value', () => {
+    expect(resolveEntryMode({ entryMode: "precise" })).toBe("degrees");
   });
 });

@@ -51,6 +51,7 @@ const REPORT_STRINGS: Record<
     repetitionUnit: string;
     repetitionSuffix: string;
     footerDisclaimer: (methodologyVersion: string) => string;
+    postureCategoryMethodSentence: string;
   }
 > = {
   en: {
@@ -82,6 +83,12 @@ const REPORT_STRINGS: Record<
     repetitionSuffix: " — SLD threshold, inspired by ISO 11228-3 / EN 1005-5",
     footerDisclaimer: (methodologyVersion) =>
       `This is an automated ergonomic screening artifact produced under scoring methodology ${methodologyVersion}. It is not a substitute for assessment by a certified ergonomist and does not constitute a professional ergonomic evaluation.`,
+    // B11 (SLD_IMPLEMENTATION_PLAN_posture-input.md §3.4): stated as
+    // methodology, not as a caveat — an assessor's observational
+    // classification is the primary input model now, not a fallback from
+    // "real" degree measurement.
+    postureCategoryMethodSentence:
+      "Assessed by classifying the observed posture (ISO 11226 / EN 1005-4 oriented), not by angle measurement.",
   },
   de: {
     documentTitle: (workstationName) =>
@@ -114,6 +121,8 @@ const REPORT_STRINGS: Record<
       " — SLD-Schwellenwert, orientiert an ISO 11228-3 / EN 1005-5",
     footerDisclaimer: (methodologyVersion) =>
       `Dies ist ein automatisiert erstelltes ergonomisches Screening-Dokument nach Bewertungsmethodik ${methodologyVersion}. Es ersetzt nicht die Beurteilung durch eine zertifizierte Ergonomie-Fachkraft und stellt keine professionelle ergonomische Bewertung dar.`,
+    postureCategoryMethodSentence:
+      "Beurteilung durch Einstufung der beobachteten Körperhaltung (ISO 11226 / EN 1005-4 orientiert), nicht durch Winkelmessung.",
   },
 };
 
@@ -209,6 +218,12 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: COLOR.coral,
     marginBottom: 6,
+  },
+  sampleMethodNote: {
+    fontFamily: "Helvetica-Oblique",
+    fontSize: 7.5,
+    color: COLOR.sageDark,
+    marginTop: 4,
   },
   table: { display: "flex", flexDirection: "column" },
   tableHeaderRow: {
@@ -458,12 +473,23 @@ export function TaskReportDocument({
                         {commonDict.regionResultStatusLabels[result.status]}
                       </Text>
                       <Text style={styles.colDetail}>
-                        {describeRegionResult(result, lang)}
+                        {sample.categoryDetail?.[region] ??
+                          describeRegionResult(result, lang)}
                       </Text>
                     </View>
                   );
                 })}
               </View>
+            )}
+
+            {/* B11 (SLD_IMPLEMENTATION_PLAN_posture-input.md §3.4): stated
+                once per category-mode sample, not as a hedge — the
+                per-region classifications above are the primary evidence,
+                and this names the method plainly. */}
+            {sample.categoryDetail && (
+              <Text style={styles.sampleMethodNote}>
+                {s.postureCategoryMethodSentence}
+              </Text>
             )}
           </View>
         ))}

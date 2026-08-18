@@ -60,6 +60,7 @@ export const en = {
     "insufficient-visibility": "Insufficient visibility",
     "no-matching-rule": "No matching rule",
     "not-yet-supported": "Not yet supported",
+    "not-assessed": "Not assessed",
   },
   // The sentence-structure words in describeRegionResult()'s output — the
   // enum values it interpolates (RiskBand, CameraAngle) come from the

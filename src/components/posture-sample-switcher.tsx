@@ -48,6 +48,8 @@ export type PostureSampleSwitcherItem = {
   worstBand: RiskBand | null;
   /** The hold-time sub-score (SLD_IMPLEMENTATION_PLAN_austria-first.md §6), computed server-side via computeHoldTimeResult — null when no holdDurationSeconds was recorded for this sample. Parallel to `worstBand`/`regionResults`, never blended into either. */
   holdTime: HoldTimeResult;
+  /** B11 (SLD_IMPLEMENTATION_PLAN_posture-input.md §3.4): pre-formatted category classification per region ("Bent (20–60°) — Moderate"), computed server-side via buildCategoryDetail — null for degrees-mode/camera samples or when nothing scored. When a region has an entry here, ManualRegionTable shows it instead of describeRegionResult's degree-based text, so a category pick never masquerades as a measurement (ERGO_COMPLIANCE_BY_DESIGN.md §3.16). */
+  categoryDetail: Partial<Record<BodyRegion, string>> | null;
 };
 
 // Every label in this file (badges, table headers, hold-time phrasing)
@@ -198,10 +200,12 @@ function HoldTimeInfo({
 // looks — bands and numbers carry the methodology.
 function ManualRegionTable({
   regionResults,
+  categoryDetail,
   locale,
   commonDict,
 }: {
   regionResults: Record<BodyRegion, RegionResult>;
+  categoryDetail: Partial<Record<BodyRegion, string>> | null;
   locale: ReturnType<typeof useLocale>["locale"];
   commonDict: CommonDict;
 }) {
@@ -234,7 +238,8 @@ function ManualRegionTable({
                 {commonDict.regionResultStatusLabels[result.status]}
               </td>
               <td className="py-1 font-technical text-xs">
-                {describeRegionResult(result, locale)}
+                {categoryDetail?.[region] ??
+                  describeRegionResult(result, locale)}
               </td>
             </tr>
           );
@@ -354,6 +359,7 @@ export function PostureSampleSwitcher({
           {selectedItem.regionResults && (
             <ManualRegionTable
               regionResults={selectedItem.regionResults}
+              categoryDetail={selectedItem.categoryDetail}
               locale={locale}
               commonDict={commonDict}
             />

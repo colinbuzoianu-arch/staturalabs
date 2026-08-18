@@ -4,10 +4,7 @@ import Link from "next/link";
 import { type FormEvent, use, useEffect, useMemo, useState } from "react";
 import { ManualInputType } from "@/generated/prisma/enums";
 import { describeRegionResult } from "@/lib/capture/describe-region-result";
-import {
-  MANUAL_ENTRY_BODY_REGIONS,
-  type ManualAngles,
-} from "@/lib/capture/manual-angles";
+import { MANUAL_ENTRY_BODY_REGIONS } from "@/lib/capture/manual-angles";
 import {
   describeManualInput,
   isTextManualInputType,
@@ -22,6 +19,11 @@ import type { Locale } from "@/lib/i18n/locale";
 import { useLocale } from "@/lib/i18n/locale-context";
 import { NOT_ASSESSED_COLOR, riskBandColors } from "@/lib/risk/band-severity";
 import { matchScoringRule } from "@/lib/scoring/match";
+import {
+  derivePostureCategories,
+  formatCategoryRange,
+  type ScoringRuleRow,
+} from "@/lib/scoring/posture-categories";
 
 export default function CapturePage({
   params,
@@ -51,8 +53,11 @@ export default function CapturePage({
           path reachable from the dashboard. POST /api/posture-samples and
           the client libs behind the camera flow (mediapipe-client.ts,
           draw-skeleton.ts, angles.ts) stay in the repo, tested, reachable
-          again if the B10 decision reinstates a capture UI. */}
-      <ManualAngleEntryPanel taskId={taskId} />
+          again if the B10 decision reinstates a capture UI. B11
+          (SLD_IMPLEMENTATION_PLAN_posture-input.md) then replaced this
+          panel's own default entry precision — category pick, not a typed
+          degree — see PostureCategoryPanel's own comment. */}
+      <PostureCategoryPanel taskId={taskId} />
 
       {/*
         Independent of the manual-entry submission above — the operator
@@ -138,37 +143,43 @@ function ResultView({
   );
 }
 
-// Mirrors GET /api/scoring-rules's response shape exactly (see that
-// route's own comment) — field names match ScoringRule's own columns so a
-// fetched row satisfies matchScoringRule's AngleRangeRule with no mapping
-// step. Defined locally rather than imported from the frozen posture
-// editor's ScoringRuleRow (src/lib/pose/posture-editor.ts, which this
-// panel deliberately doesn't depend on — see SLD_POSTURE_EDITOR_FIDELITY
-// _PLAN.md) so this feature has zero coupling to that frozen module.
-type ScoringRulePreviewRow = {
-  bodyRegion: (typeof MANUAL_ENTRY_BODY_REGIONS)[number];
-  angleMin: number | null;
-  angleMax: number | null;
-  riskBand: "LOW" | "MODERATE" | "ELEVATED" | "HIGH";
-  riskScore: number;
-};
-
-// Manual posture entry (SLD_IMPLEMENTATION_PLAN_austria-first.md §5): the
-// goniometer/tape-measure alternative to the (now-removed, see B8b)
-// camera flow — an ergonomist can produce a fully scored, fully traceable
-// PostureSample with the camera never opened. All computed regions are
-// required (mirrors createPostureSample's own validateManualAngles gate;
-// the per-region live-band feedback below is the actual reason a real
-// assessor would want this: they see the methodology's judgment as they
-// type, rather than after a round-trip).
-function ManualAngleEntryPanel({ taskId }: { taskId: string }) {
+// B11 (SLD_IMPLEMENTATION_PLAN_posture-input.md §3): the primary posture
+// entry surface, replacing precise degree entry — the assessor classifies
+// what they observe ("Rumpf: gebeugt") rather than typing a number nobody
+// on a factory floor actually measures (§1's "false precision" framing).
+// Category options per region are generated from the active methodology's
+// own ScoringRule rows (derivePostureCategories,
+// src/lib/scoring/posture-categories.ts) — the SAME `GET /api/scoring-
+// rules` fetch this panel already made for the pre-B11 live-band preview,
+// zero new endpoints. An "expert mode" toggle keeps the old precise-entry
+// inputs reachable for an assessor who genuinely measured (goniometer/
+// inclinometer app); both modes write through the same POST
+// /api/posture-samples/manual, discriminated by `entryMode` inside the
+// submitted `angles` object. Partial entry is legal in either mode — a
+// region left as "Nicht beurteilt" (category mode) or blank (degree mode)
+// is simply omitted from the submission, never forced to a guess.
+function PostureCategoryPanel({ taskId }: { taskId: string }) {
   const { locale } = useLocale();
   const dict = getDashboardDictionary(locale).capturePage;
   const commonDict = getCommonDictionary(locale);
 
-  const [rules, setRules] = useState<ScoringRulePreviewRow[] | null>(null);
+  const [rules, setRules] = useState<ScoringRuleRow[] | null>(null);
   const [rulesError, setRulesError] = useState<string | null>(null);
-  const [angleInputs, setAngleInputs] = useState<Record<string, string>>(() =>
+  const [expertMode, setExpertMode] = useState(false);
+  // Category mode: the SELECTED category's index within
+  // derivePostureCategories' sorted output for that region, or null for
+  // "Nicht beurteilt." Never defaults to a real category — an unassessed
+  // region must start unassessed, not pre-guessed toward a neutral band.
+  const [categoryPicks, setCategoryPicks] = useState<
+    Record<string, number | null>
+  >(() =>
+    Object.fromEntries(
+      MANUAL_ENTRY_BODY_REGIONS.map((region) => [region, null]),
+    ),
+  );
+  // Degree mode (expert toggle): the pre-B11 raw text inputs, unchanged —
+  // "" still means not assessed.
+  const [degreeInputs, setDegreeInputs] = useState<Record<string, string>>(() =>
     Object.fromEntries(MANUAL_ENTRY_BODY_REGIONS.map((region) => [region, ""])),
   );
   const [holdDurationSeconds, setHoldDurationSeconds] = useState("");
@@ -177,15 +188,14 @@ function ManualAngleEntryPanel({ taskId }: { taskId: string }) {
   const [response, setResponse] = useState<PostureSampleResponse | null>(null);
 
   // Fetched once — the active rule set is fixed for the life of this
-  // panel, so every keystroke afterward matches locally
-  // (matchScoringRule, the same pure per-row range check the server uses)
-  // with zero further round-trips.
+  // panel, so every pick/keystroke afterward resolves locally with zero
+  // further round-trips.
   useEffect(() => {
     let cancelled = false;
     fetch("/api/scoring-rules")
       .then((res) => {
         if (!res.ok) throw new Error(dict.requestFailed(res.status));
-        return res.json() as Promise<{ rules: ScoringRulePreviewRow[] }>;
+        return res.json() as Promise<{ rules: ScoringRuleRow[] }>;
       })
       .then((data) => {
         if (!cancelled) setRules(data.rules);
@@ -200,8 +210,16 @@ function ManualAngleEntryPanel({ taskId }: { taskId: string }) {
     };
   }, [dict]);
 
+  const categoriesByRegion = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof derivePostureCategories>>();
+    for (const region of MANUAL_ENTRY_BODY_REGIONS) {
+      map.set(region, derivePostureCategories(rules ?? [], region));
+    }
+    return map;
+  }, [rules]);
+
   const rulesByRegion = useMemo(() => {
-    const map = new Map<string, ScoringRulePreviewRow[]>();
+    const map = new Map<string, ScoringRuleRow[]>();
     for (const rule of rules ?? []) {
       const existing = map.get(rule.bodyRegion) ?? [];
       existing.push(rule);
@@ -210,27 +228,45 @@ function ManualAngleEntryPanel({ taskId }: { taskId: string }) {
     return map;
   }, [rules]);
 
-  function livePreview(region: string) {
-    const raw = angleInputs[region]?.trim();
+  function degreePreview(region: string) {
+    const raw = degreeInputs[region]?.trim();
     if (!raw) return null;
     const degrees = Number(raw);
     if (!Number.isFinite(degrees)) return null;
     return matchScoringRule(rulesByRegion.get(region) ?? [], degrees);
   }
 
-  const allFilled = MANUAL_ENTRY_BODY_REGIONS.every((region) => {
-    const raw = angleInputs[region]?.trim();
-    return !!raw && Number.isFinite(Number(raw));
-  });
+  const atLeastOneEntered = expertMode
+    ? MANUAL_ENTRY_BODY_REGIONS.some((region) => {
+        const raw = degreeInputs[region]?.trim();
+        return !!raw && Number.isFinite(Number(raw));
+      })
+    : MANUAL_ENTRY_BODY_REGIONS.some(
+        (region) => categoryPicks[region] !== null,
+      );
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
     setSubmitting(true);
     try {
-      const angles: Partial<ManualAngles> = {};
-      for (const region of MANUAL_ENTRY_BODY_REGIONS) {
-        angles[region] = Number(angleInputs[region]);
+      const angles: Record<string, number | string> = {
+        entryMode: expertMode ? "degrees" : "category",
+      };
+      if (expertMode) {
+        for (const region of MANUAL_ENTRY_BODY_REGIONS) {
+          const raw = degreeInputs[region]?.trim();
+          if (raw && Number.isFinite(Number(raw))) {
+            angles[region] = Number(raw);
+          }
+        }
+      } else {
+        for (const region of MANUAL_ENTRY_BODY_REGIONS) {
+          const index = categoryPicks[region];
+          if (index === null) continue;
+          const category = categoriesByRegion.get(region)?.[index];
+          if (category) angles[region] = category.representativeDegrees;
+        }
       }
       const res = await fetch("/api/posture-samples/manual", {
         method: "POST",
@@ -258,7 +294,12 @@ function ManualAngleEntryPanel({ taskId }: { taskId: string }) {
 
   function reset() {
     setResponse(null);
-    setAngleInputs(
+    setCategoryPicks(
+      Object.fromEntries(
+        MANUAL_ENTRY_BODY_REGIONS.map((region) => [region, null]),
+      ),
+    );
+    setDegreeInputs(
       Object.fromEntries(
         MANUAL_ENTRY_BODY_REGIONS.map((region) => [region, ""]),
       ),
@@ -280,10 +321,26 @@ function ManualAngleEntryPanel({ taskId }: { taskId: string }) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div>
-        <h2 className="text-lg font-semibold">{dict.manualEntryHeading}</h2>
+        <h2 className="text-lg font-semibold">{dict.postureCategoryHeading}</h2>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          {dict.manualEntryDescription}
+          {dict.postureCategoryDescription}
         </p>
+      </div>
+
+      <div>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={expertMode}
+            onChange={(e) => setExpertMode(e.target.checked)}
+          />
+          {dict.expertModeToggleLabel}
+        </label>
+        {expertMode && (
+          <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+            {dict.expertModeDescription}
+          </p>
+        )}
       </div>
 
       {rulesError && (
@@ -300,35 +357,86 @@ function ManualAngleEntryPanel({ taskId }: { taskId: string }) {
         <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
       )}
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {MANUAL_ENTRY_BODY_REGIONS.map((region) => {
-          const preview = livePreview(region);
+          if (expertMode) {
+            const preview = degreePreview(region);
+            return (
+              <label key={region} className="flex flex-col gap-1 text-sm">
+                {dict.angleDegreesLabel(commonDict.bodyRegionLabels[region])}
+                <input
+                  type="number"
+                  step="any"
+                  placeholder={dict.notAssessedOption}
+                  value={degreeInputs[region] ?? ""}
+                  onChange={(e) =>
+                    setDegreeInputs((prev) => ({
+                      ...prev,
+                      [region]: e.target.value,
+                    }))
+                  }
+                  className="rounded border px-2 py-1"
+                />
+                <span
+                  className="font-technical text-xs font-bold"
+                  style={{
+                    color: preview
+                      ? riskBandColors[preview.riskBand]
+                      : NOT_ASSESSED_COLOR,
+                  }}
+                >
+                  {preview
+                    ? `${commonDict.riskBandLabels[preview.riskBand]} (${preview.riskScore})`
+                    : dict.manualEntryNotScored}
+                </span>
+              </label>
+            );
+          }
+
+          const categories = categoriesByRegion.get(region) ?? [];
+          const names =
+            dict.postureCategoryLabels[
+              region as keyof typeof dict.postureCategoryLabels
+            ] ?? [];
+          const pickedIndex = categoryPicks[region];
+          const picked =
+            pickedIndex !== null ? categories[pickedIndex] : undefined;
           return (
             <label key={region} className="flex flex-col gap-1 text-sm">
-              {dict.angleDegreesLabel(commonDict.bodyRegionLabels[region])}
-              <input
-                type="number"
-                step="any"
-                required
-                value={angleInputs[region] ?? ""}
+              {commonDict.bodyRegionLabels[region]}
+              <select
+                value={pickedIndex === null ? "" : pickedIndex}
                 onChange={(e) =>
-                  setAngleInputs((prev) => ({
+                  setCategoryPicks((prev) => ({
                     ...prev,
-                    [region]: e.target.value,
+                    [region]:
+                      e.target.value === "" ? null : Number(e.target.value),
                   }))
                 }
                 className="rounded border px-2 py-1"
-              />
+              >
+                <option value="">{dict.notAssessedOption}</option>
+                {categories.map((category, index) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: this list's order/length is fixed for the life of the panel (derived once from the fetched rule set, not reordered/filtered as the user interacts), so the index is a stable identity here, same as it's the actual value being submitted.
+                  <option key={index} value={index}>
+                    {dict.categoryOptionLabel(
+                      names[index] ?? "?",
+                      formatCategoryRange(category.ruleRange),
+                      commonDict.riskBandLabels[category.band],
+                    )}
+                  </option>
+                ))}
+              </select>
               <span
                 className="font-technical text-xs font-bold"
                 style={{
-                  color: preview
-                    ? riskBandColors[preview.riskBand]
+                  color: picked
+                    ? riskBandColors[picked.band]
                     : NOT_ASSESSED_COLOR,
                 }}
               >
-                {preview
-                  ? `${commonDict.riskBandLabels[preview.riskBand]} (${preview.riskScore})`
+                {picked
+                  ? `${commonDict.riskBandLabels[picked.band]} (${picked.riskScore})`
                   : dict.manualEntryNotScored}
               </span>
             </label>
@@ -351,7 +459,7 @@ function ManualAngleEntryPanel({ taskId }: { taskId: string }) {
 
       <button
         type="submit"
-        disabled={!allFilled || submitting || !rules}
+        disabled={!atLeastOneEntered || submitting || !rules}
         className="self-start rounded bg-black px-4 py-2 text-white disabled:opacity-50 dark:bg-white dark:text-black"
       >
         {submitting ? dict.manualEntrySubmitting : dict.manualEntrySubmit}

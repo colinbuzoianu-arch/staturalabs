@@ -9,6 +9,7 @@ import type {
 import type { ManualInputModel } from "@/generated/prisma/models";
 import type { requireTaskAccess } from "@/lib/auth/require-access";
 import { buildRegionResultsForSample } from "@/lib/capture/build-region-results";
+import { buildCategoryDetail } from "@/lib/capture/category-detail";
 import { computeHoldTimeResult } from "@/lib/capture/hold-time-result";
 import { MANUAL_INPUT_TYPES } from "@/lib/capture/manual-input";
 import type { HoldTimeResult, RegionResult } from "@/lib/capture/types";
@@ -22,6 +23,7 @@ import {
   computeRepetitionResult,
   type RepetitionResult,
 } from "@/lib/scoring/repetition";
+import type { ReportLang } from "./report-lang";
 
 // Same shape requireTaskAccess already fetches (task + workstation + site +
 // company) — reused rather than re-queried, since the report route calls
@@ -38,6 +40,8 @@ export type TaskReportSample = {
   regions: Partial<Record<BodyRegion, RegionResult>> | null;
   error: string | null;
   holdTime: HoldTimeResult;
+  /** B11 (SLD_IMPLEMENTATION_PLAN_posture-input.md §3.4): non-null only for a category-mode MANUAL_ENTRY sample with at least one scored region — see buildCategoryDetail. Drives both the classification text in the per-region table and whether the report prints the "assessed by classification, not measurement" method sentence for this sample. */
+  categoryDetail: Partial<Record<BodyRegion, string>> | null;
 };
 
 export type ManualInputGroup = {
@@ -67,6 +71,7 @@ export type TaskReportData = {
 // a digest of it.
 export async function getTaskReportData(
   task: TaskWithChain,
+  lang: ReportLang,
 ): Promise<TaskReportData> {
   const [rawSamples, manualInputs] = await Promise.all([
     prisma.postureSample.findMany({
@@ -101,6 +106,11 @@ export async function getTaskReportData(
               holdDurationSeconds: sample.holdDurationSeconds,
               methodologyVersion,
             });
+            const categoryDetail = await buildCategoryDetail(
+              sample.manualAngles,
+              regions,
+              lang,
+            );
             return {
               id: sample.id,
               capturedAt: sample.capturedAt,
@@ -109,6 +119,7 @@ export async function getTaskReportData(
               regions,
               error: null,
               holdTime,
+              categoryDetail,
             };
           } catch (err) {
             return {
@@ -122,6 +133,7 @@ export async function getTaskReportData(
                   ? err.message
                   : "Could not compute body angles",
               holdTime: null,
+              categoryDetail: null,
             };
           }
         }),
@@ -134,6 +146,7 @@ export async function getTaskReportData(
         regions: null,
         error: null,
         holdTime: null,
+        categoryDetail: null,
       }));
 
   // Grouped in MANUAL_INPUT_TYPES order (not creation order) so the report

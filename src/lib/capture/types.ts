@@ -16,11 +16,17 @@ export type PostureSampleRequest = {
 };
 
 // One outcome per BodyRegion, always present — never an omitted key.
-// "not-yet-supported" covers every BodyRegion computeBodyAngles doesn't
-// compute yet (HIP, UPPER_ARM_*, FOREARM_*, ANKLE_*, WRIST_*).
-// "insufficient-visibility" covers a required landmark computeBodyAngles
-// did have a formula for, but wasn't confidently observed in this sample —
-// see MIN_LANDMARK_VISIBILITY in src/lib/pose/angles.ts.
+// "not-yet-supported" covers every BodyRegion computeBodyAngles/manual
+// entry doesn't have a formula for at all (HIP, UPPER_ARM_*, FOREARM_*,
+// ANKLE_*). "insufficient-visibility" covers a required landmark
+// computeBodyAngles did have a formula for, but wasn't confidently
+// observed in this sample — see MIN_LANDMARK_VISIBILITY in
+// src/lib/pose/angles.ts. "not-assessed" (B11, SLD_IMPLEMENTATION_PLAN_
+// posture-input.md §3.3) is a MANUAL_ENTRY-only status, distinct from
+// "not-yet-supported": the region IS one this app can score (it's in
+// MANUAL_ENTRY_BODY_REGIONS), the assessor simply didn't observe/record
+// it for this sample — a legitimate, recordable absence, never forced to
+// a guess, never silently dropped.
 export type RegionResult =
   | {
       status: "scored";
@@ -36,7 +42,8 @@ export type RegionResult =
     }
   | { status: "insufficient-visibility"; failedLandmarks: FailedLandmark[] }
   | { status: "no-matching-rule"; degrees: number }
-  | { status: "not-yet-supported" };
+  | { status: "not-yet-supported" }
+  | { status: "not-assessed" };
 
 // The hold-time sub-score (SLD_IMPLEMENTATION_PLAN_austria-first.md §6) —
 // a parallel result alongside `regions`, never blended into it. null when

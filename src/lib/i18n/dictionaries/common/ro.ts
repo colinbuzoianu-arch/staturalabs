@@ -44,6 +44,7 @@ export const ro: typeof en = {
     "insufficient-visibility": "Vizibilitate insuficientă",
     "no-matching-rule": "Nicio regulă potrivită",
     "not-yet-supported": "Neacceptat încă",
+    "not-assessed": "Neevaluat",
   },
   regionResultDetail: {
     scoreSuffix: (score: number) => `scor ${score}`,

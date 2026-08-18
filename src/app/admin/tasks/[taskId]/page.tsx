@@ -6,6 +6,7 @@ import {
 } from "@/components/posture-sample-switcher";
 import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 import { buildRegionResultsForSample } from "@/lib/capture/build-region-results";
+import { buildCategoryDetail } from "@/lib/capture/category-detail";
 import { computeHoldTimeResult } from "@/lib/capture/hold-time-result";
 import { getAdminDictionary } from "@/lib/i18n/dictionaries/admin";
 import { getLocale } from "@/lib/i18n/get-locale";
@@ -101,12 +102,18 @@ export default async function TaskResultsPage({
               holdDurationSeconds: sample.holdDurationSeconds,
               methodologyVersion,
             });
+            const categoryDetail = await buildCategoryDetail(
+              sample.manualAngles,
+              regions,
+              locale,
+            );
             return {
               ...base,
               regionResults: regions,
               error: null,
               worstBand,
               holdTime,
+              categoryDetail,
             };
           } catch (err) {
             return {
@@ -118,6 +125,7 @@ export default async function TaskResultsPage({
                   : "Could not compute body angles",
               worstBand: null,
               holdTime: null,
+              categoryDetail: null,
             };
           }
         }),
@@ -138,6 +146,7 @@ export default async function TaskResultsPage({
         error: null,
         worstBand: null,
         holdTime: null,
+        categoryDetail: null,
       }));
 
   return (

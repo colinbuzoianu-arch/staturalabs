@@ -32,7 +32,7 @@ export async function GET(
     new URL(request.url).searchParams.get("lang"),
   );
 
-  const data = await getTaskReportData(task);
+  const data = await getTaskReportData(task, lang);
   // react-pdf's renderToBuffer types its param as ReactElement<DocumentProps>
   // specifically (i.e. a <Document> element), not any component that
   // happens to render one — TaskReportDocument does the latter, so the

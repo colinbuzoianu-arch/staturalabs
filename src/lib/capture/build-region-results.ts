@@ -179,6 +179,14 @@ async function buildManualRegionResults(params: {
     }
 
     const degrees = params.manualAngles[region];
+    // B11 (SLD_IMPLEMENTATION_PLAN_posture-input.md §3.3): a region simply
+    // absent from manualAngles was legitimately not assessed — distinct
+    // from "entered but matched no rule" (no-matching-rule), which still
+    // needs a real degrees value to report.
+    if (degrees === undefined) {
+      regionResults[region] = { status: "not-assessed" };
+      continue;
+    }
     const scoreRow = scoreByRegion.get(region);
     regionResults[region] = scoreRow
       ? {

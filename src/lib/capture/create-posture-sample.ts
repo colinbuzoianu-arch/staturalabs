@@ -15,6 +15,7 @@ import {
 import { computeHoldTimeResult } from "./hold-time-result";
 import {
   MANUAL_ENTRY_BODY_REGIONS,
+  type ManualEntryBodyRegion,
   validateManualAngles,
 } from "./manual-angles";
 import type { PostureSampleResponse, RegionResult } from "./types";
@@ -166,11 +167,18 @@ async function createManualPostureSample(params: {
   if (typeof validated === "string") {
     throw new Error(validated);
   }
-  const angles = validated;
+  // B11 (SLD_IMPLEMENTATION_PLAN_posture-input.md §3.3): only the regions
+  // actually entered — partial entry is valid now, so this is no longer
+  // every MANUAL_ENTRY_BODY_REGIONS value unconditionally. `validated`
+  // also carries `entryMode`, which never matches a BodyRegion value, so
+  // it's naturally excluded from this filter with no special-casing.
+  const enteredRegions = MANUAL_ENTRY_BODY_REGIONS.filter(
+    (region) => validated[region] !== undefined,
+  );
 
   const rules = await prisma.scoringRule.findMany({
     where: {
-      bodyRegion: { in: [...MANUAL_ENTRY_BODY_REGIONS] },
+      bodyRegion: { in: enteredRegions },
       methodologyVersion: params.methodologyVersion,
     },
   });
@@ -189,8 +197,15 @@ async function createManualPostureSample(params: {
     scoringRuleVersion: string;
   }> = [];
 
-  for (const region of MANUAL_ENTRY_BODY_REGIONS) {
-    const degrees = angles[region];
+  // Category mode needs no different scoring path here: the picker
+  // already resolved its pick to that category's own representativeDegrees
+  // (src/lib/scoring/posture-categories.ts) before submitting, chosen
+  // specifically so re-matching it against the same rule set lands back on
+  // the exact rule that produced it — "the category *is* the rule," per
+  // the plan's §3.2. This loop stays byte-for-byte the same
+  // matchScoringRule call regardless of which mode produced `degrees`.
+  for (const region of enteredRegions) {
+    const degrees = validated[region] as number;
     const match = matchScoringRule(rulesByRegion.get(region) ?? [], degrees);
     if (match) {
       regionResults[region] = {
@@ -217,12 +232,16 @@ async function createManualPostureSample(params: {
     }
   }
   // Every BodyRegion not in MANUAL_ENTRY_BODY_REGIONS never gets a
-  // formula — same "not-yet-supported" reporting as buildRegionResults'
-  // manual branch.
+  // formula at all ("not-yet-supported", same reporting as
+  // buildRegionResults' manual branch); every manually-scorable region
+  // that simply wasn't entered this time is "not-assessed" — a real,
+  // legitimate state (§3.3), never silently dropped and never conflated
+  // with "unsupported."
   for (const region of Object.values(BodyRegion)) {
-    if (!isManuallyScorableRegion(region)) {
-      regionResults[region] = { status: "not-yet-supported" };
-    }
+    if (enteredRegions.includes(region as ManualEntryBodyRegion)) continue;
+    regionResults[region] = isManuallyScorableRegion(region)
+      ? { status: "not-assessed" }
+      : { status: "not-yet-supported" };
   }
 
   const sample = await prisma.$transaction(async (tx) => {
@@ -232,7 +251,7 @@ async function createManualPostureSample(params: {
         capturedAt: new Date(),
         cameraAngle: MANUAL_ENTRY_CAMERA_ANGLE_PLACEHOLDER,
         source: "MANUAL_ENTRY",
-        manualAngles: angles,
+        manualAngles: validated,
         holdDurationSeconds: params.holdDurationSeconds ?? null,
         validationStatus: "PENDING_REVIEW",
       },

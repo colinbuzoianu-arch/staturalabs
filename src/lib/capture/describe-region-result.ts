@@ -41,5 +41,10 @@ export function describeRegionResult(
       return `${result.degrees.toFixed(1)}° — ${dict.regionResultDetail.noThresholdMatched}`;
     case "not-yet-supported":
       return "—";
+    // B11 (SLD_IMPLEMENTATION_PLAN_posture-input.md §3.3): the Status
+    // column already carries "not assessed" via regionResultStatusLabels
+    // — no need to repeat it here, same minimalism as not-yet-supported.
+    case "not-assessed":
+      return "—";
   }
 }

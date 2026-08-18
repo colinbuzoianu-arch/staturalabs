@@ -168,21 +168,69 @@ export const en = {
     add: "Add",
     submitFailed: "Submit failed",
     requestFailed: (status: number) => `Request failed: ${status}`,
-    // Manual entry (SLD_IMPLEMENTATION_PLAN_austria-first.md §5): the
-    // goniometer/tape-measure alternative to the camera flow removed in
-    // B8b (SLD_NEXT_STEPS_B8b-B8f.md) — now this page's only entry path.
+    // B11 (SLD_IMPLEMENTATION_PLAN_posture-input.md §3): category entry is
+    // now the primary path — the assessor classifies what they observe
+    // ("Rumpf: gebeugt") rather than typing a degree nobody actually
+    // measured. Category names are hand-authored presentation copy over
+    // each region's ScoringRule rows, keyed by region + the same sorted
+    // index derivePostureCategories() returns (src/lib/scoring/posture-
+    // categories.ts) — same class as manualInputLabels, not a technical CV
+    // artifact, so (unlike bodyRegionLabels/riskBandLabels in the shared
+    // common dictionary) this lives here rather than being duplicated
+    // per-area, per the plan's own explicit instruction.
+    postureCategoryHeading: "Assess posture",
+    postureCategoryDescription:
+      'For every region below, pick the posture category that best matches what you observe — no measurement needed. At least one region is required; leave the rest as "Not assessed" if you did not observe them this time.',
+    notAssessedOption: "Not assessed",
+    categoryOptionLabel: (name: string, range: string, band: string) =>
+      `${name} (${range}) — ${band}`,
+    postureCategoryLabels: {
+      TRUNK: ["Upright", "Bent", "Strongly bent"],
+      NECK: [
+        "Strong backward tilt",
+        "Backward tilt",
+        "Slight backward tilt",
+        "Upright",
+        "Forward tilt",
+        "Strong forward tilt",
+      ],
+      SHOULDER_LEFT: [
+        "Neutral",
+        "Slightly raised",
+        "Raised",
+        "Strongly raised",
+      ],
+      SHOULDER_RIGHT: [
+        "Neutral",
+        "Slightly raised",
+        "Raised",
+        "Strongly raised",
+      ],
+      ELBOW_LEFT: ["Nearly straight", "Bent", "Strongly bent"],
+      ELBOW_RIGHT: ["Nearly straight", "Bent", "Strongly bent"],
+      KNEE_LEFT: ["Straight", "Bent", "Strongly bent"],
+      KNEE_RIGHT: ["Straight", "Bent", "Strongly bent"],
+      WRIST_LEFT: ["Strong extension", "Neutral", "Strong flexion"],
+      WRIST_RIGHT: ["Strong extension", "Neutral", "Strong flexion"],
+    },
+    // The pre-B11 precise-entry path (SLD_IMPLEMENTATION_PLAN_austria-
+    // first.md §5), kept reachable behind the "expert mode" toggle for an
+    // assessor who genuinely measured with a goniometer/inclinometer app.
     // Region names themselves stay untranslated everywhere in this
     // dictionary (see the file-level i18n scope note) — angleDegreesLabel
     // takes the raw BodyRegion string and only wraps it with translated
     // framing.
+    expertModeToggleLabel: "Expert mode: degree entry",
+    expertModeDescription:
+      "For an assessor who measured with a goniometer or inclinometer app — enter a precise degree value per region instead of picking a category.",
     manualEntryHeading: "Enter measured angles",
     manualEntryDescription:
-      "For every region below, enter the flexion angle from neutral (0° = upright, increasing = more flexed) as measured with a goniometer or estimated by eye. All ten are required for a complete sample.",
+      "For every region below, enter the flexion angle from neutral (0° = upright, increasing = more flexed). At least one region is required; leave the rest blank if you did not measure them this time.",
     angleDegreesLabel: (region: string) => `${region} (°)`,
     manualEntryNotScored: "not scored yet",
-    manualEntrySubmit: "Submit manual entry",
+    manualEntrySubmit: "Submit posture sample",
     manualEntrySubmitting: "Submitting…",
-    manualEntryAnother: "Enter another manual sample",
+    manualEntryAnother: "Enter another sample",
     manualEntryRulesLoading: "Loading scoring rules…",
     manualEntryRulesFailed: (message: string) =>
       `Could not load scoring rules for live preview: ${message}`,

@@ -44,6 +44,7 @@ export const de: typeof en = {
     "insufficient-visibility": "Unzureichende Sichtbarkeit",
     "no-matching-rule": "Keine passende Regel",
     "not-yet-supported": "Noch nicht unterstützt",
+    "not-assessed": "Nicht beurteilt",
   },
   regionResultDetail: {
     scoreSuffix: (score: number) => `Wert ${score}`,
