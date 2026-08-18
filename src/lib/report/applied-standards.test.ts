@@ -8,6 +8,7 @@ describe("deriveAppliedStandards", () => {
         hasScoringRules: false,
         hasHoldTimeRules: false,
         hasManualHandlingRules: false,
+        hasRepetitionRules: false,
       }),
     ).toEqual([]);
   });
@@ -17,6 +18,7 @@ describe("deriveAppliedStandards", () => {
       hasScoringRules: true,
       hasHoldTimeRules: false,
       hasManualHandlingRules: false,
+      hasRepetitionRules: false,
     });
     expect(standards).toHaveLength(2);
     expect(standards.map((s) => s.reference).join(" ")).toContain("ISO 11228");
@@ -28,6 +30,7 @@ describe("deriveAppliedStandards", () => {
       hasScoringRules: false,
       hasHoldTimeRules: true,
       hasManualHandlingRules: false,
+      hasRepetitionRules: false,
     });
     expect(standards).toHaveLength(1);
     expect(standards[0].reference).toContain("ISO 11226");
@@ -38,6 +41,7 @@ describe("deriveAppliedStandards", () => {
       hasScoringRules: false,
       hasHoldTimeRules: false,
       hasManualHandlingRules: true,
+      hasRepetitionRules: false,
     });
     expect(standards).toHaveLength(1);
     expect(standards[0].reference).toContain("ISO 11228-1");
@@ -46,12 +50,25 @@ describe("deriveAppliedStandards", () => {
     expect(standards[0].note).toContain("keine Methode vor");
   });
 
-  it("includes all four when every rule table has rows", () => {
+  it("includes ISO 11228-3 / EN 1005-5 only when repetition rules exist", () => {
+    const standards = deriveAppliedStandards({
+      hasScoringRules: false,
+      hasHoldTimeRules: false,
+      hasManualHandlingRules: false,
+      hasRepetitionRules: true,
+    });
+    expect(standards).toHaveLength(1);
+    expect(standards[0].reference).toContain("ISO 11228-3");
+    expect(standards[0].reference).toContain("EN 1005-5");
+  });
+
+  it("includes all five when every rule table has rows", () => {
     const standards = deriveAppliedStandards({
       hasScoringRules: true,
       hasHoldTimeRules: true,
       hasManualHandlingRules: true,
+      hasRepetitionRules: true,
     });
-    expect(standards).toHaveLength(4);
+    expect(standards).toHaveLength(5);
   });
 });

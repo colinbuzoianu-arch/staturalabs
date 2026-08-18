@@ -98,7 +98,7 @@ export const de: typeof en = {
         heading: "Was Arbeitsplatz-Ergonomie tatsächlich misst",
         paragraphs: [
           "Muskel-Skelett-Erkrankungen — Belastungen von Rücken, Schulter und Knie durch wiederholte oder anhaltende Zwangshaltungen — zählen weiterhin zu den größten Kategorien von Berufserkrankungen und sind zugleich am schwersten frühzeitig zu erkennen, weil der Schaden sich aus gewöhnlichen, tausendfach wiederholten Bewegungen aufbaut, nicht aus einem einzelnen Unfall.",
-          "Eine seriöse Bewertung betrachtet nicht nur einen Moment — sie betrachtet Haltung, Wiederholung, Kraft und Dauer gemeinsam, Region für Region: Rumpf, Nacken, Schultern, Ellbogen, Knie. Die Bewertungslogik von Statura folgt derselben Logik, aufgebaut auf ISO 11228 und EN 1005, statt auf einen einzelnen vereinfachten „Risikowert“.",
+          "Eine seriöse Bewertung betrachtet nicht nur einen Moment — sie betrachtet Haltung, Wiederholung, Kraft und Dauer gemeinsam, Region für Region: Rumpf, Nacken, Schultern, Ellbogen, Handgelenke, Knie. Die Bewertungslogik von Statura folgt derselben Logik, aufgebaut auf ISO 11228 und EN 1005, statt auf einen einzelnen vereinfachten „Risikowert“.",
         ],
         roadmapNote: null as string | null,
       },
@@ -109,7 +109,7 @@ export const de: typeof en = {
           "Statura funktioniert heute mit jeder Kamera, auf die ein Browser zugreifen kann — einer Laptop- oder USB-Kamera, die dauerhaft an einem Arbeitsplatz montiert für wiederkehrende Prüfungen genutzt wird, oder einem Smartphone, das eine prüfende Person von Station zu Station durch die Anlage trägt. Keine proprietäre Hardware, keine Wearables.",
         ],
         roadmapNote:
-          "In Entwicklung: ein eigener Nahbereichs-Aufnahmemodus für Regionen, die eine Ganzkörperaufnahme nicht zuverlässig erfassen kann — insbesondere Handgelenk und Hand. Noch nicht Teil des Produkts.",
+          "In Entwicklung: kamerabasierte Nahbereichserkennung für Handgelenk und Hand, die eine Ganzkörperaufnahme nicht zuverlässig erfassen kann. Das Handgelenk selbst wird bereits heute bewertet — manuell erfasst; diese Lücke betrifft speziell die Erweiterung der Kameraaufnahme auf diesen Bereich.",
       },
       {
         kicker: "Mehr als Haltung",

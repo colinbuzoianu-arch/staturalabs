@@ -3,6 +3,7 @@ import Link from "next/link";
 import { HierarchyOfControl } from "@/generated/prisma/enums";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
+import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { prisma } from "@/lib/prisma";
 
@@ -24,6 +25,7 @@ export default async function ActionsPage({
   const statusLabels = getAdministrationDictionary(locale).actionStatusLabels;
   const hierarchyLabels =
     getAdministrationDictionary(locale).hierarchyOfControlLabels;
+  const riskBandLabels = getCommonDictionary(locale).riskBandLabels;
 
   async function createActionAction(formData: FormData) {
     "use server";
@@ -185,7 +187,7 @@ export default async function ActionsPage({
                   <option key={finding.id} value={finding.id}>
                     {finding.riskAssessment.workstation?.name ??
                       finding.riskAssessment.process?.name}{" "}
-                    — {finding.hazard.name} ({finding.riskBand})
+                    — {finding.hazard.name} ({riskBandLabels[finding.riskBand]})
                   </option>
                 ))}
               </select>

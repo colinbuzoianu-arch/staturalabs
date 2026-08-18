@@ -832,13 +832,28 @@ async function main() {
         3,
         "Team-lift policy for loads over 20kg.",
       );
-      await addFinding(
+      const dockPsychFinding = await addFinding(
         dockAssessment,
         "PSYCH-01",
         2,
         2,
         "Rotating shift schedule, no fixed night-only assignment.",
       );
+      // B8f (SLD_NEXT_STEPS_B8b-B8f.md): B7 built PsychosocialFindingDetail
+      // but the demo fixture never showed it. GROUP_DISCUSSION at 8 people
+      // — below the 15-person floor createPsychosocialFinding's own
+      // validatePsychosocialGroupSize only enforces for QUESTIONNAIRE —
+      // demonstrates the documented small-group fallback path
+      // (ERGO_COMPLIANCE_BY_DESIGN.md §5), not the questionnaire path B5's
+      // own live-demo walkthrough already exercises.
+      await insertRow(db, "PsychosocialFindingDetail", {
+        id: crypto.randomUUID(),
+        riskFindingId: dockPsychFinding.id,
+        dimension: "WORK_ORGANIZATION",
+        method: "GROUP_DISCUSSION",
+        groupSize: 8,
+        externalProcedureName: null,
+      });
 
       console.log(
         "RiskAssessments seeded for 6 of 8 workstations (Panel Assembly Station 2 and Component Racking Area deliberately left unassessed).",
@@ -1001,6 +1016,25 @@ async function main() {
 
       console.log(
         `"Before" AssessmentSession + PostureSamples seeded for "Manual panel fitting", "Fastener installation", and "Sub-assembly quality check" (TRUNK ${POOR_POSTURE_DEGREES.TRUNK.toFixed(1)}°, NECK ${POOR_POSTURE_DEGREES.NECK.toFixed(1)}° — both HIGH).`,
+      );
+
+      // --- Repetition count (B8d, SLD_NEXT_STEPS_B8b-B8f.md) — B8d built
+      // the sub-score but the demo fixture never showed it. 450 reps/cycle
+      // on the hero task lands in the seeded RepetitionRule HIGH band
+      // ([120,∞)), the same "posture + repetition both scoring HIGH"
+      // completeness beat B8d's own verification pass used. ---
+      await insertRow(db, "ManualInput", {
+        id: crypto.randomUUID(),
+        taskId: fittingTask.id,
+        inputType: "REPETITION_COUNT",
+        value: 450,
+        unit: "reps",
+        textValue: null,
+        notes: null,
+        createdAt: sessionStartedAt,
+      });
+      console.log(
+        `REPETITION_COUNT ManualInput seeded for "Manual panel fitting" (450 reps/cycle — HIGH).`,
       );
     }
 

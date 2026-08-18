@@ -41,6 +41,12 @@ export const ro: typeof en = {
     VERIFIED: "Verificată",
     CANCELLED: "Anulată",
   },
+  riskAssessmentStatusLabels: {
+    DRAFT: "Ciornă",
+    IN_REVIEW: "În verificare",
+    APPROVED: "Aprobată",
+    ARCHIVED: "Arhivată",
+  },
   verificationOutcomeLabels: {
     EFFECTIVE: "Eficientă",
     PARTIALLY_EFFECTIVE: "Parțial eficientă",
@@ -87,6 +93,11 @@ export const ro: typeof en = {
       `${kg} kg — ${band}`,
     manualHandlingDescription:
       "§64 ASchG impune evaluarea manipulării manuale a sarcinilor, dar nu prescrie o metodă — SLD aplică propriile praguri, inspirate din ISO 11228-1/EN 1005-2, citate în SGD-ul generat.",
+    repetitionHeading: "Evaluarea frecvenței de repetare",
+    repetitionResultLabel: (reps: number, band: string) =>
+      `${reps} repetări/ciclu — ${band}`,
+    repetitionDescription:
+      "SLD aplică propriile praguri numărului de repetări pe ciclu de lucru, inspirate din ISO 11228-3/EN 1005-5, citate în SGD-ul generat.",
     postureSamplesHeading: "Capturi de postură",
     postureSamplesEmpty: "Pentru această sarcină nu există încă nicio captură.",
     cannotRecompute: (error: string) =>
@@ -101,26 +112,6 @@ export const ro: typeof en = {
   capturePage: {
     backToTask: "← Înapoi la sarcină",
     heading: "Captură postură",
-    cameraLabel: "Cameră",
-    cameraAngleLabel: "Unghi cameră",
-    cameraAngleHint: {
-      SAGITTAL:
-        "Din lateral — necesar pentru evaluarea trunchiului, gâtului, cotului și genunchiului.",
-      FRONTAL:
-        "Din față — din acest unghi pot fi evaluate doar regiunile umărului.",
-      OBLIQUE:
-        "Nici din lateral, nici din față — din acest unghi pot fi evaluate doar regiunile umărului.",
-    },
-    noPersonDetected:
-      "Nicio persoană detectată în cadru. Ajustați încadrarea și încercați din nou.",
-    loadingPoseModel: "Se încarcă modelul de postură…",
-    detecting: "Se detectează…",
-    submitting: "Se trimite…",
-    captureSample: "Pornește captura",
-    peopleDetected: (count: number) =>
-      `${count} persoane detectate. Apăsați pe scheletul evidențiat al persoanei evaluate.`,
-    selectPerson: (n: number) => `Selectează persoana ${n}`,
-    cancelAndRetake: "Anulează și reia captura",
     sampleMeta: (id: string, version: string) =>
       `Captură ${id} — metodologie ${version}`,
     tableRegion: "Regiune",
@@ -136,23 +127,11 @@ export const ro: typeof en = {
     notesLabel: "Note (opțional)",
     adding: "Se adaugă…",
     add: "Adaugă",
-    cameraFeedNotReady:
-      "Semnalul camerei nu este încă pregătit — așteptați puțin până apare previzualizarea, apoi încercați din nou.",
-    canvasUnavailable: "Contextul Canvas 2D nu este disponibil",
-    failedToLoadPoseModel: (message: string) =>
-      `Modelul de postură nu a putut fi încărcat: ${message}`,
-    cameraAccessFailed: (message: string) =>
-      `Accesul la cameră a eșuat: ${message}`,
-    couldNotSwitchCamera: (message: string) =>
-      `Camera nu a putut fi schimbată: ${message}`,
     submitFailed: "Trimiterea a eșuat",
-    detectionFailed: "Detectarea a eșuat",
     requestFailed: (status: number) => `Cererea a eșuat: ${status}`,
-    captureTabLabel: "Captură",
-    manualEntryTabLabel: "Introducere manuală",
     manualEntryHeading: "Introduceți unghiurile măsurate",
     manualEntryDescription:
-      "Pentru fiecare regiune de mai jos, introduceți unghiul de flexie față de poziția neutră (0° = poziție dreaptă, valori mai mari = flexie mai accentuată), măsurat cu un goniometru sau estimat vizual. Toate cele opt valori sunt necesare pentru o probă completă.",
+      "Pentru fiecare regiune de mai jos, introduceți unghiul de flexie față de poziția neutră (0° = poziție dreaptă, valori mai mari = flexie mai accentuată), măsurat cu un goniometru sau estimat vizual. Toate cele zece valori sunt necesare pentru o probă completă.",
     angleDegreesLabel: (region: string) => `${region} (°)`,
     manualEntryNotScored: "neevaluat încă",
     manualEntrySubmit: "Trimite introducerea manuală",
@@ -186,6 +165,8 @@ export const ro: typeof en = {
     colScore: "Scor de risc",
     colControls: "Măsuri existente",
     measurementsLabel: "Măsurători:",
+    actionValuePrefix: "valoare de declanșare",
+    limitPrefix: "limită",
     overLimit: "peste limită",
     overActionValue: "peste valoarea de declanșare",
     ergonomicHeading: "Evaluare ergonomică",

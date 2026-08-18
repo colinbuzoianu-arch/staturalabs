@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { HazardCategory } from "@/generated/prisma/enums";
 import { requireSiteAccess } from "@/lib/auth/require-access";
+import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
 import { getDashboardDictionary } from "@/lib/i18n/dictionaries/dashboard";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { prisma } from "@/lib/prisma";
@@ -22,6 +23,7 @@ export default async function SiteRiskOverviewPage({
   const hazardCategoryLabels =
     getDashboardDictionary(locale).hazardCategoryLabels;
   const actionStatusLabels = getDashboardDictionary(locale).actionStatusLabels;
+  const riskBandLabels = getCommonDictionary(locale).riskBandLabels;
 
   const [workstations, findings, actions] = await Promise.all([
     prisma.workstation.findMany({
@@ -156,7 +158,9 @@ export default async function SiteRiskOverviewPage({
                       {workstation.name}
                     </Link>
                   </td>
-                  <td className="py-1 pr-4">{band ?? dict.noAssessment}</td>
+                  <td className="py-1 pr-4">
+                    {band ? riskBandLabels[band] : dict.noAssessment}
+                  </td>
                   <td className="py-1">
                     {assessedAt ? assessedAt.toISOString() : ""}
                   </td>

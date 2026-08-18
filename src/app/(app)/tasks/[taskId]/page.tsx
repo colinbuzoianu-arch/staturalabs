@@ -7,13 +7,14 @@ import { requireTaskAccess } from "@/lib/auth/require-access";
 import { buildRegionResultsForSample } from "@/lib/capture/build-region-results";
 import { computeHoldTimeResult } from "@/lib/capture/hold-time-result";
 import { describeManualInput } from "@/lib/capture/manual-input";
+import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
 import { getDashboardDictionary } from "@/lib/i18n/dictionaries/dashboard";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { prisma } from "@/lib/prisma";
 import { worstRiskBand } from "@/lib/risk/band-severity";
 import { computeManualHandlingResult } from "@/lib/scoring/manual-handling";
 import { getActiveMethodologyVersion } from "@/lib/scoring/methodology-version";
-import { reopenPostureSampleForEdit, validatePostureSample } from "./actions";
+import { computeRepetitionResult } from "@/lib/scoring/repetition";
 
 // A task's assessment history: the AssessmentSessions it was covered by,
 // and every raw PostureSample captured for it, reviewed/adjusted through
@@ -25,17 +26,18 @@ import { reopenPostureSampleForEdit, validatePostureSample } from "./actions";
 // identity-related: PostureSample carries none, by design (ERGO_COMPLIANCE
 // _BY_DESIGN.md §3.1/§3.2), and nothing here invents a place to show it.
 //
-// CameraAngle/describeManualInput()'s generated text are deliberately NOT
-// translated — see CLAUDE.md i18n notes: technical identifiers that are
-// also what the DB/API/PDF report show verbatim, so a parallel translated
-// vocabulary would just be confusing.
+// BodyRegion/CameraAngle/RiskBand/RegionResult-status values (and
+// describeRegionResult()/describeManualInput()'s generated text) ARE
+// translated as of B8c (SLD_NEXT_STEPS_B8b-B8f.md) — see
+// src/lib/i18n/dictionaries/common/ for the shared label maps this page
+// and PostureSampleSwitcher both read from.
 export default async function TaskHistoryPage({
   params,
 }: {
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
-  const { task, user } = await requireTaskAccess(taskId);
+  const { task } = await requireTaskAccess(taskId);
 
   const [sessions, samples, manualInputs] = await Promise.all([
     prisma.assessmentSession.findMany({
@@ -93,6 +95,15 @@ export default async function TaskHistoryPage({
   // this scoring engine already has.
   const manualHandlingResult = methodologyVersion
     ? await computeManualHandlingResult({ taskId, methodologyVersion })
+    : null;
+
+  // B8d (SLD_NEXT_STEPS_B8b-B8f.md): a parallel sub-score against the
+  // task's most recently recorded REPETITION_COUNT ManualInput — same
+  // "parallel sub-scores, never blended" discipline as manualHandlingResult
+  // above, closing the "posture + hold time + load all scored, repetition
+  // wasn't" gap.
+  const repetitionResult = methodologyVersion
+    ? await computeRepetitionResult({ taskId, methodologyVersion })
     : null;
 
   const items: PostureSampleSwitcherItem[] = methodologyVersion
@@ -247,12 +258,37 @@ export default async function TaskHistoryPage({
             <span className="font-technical">
               {dict.manualHandlingResultLabel(
                 manualHandlingResult.loadWeightKg,
-                manualHandlingResult.riskBand,
+                getCommonDictionary(locale).riskBandLabels[
+                  manualHandlingResult.riskBand
+                ],
               )}
             </span>
             <br />
             <span className="text-xs text-border">
               {dict.manualHandlingDescription}
+            </span>
+          </p>
+        )}
+
+        {/* B8d (SLD_NEXT_STEPS_B8b-B8f.md): a parallel sub-score, never
+            blended into manualHandlingResult or posture — shown whenever
+            there's a repetition count to score. */}
+        {repetitionResult && (
+          <p className="rounded-lg border border-border bg-surface p-4 text-sm">
+            <span className="font-heading font-bold">
+              {dict.repetitionHeading}
+            </span>{" "}
+            <span className="font-technical">
+              {dict.repetitionResultLabel(
+                repetitionResult.repetitionCount,
+                getCommonDictionary(locale).riskBandLabels[
+                  repetitionResult.riskBand
+                ],
+              )}
+            </span>
+            <br />
+            <span className="text-xs text-border">
+              {dict.repetitionDescription}
             </span>
           </p>
         )}
@@ -272,7 +308,7 @@ export default async function TaskHistoryPage({
                   {manualInputLabels[entry.inputType]}
                 </span>{" "}
                 <span className="font-technical">
-                  {describeManualInput(entry)}
+                  {describeManualInput(entry, locale)}
                 </span>
                 {entry.notes && (
                   <p className="mt-1 text-border">{entry.notes}</p>
@@ -301,14 +337,7 @@ export default async function TaskHistoryPage({
           <p className="text-sm text-border">{dict.postureSamplesEmpty}</p>
         )}
 
-        {items.length > 0 && (
-          <PostureSampleSwitcher
-            items={items}
-            currentUserName={user.name}
-            onValidate={validatePostureSample}
-            onReopen={reopenPostureSampleForEdit}
-          />
-        )}
+        {items.length > 0 && <PostureSampleSwitcher items={items} />}
       </section>
     </div>
   );

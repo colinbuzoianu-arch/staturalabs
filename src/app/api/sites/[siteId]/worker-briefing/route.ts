@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createElement } from "react";
 import { requireSiteAccess } from "@/lib/auth/require-access";
 import { getWorkerBriefingData } from "@/lib/report/get-worker-briefing-data";
+import { resolveReportLang } from "@/lib/report/report-lang";
 import { WorkerBriefingDocument } from "@/lib/report/WorkerBriefingDocument";
 
 // ERGO_COMPLIANCE_BY_DESIGN.md §3.5: "Auto-generated worker-representative
@@ -11,7 +12,7 @@ import { WorkerBriefingDocument } from "@/lib/report/WorkerBriefingDocument";
 // two reports: requireSiteAccess is the exact wrapper the read-only
 // dashboard already uses for this site, no new authorization logic.
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ siteId: string }> },
 ) {
   const { siteId } = await params;
@@ -19,8 +20,15 @@ export async function GET(
   if (!data) notFound();
   await requireSiteAccess(siteId);
 
+  // Country-driven (B8c, SLD_NEXT_STEPS_B8b-B8f.md §6) — same
+  // resolveReportLang the other two non-SGD reports use.
+  const lang = resolveReportLang(
+    data.site.country,
+    new URL(request.url).searchParams.get("lang"),
+  );
+
   const buffer = await renderToBuffer(
-    createElement(WorkerBriefingDocument, { data }) as Parameters<
+    createElement(WorkerBriefingDocument, { data, lang }) as Parameters<
       typeof renderToBuffer
     >[0],
   );

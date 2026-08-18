@@ -18,6 +18,10 @@ import {
   type ManualHandlingResult,
 } from "@/lib/scoring/manual-handling";
 import { getActiveMethodologyVersion } from "@/lib/scoring/methodology-version";
+import {
+  computeRepetitionResult,
+  type RepetitionResult,
+} from "@/lib/scoring/repetition";
 
 // Same shape requireTaskAccess already fetches (task + workstation + site +
 // company) — reused rather than re-queried, since the report route calls
@@ -49,6 +53,7 @@ export type TaskReportData = {
   samples: TaskReportSample[];
   manualInputGroups: ManualInputGroup[];
   manualHandlingResult: ManualHandlingResult;
+  repetitionResult: RepetitionResult;
 };
 
 // Assembles every piece of stored data for a task's report — the full
@@ -151,6 +156,15 @@ export async function getTaskReportData(
       })
     : null;
 
+  // B8d (SLD_NEXT_STEPS_B8b-B8f.md): same live-computed, parallel
+  // sub-score discipline as manualHandlingResult above.
+  const repetitionResult = methodologyVersion
+    ? await computeRepetitionResult({
+        taskId: task.id,
+        methodologyVersion,
+      })
+    : null;
+
   return {
     task,
     generatedAt: new Date(),
@@ -159,5 +173,6 @@ export async function getTaskReportData(
     samples,
     manualInputGroups,
     manualHandlingResult,
+    repetitionResult,
   };
 }

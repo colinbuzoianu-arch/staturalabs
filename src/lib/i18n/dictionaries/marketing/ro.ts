@@ -95,7 +95,7 @@ export const ro: typeof en = {
         heading: "Ce măsoară de fapt ergonomia la locul de muncă",
         paragraphs: [
           "Afecțiunile musculo-scheletice — solicitarea spatelui, umărului și genunchiului cauzată de posturi incomode repetate sau susținute — rămân una dintre cele mai frecvente categorii de accidentări profesionale și una dintre cele mai greu de depistat din timp, pentru că vătămarea se acumulează din mișcări obișnuite repetate de mii de ori, nu dintr-un singur accident.",
-          "O evaluare corectă nu se uită la un singur moment — ia în considerare împreună postura, repetitivitatea, forța și durata, regiune cu regiune: trunchi, gât, umeri, coate, genunchi. Motorul de evaluare Statura urmează aceeași logică, bazat pe ISO 11228 și EN 1005, nu pe un simplu „scor de risc” simplificat.",
+          "O evaluare corectă nu se uită la un singur moment — ia în considerare împreună postura, repetitivitatea, forța și durata, regiune cu regiune: trunchi, gât, umeri, coate, încheieturile mâinii, genunchi. Motorul de evaluare Statura urmează aceeași logică, bazat pe ISO 11228 și EN 1005, nu pe un simplu „scor de risc” simplificat.",
         ],
         roadmapNote: null as string | null,
       },
@@ -106,7 +106,7 @@ export const ro: typeof en = {
           "Astăzi, Statura funcționează cu orice cameră accesibilă unui browser — o cameră de laptop sau USB montată permanent la un loc de muncă pentru audituri repetate, sau telefonul mobil purtat de un evaluator de la o stație la alta în cadrul unei fabrici. Fără hardware proprietar, fără dispozitive purtabile.",
         ],
         roadmapNote:
-          "În dezvoltare: un mod dedicat de captură la distanță mică pentru regiuni pe care o imagine de corp întreg nu le poate surprinde suficient de bine — în special postura încheieturii și a mâinii. Nu face încă parte din produs.",
+          "În dezvoltare: detectarea prin cameră, la distanță mică, a posturii încheieturii și mâinii, pe care o imagine de corp întreg nu o poate surprinde suficient de bine. Postura încheieturii este deja evaluată astăzi — introdusă manual; acest decalaj privește exclusiv extinderea capturii prin cameră la această regiune.",
       },
       {
         kicker: "Dincolo de postură",

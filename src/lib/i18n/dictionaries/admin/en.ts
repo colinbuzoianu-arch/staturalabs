@@ -1,8 +1,14 @@
 // Source-of-truth copy for the internal super_admin-only /admin CRUD tool.
 // Translated for completeness/consistency, but this tool is explicitly
 // "no styling effort" (CLAUDE.md) — plain, functional copy, no marketing
-// polish. Same technical-vocabulary exclusions as the dashboard dictionary
-// (BodyRegion/CameraAngle/status values, describeRegionResult() output).
+// polish. BodyRegion/CameraAngle/RiskBand/RegionResult-status values ARE
+// translated as of B8c (SLD_NEXT_STEPS_B8b-B8f.md), but not via anything
+// in this file — PostureSampleSwitcher (shared with the (app) dashboard's
+// task page) reads them straight from the common dictionary
+// (src/lib/i18n/dictionaries/common/) regardless of which area mounts it,
+// so switching this admin's own locale cookie to German will show a
+// German region/status table here too, even though the rest of this
+// tool's copy (this file) stays deliberately plain/no-polish.
 export const en = {
   layout: {
     companiesNav: "Companies",

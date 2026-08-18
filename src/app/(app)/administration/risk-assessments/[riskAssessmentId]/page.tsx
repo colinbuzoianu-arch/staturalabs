@@ -17,6 +17,7 @@ import {
 } from "@/generated/prisma/enums";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
+import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { isPresentMode } from "@/lib/present-mode";
 import { prisma } from "@/lib/prisma";
@@ -76,6 +77,7 @@ export default async function RiskAssessmentDetailPage({
   const dict = administrationDict.riskAssessmentDetailPage;
   const statusLabels = administrationDict.riskAssessmentStatusLabels;
   const categoryLabels = administrationDict.hazardCategoryLabels;
+  const riskBandLabels = getCommonDictionary(locale).riskBandLabels;
 
   async function submitForReviewAction() {
     "use server";
@@ -591,7 +593,7 @@ export default async function RiskAssessmentDetailPage({
                   </span>
                   <span className="text-sm text-border">
                     {dict.riskScoreLabel} {finding.riskScore} ·{" "}
-                    {dict.riskBandLabel} {finding.riskBand}
+                    {dict.riskBandLabel} {riskBandLabels[finding.riskBand]}
                   </span>
                 </div>
                 {finding.existingControls && (

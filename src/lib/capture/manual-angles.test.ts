@@ -1,20 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { COMPUTED_BODY_REGIONS, validateManualAngles } from "./manual-angles";
+import {
+  MANUAL_ENTRY_BODY_REGIONS,
+  validateManualAngles,
+} from "./manual-angles";
 
 function completeAngles(overrides: Partial<Record<string, number>> = {}) {
   const base: Record<string, number> = {};
-  for (const region of COMPUTED_BODY_REGIONS) base[region] = 10;
+  for (const region of MANUAL_ENTRY_BODY_REGIONS) base[region] = 10;
   return { ...base, ...overrides };
 }
 
 describe("validateManualAngles", () => {
-  it("accepts an object with a finite number for every computed region", () => {
+  it("accepts an object with a finite number for every manual-entry region", () => {
     const result = validateManualAngles(completeAngles({ NECK: -12.5 }));
     expect(typeof result).not.toBe("string");
     const angles = result as Record<string, number>;
     expect(angles.NECK).toBe(-12.5);
     expect(Object.keys(angles).sort()).toEqual(
-      [...COMPUTED_BODY_REGIONS].sort(),
+      [...MANUAL_ENTRY_BODY_REGIONS].sort(),
     );
   });
 
@@ -30,6 +33,13 @@ describe("validateManualAngles", () => {
     delete angles.NECK;
     const result = validateManualAngles(angles);
     expect(result).toBe("angles.NECK must be a finite number of degrees");
+  });
+
+  it("rejects a missing wrist region", () => {
+    const angles = completeAngles();
+    delete angles.WRIST_LEFT;
+    const result = validateManualAngles(angles);
+    expect(result).toBe("angles.WRIST_LEFT must be a finite number of degrees");
   });
 
   it("rejects a non-numeric region value", () => {
@@ -50,7 +60,7 @@ describe("validateManualAngles", () => {
     ).toBe("angles.KNEE_RIGHT must be a finite number of degrees");
   });
 
-  it("ignores extra keys not in COMPUTED_BODY_REGIONS", () => {
+  it("ignores extra keys not in MANUAL_ENTRY_BODY_REGIONS", () => {
     const result = validateManualAngles(completeAngles({ HIP: 5 }));
     expect(typeof result).not.toBe("string");
     const angles = result as Record<string, number>;

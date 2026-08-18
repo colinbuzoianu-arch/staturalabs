@@ -80,16 +80,22 @@ export async function getSgdReportData(scope: SgdScope) {
   // rule table actually has rows for the version currently active, rather
   // than unconditionally listing every standard SLD has ever drawn on.
   const methodologyVersion = await getActiveMethodologyVersion();
-  const [scoringRuleCount, holdTimeRuleCount, manualHandlingRuleCount] =
-    await Promise.all([
-      prisma.scoringRule.count({ where: { methodologyVersion } }),
-      prisma.holdTimeRule.count({ where: { methodologyVersion } }),
-      prisma.manualHandlingRule.count({ where: { methodologyVersion } }),
-    ]);
+  const [
+    scoringRuleCount,
+    holdTimeRuleCount,
+    manualHandlingRuleCount,
+    repetitionRuleCount,
+  ] = await Promise.all([
+    prisma.scoringRule.count({ where: { methodologyVersion } }),
+    prisma.holdTimeRule.count({ where: { methodologyVersion } }),
+    prisma.manualHandlingRule.count({ where: { methodologyVersion } }),
+    prisma.repetitionRule.count({ where: { methodologyVersion } }),
+  ]);
   const appliedStandards = deriveAppliedStandards({
     hasScoringRules: scoringRuleCount > 0,
     hasHoldTimeRules: holdTimeRuleCount > 0,
     hasManualHandlingRules: manualHandlingRuleCount > 0,
+    hasRepetitionRules: repetitionRuleCount > 0,
   });
 
   const userIds = new Set<string>();

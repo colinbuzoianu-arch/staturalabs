@@ -8,6 +8,8 @@ import type {
   HazardCategory,
   RiskBand,
 } from "@/generated/prisma/enums";
+import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
+import { useLocale } from "@/lib/i18n/locale-context";
 import {
   NOT_ASSESSED_COLOR,
   riskBandColors,
@@ -100,6 +102,8 @@ export function SiteMapClient({
   dict: SiteMapDict;
   hazardCategoryLabels: Record<HazardCategory, string>;
 }) {
+  const { locale } = useLocale();
+  const commonDict = getCommonDictionary(locale);
   const [selectedCategory, setSelectedCategory] =
     useState<HazardCategory | null>(null);
   const [hoveredKey, setHoveredKey] = useState<PinKey | null>(null);
@@ -312,8 +316,9 @@ export function SiteMapClient({
               </p>
               <p>
                 {dict.taskPopoverBandPrefix}{" "}
-                {activeTaskPin.overallBand ??
-                  dict.workstationPopoverNotAssessed}
+                {activeTaskPin.overallBand
+                  ? commonDict.riskBandLabels[activeTaskPin.overallBand]
+                  : dict.workstationPopoverNotAssessed}
               </p>
               <p className="mt-1 font-semibold">
                 {dict.taskPopoverConcerningHeading}
@@ -324,7 +329,8 @@ export function SiteMapClient({
                 <ul className="list-inside list-disc">
                   {activeTaskPin.concerningRegions.map((region) => (
                     <li key={region.region}>
-                      {region.region}: {region.band}
+                      {commonDict.bodyRegionLabels[region.region]}:{" "}
+                      {commonDict.riskBandLabels[region.band]}
                     </li>
                   ))}
                 </ul>
@@ -350,10 +356,11 @@ export function SiteMapClient({
                 <>
                   <p>
                     {dict.workstationPopoverBandPrefix}{" "}
-                    {activeWorkstationEntry.band ??
-                      (activeWorkstationEntry.pin.hasApprovedAssessment
+                    {activeWorkstationEntry.band
+                      ? commonDict.riskBandLabels[activeWorkstationEntry.band]
+                      : activeWorkstationEntry.pin.hasApprovedAssessment
                         ? dict.workstationPopoverNoFindingsForCategory
-                        : dict.workstationPopoverNotAssessed)}
+                        : dict.workstationPopoverNotAssessed}
                   </p>
                   <p>
                     {dict.workstationPopoverOpenActionsPrefix}{" "}
@@ -369,8 +376,9 @@ export function SiteMapClient({
                   </p>
                   <p>
                     {dict.workstationPopoverUnplacedBandPrefix}{" "}
-                    {activeWorkstationEntry.band ??
-                      dict.workstationPopoverNoUnplacedData}
+                    {activeWorkstationEntry.band
+                      ? commonDict.riskBandLabels[activeWorkstationEntry.band]
+                      : dict.workstationPopoverNoUnplacedData}
                   </p>
                 </>
               )}
@@ -410,7 +418,7 @@ export function SiteMapClient({
                     className="inline-block h-3 w-3 rounded-full"
                     style={{ backgroundColor: color }}
                   />
-                  <span>{band}</span>
+                  <span>{commonDict.riskBandLabels[band]}</span>
                 </div>
               ),
             )}

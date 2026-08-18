@@ -10,24 +10,15 @@ import {
 } from "@/generated/prisma/enums";
 import { describeRegionResult } from "@/lib/capture/describe-region-result";
 import type { HoldTimeResult, RegionResult } from "@/lib/capture/types";
-import {
-  NOT_ASSESSED_COLOR,
-  riskBandColors,
-  worstRiskBand,
-} from "@/lib/risk/band-severity";
-import { PostureEditor } from "./posture-editor";
+import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
+import { useLocale } from "@/lib/i18n/locale-context";
+import { NOT_ASSESSED_COLOR, riskBandColors } from "@/lib/risk/band-severity";
 
 // Same lightweight structural stand-in for Prisma's JsonValue
 // posture-editor.tsx uses — see that file's own comment for why importing
 // the generated client's real Json type isn't worth it here.
 type Json = unknown;
 
-// Pending-review/validated are a workflow STATUS, not a RiskBand — there's
-// no existing color constant for them (riskBandColors is specifically the
-// LOW/MODERATE/ELEVATED/HIGH severity scale), so these are defined
-// locally, matching this app's own convention of inline hex constants for
-// this kind of status coloring (see skeleton-3d.tsx's DRAG_HIGHLIGHT_COLOR
-// etc.) rather than reaching for Tailwind's semantic color utilities.
 const VALIDATED_BADGE_COLOR = "#16a34a"; // green-600
 const PENDING_BADGE_COLOR = "#d97706"; // amber-600
 // Provenance, not a workflow status or a risk severity — its own neutral
@@ -43,9 +34,9 @@ export type PostureSampleSwitcherItem = {
   source: PostureSampleSource;
   /** Only meaningful when source is CAMERA_MEDIAPIPE — MANUAL_ENTRY samples carry an inert placeholder here (see createPostureSample) and every render below hides it accordingly. */
   cameraAngle: CameraAngle;
-  /** Null for a MANUAL_ENTRY sample — there are no keypoints to show a skeleton for. */
+  /** Only meaningful when source is CAMERA_MEDIAPIPE — retained on the type so both callers can keep passing the raw PostureSample row through without reshaping it, even though this component (B8b — SLD_NEXT_STEPS_B8b-B8f.md) no longer renders a skeleton from it. */
   keypoints: Json | null;
-  /** Null when buildRegionResults threw for this sample (see `error`) — nothing to show in the editor. */
+  /** Null when buildRegionResults threw for this sample (see `error`) — nothing to show. */
   regionResults: Record<BodyRegion, RegionResult> | null;
   error: string | null;
   validatedKeypoints: Json | null;
@@ -53,13 +44,26 @@ export type PostureSampleSwitcherItem = {
   validatedAt: Date | null;
   /** Resolved PlatformUser.name for validatedByUserId — not a DB-level FK (see PostureSample's own schema comment), so callers resolve it themselves via a batched lookup rather than this component doing its own query. */
   validatedByName: string | null;
-  /** Worst scored RiskBand across this sample's regions, or null if none scored — computed server-side (worstRiskBand) from the same `regionResults` shown when selected, so the selector chip and the editor below it can never disagree. */
+  /** Worst scored RiskBand across this sample's regions, or null if none scored — computed server-side (worstRiskBand) from the same `regionResults` shown when selected, so the selector chip and the table below it can never disagree. */
   worstBand: RiskBand | null;
   /** The hold-time sub-score (SLD_IMPLEMENTATION_PLAN_austria-first.md §6), computed server-side via computeHoldTimeResult — null when no holdDurationSeconds was recorded for this sample. Parallel to `worstBand`/`regionResults`, never blended into either. */
   holdTime: HoldTimeResult;
 };
 
-function BandBadge({ band }: { band: RiskBand | null }) {
+// Every label in this file (badges, table headers, hold-time phrasing)
+// reads from `dict`/`commonDict`, threaded down from the top-level
+// PostureSampleSwitcher's own useLocale() call rather than each of these
+// sub-components calling useLocale() itself — one hook call for the whole
+// tree, same as the rest of this app's client components.
+type CommonDict = ReturnType<typeof getCommonDictionary>;
+
+function BandBadge({
+  band,
+  commonDict,
+}: {
+  band: RiskBand | null;
+  commonDict: CommonDict;
+}) {
   return (
     <span
       className="rounded-full px-2 py-0.5 font-technical text-[11px] font-bold text-white"
@@ -67,34 +71,47 @@ function BandBadge({ band }: { band: RiskBand | null }) {
         backgroundColor: band ? riskBandColors[band] : NOT_ASSESSED_COLOR,
       }}
     >
-      {band ?? "not scored"}
+      {band
+        ? commonDict.riskBandLabels[band]
+        : commonDict.postureSampleSwitcher.notScored}
     </span>
   );
 }
 
+// Read-only display of a camera sample's review status — B8b (see
+// SLD_NEXT_STEPS_B8b-B8f.md) dropped the interactive validate/reopen
+// controls along with PostureEditor (frozen, skeleton-only UI — see
+// SLD_POSTURE_EDITOR_FIDELITY_PLAN.md), so a historical camera sample's
+// Pending/Validated status is still visible here, just not actionable from
+// this view anymore.
 function ValidationBadge({
   status,
   validatedAt,
   validatedByName,
+  commonDict,
 }: {
   status: ValidationStatus;
   validatedAt: Date | string | null;
   validatedByName: string | null;
+  commonDict: CommonDict;
 }) {
+  const dict = commonDict.postureSampleSwitcher;
   if (status === "VALIDATED") {
     return (
       <span
         className="flex flex-wrap items-center gap-1.5 rounded-full px-2.5 py-1 font-technical text-[11px] font-bold text-white"
         style={{ backgroundColor: VALIDATED_BADGE_COLOR }}
       >
-        Validated ✓
+        {dict.validatedBadge}
         {validatedAt && (
           <span className="font-normal opacity-90">
             {new Date(validatedAt).toLocaleString()}
           </span>
         )}
         {validatedByName && (
-          <span className="font-normal opacity-90">by {validatedByName}</span>
+          <span className="font-normal opacity-90">
+            {dict.validatedBySuffix(validatedByName)}
+          </span>
         )}
       </span>
     );
@@ -104,7 +121,7 @@ function ValidationBadge({
       className="rounded-full px-2.5 py-1 font-technical text-[11px] font-bold text-white"
       style={{ backgroundColor: PENDING_BADGE_COLOR }}
     >
-      Pending review
+      {dict.pendingBadge}
     </span>
   );
 }
@@ -116,7 +133,13 @@ function ValidationBadge({
 // stuck workflow rather than what it actually is. This badge replaces
 // ValidationBadge for a MANUAL_ENTRY sample, in both the chip strip and
 // the detail header, so the two badges are never shown side by side.
-function ManualEntryBadge({ small }: { small?: boolean }) {
+function ManualEntryBadge({
+  small,
+  commonDict,
+}: {
+  small?: boolean;
+  commonDict: CommonDict;
+}) {
   return (
     <span
       className={
@@ -126,7 +149,7 @@ function ManualEntryBadge({ small }: { small?: boolean }) {
       }
       style={{ backgroundColor: MANUAL_ENTRY_BADGE_COLOR }}
     >
-      Manual entry
+      {commonDict.postureSampleSwitcher.manualEntryBadge}
     </span>
   );
 }
@@ -134,50 +157,68 @@ function ManualEntryBadge({ small }: { small?: boolean }) {
 // Hold-time sub-score (§6) — a parallel result to the posture bands
 // above it, never blended in. Only rendered when a hold duration was
 // actually recorded; silent otherwise, since most samples won't have one.
-function HoldTimeInfo({ holdTime }: { holdTime: HoldTimeResult }) {
+function HoldTimeInfo({
+  holdTime,
+  commonDict,
+}: {
+  holdTime: HoldTimeResult;
+  commonDict: CommonDict;
+}) {
   if (!holdTime) return null;
+  const dict = commonDict.postureSampleSwitcher;
   const escalated = holdTime.holdTimeBand !== null;
   return (
     <p className="mb-3 flex flex-wrap items-center gap-2 font-technical text-xs">
       <span className="text-border">
-        Held {holdTime.holdDurationSeconds}s — posture{" "}
-        {holdTime.worstPostureBand}
+        {dict.holdTimeSummary(
+          holdTime.holdDurationSeconds,
+          commonDict.riskBandLabels[holdTime.worstPostureBand],
+        )}
       </span>
       {escalated && (
         <span
           className="rounded-full px-2 py-0.5 font-bold text-white"
           style={{ backgroundColor: riskBandColors.HIGH }}
         >
-          hold time exceeds safe duration — {holdTime.overallBand}
+          {dict.holdTimeEscalated(
+            commonDict.riskBandLabels[holdTime.overallBand],
+          )}
         </span>
       )}
     </p>
   );
 }
 
-// Fallback for a MANUAL_ENTRY sample, which has no keypoints and
-// therefore nothing for PostureEditor (frozen — see
-// SLD_POSTURE_EDITOR_FIDELITY_PLAN.md) to render a skeleton from. Same
-// region/status/detail shape the capture page's own immediate result
-// view and the PDF report use (describeRegionResult), just as a plain
-// table — no scoring decision depends on how this looks, only that the
-// numbers are there.
+// Plain per-region table — same region/status/detail shape the capture
+// page's manual-entry result view and the PDF report use
+// (describeRegionResult). As of B8b (SLD_NEXT_STEPS_B8b-B8f.md), used for
+// every sample regardless of source: PostureEditor (frozen — see
+// SLD_POSTURE_EDITOR_FIDELITY_PLAN.md) is no longer mounted here at all,
+// camera or manual, since no scoring decision depends on how the skeleton
+// looks — bands and numbers carry the methodology.
 function ManualRegionTable({
   regionResults,
+  locale,
+  commonDict,
 }: {
   regionResults: Record<BodyRegion, RegionResult>;
+  locale: ReturnType<typeof useLocale>["locale"];
+  commonDict: CommonDict;
 }) {
+  const dict = commonDict.postureSampleSwitcher;
   return (
     <table className="w-full text-left text-sm">
       <thead>
         <tr className="border-b border-border">
           <th className="py-1 pr-4 font-technical text-xs text-border">
-            Region
+            {dict.tableRegion}
           </th>
           <th className="py-1 pr-4 font-technical text-xs text-border">
-            Status
+            {dict.tableStatus}
           </th>
-          <th className="py-1 font-technical text-xs text-border">Detail</th>
+          <th className="py-1 font-technical text-xs text-border">
+            {dict.tableDetail}
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -186,12 +227,14 @@ function ManualRegionTable({
           if (!result || result.status === "not-yet-supported") return null;
           return (
             <tr key={region} className="border-b border-border last:border-0">
-              <td className="py-1 pr-4 font-technical text-xs">{region}</td>
               <td className="py-1 pr-4 font-technical text-xs">
-                {result.status}
+                {commonDict.bodyRegionLabels[region]}
+              </td>
+              <td className="py-1 pr-4 font-technical text-xs">
+                {commonDict.regionResultStatusLabels[result.status]}
               </td>
               <td className="py-1 font-technical text-xs">
-                {describeRegionResult(result)}
+                {describeRegionResult(result, locale)}
               </td>
             </tr>
           );
@@ -201,105 +244,27 @@ function ManualRegionTable({
   );
 }
 
-// Switcher for one task/workstation's PostureSample history — replaces the
-// earlier accordion (posture-sample-accordion.tsx, deleted): that design
-// technically let you click a different sample's header to view it, but
-// "one collapsible row expands into a full editor" reads as browsing a
-// list of records, not as switching between readings of the SAME location.
-// This makes that the whole interaction: a compact selector strip (one
-// chip per sample) always visible above exactly ONE mounted PostureEditor,
-// so clicking a different chip is unambiguously "show me that
-// measurement's skeleton and numbers instead" — never "everything
-// collapses to nothing," which the old expand/collapse-to-null toggle
-// could do on a stray click.
-//
-// Only one PostureEditor is ever mounted (not one per sample) — same
-// reasoning the old accordion gave: N simultaneous WebGL scenes on a task
-// with a long capture history would be wasteful. `key={selectedItem.id}`
-// on the mounted PostureEditor below forces a full remount on every
-// switch, so a sample's local editing/validation state (drag adjustments,
-// the just-validated/just-reopened override) never leaks into the next
-// sample selected — the same clean reset the old accordion got for free
-// from literally unmounting between an expand/collapse.
+// Switcher for one task/workstation's PostureSample history — a compact
+// selector strip (one chip per sample) above exactly ONE region table, so
+// clicking a different chip is unambiguously "show me that measurement's
+// numbers instead."
 //
 // The most recent sample (items[0], expected sorted desc by capturedAt —
 // this component trusts the caller's order rather than re-sorting) is
-// selected by default, so the editor is genuinely the first thing visible,
+// selected by default, so the table is genuinely the first thing visible,
 // not something every sample requires an extra click to reach.
 export function PostureSampleSwitcher({
   items,
-  currentUserName,
-  onValidate,
-  onReopen,
 }: {
   items: readonly PostureSampleSwitcherItem[];
-  /** The signed-in user's own name — used only for the LOCAL "just validated" override below, so the selector chip can correctly say "by <you>" immediately, before the next server round-trip re-resolves it from the DB. */
-  currentUserName: string;
-  onValidate: (
-    postureSampleId: string,
-    validatedKeypoints: Json,
-  ) => Promise<{
-    regionResults: Record<BodyRegion, RegionResult>;
-    validatedAt: Date | string;
-  }>;
-  onReopen: (
-    postureSampleId: string,
-    note: string | null,
-  ) => Promise<{
-    regionResults: Record<BodyRegion, RegionResult>;
-  }>;
 }) {
+  const { locale } = useLocale();
+  const commonDict = getCommonDictionary(locale);
+  const dict = commonDict.postureSampleSwitcher;
+
   const [selectedId, setSelectedId] = useState<string | null>(
     items[0]?.id ?? null,
   );
-
-  // PostureEditor already updates ITS OWN display the instant onValidate/
-  // onReopen resolves (see that component's own statusOverride state) —
-  // but this switcher's SELECTOR CHIPS are built from server-passed props,
-  // which won't reflect a just-completed validate/reopen until the next
-  // page navigation/revalidation. Without this, switching away from a
-  // sample right after acting on it would show a stale chip. Keyed by
-  // sample id so multiple samples acted on in one session each get their
-  // own override; one map for both directions since a sample only ever has
-  // one current override at a time.
-  const [overrides, setOverrides] = useState<
-    Record<
-      string,
-      | {
-          status: "VALIDATED";
-          validatedAt: Date | string;
-          worstBand: RiskBand | null;
-        }
-      | { status: "PENDING_REVIEW"; worstBand: RiskBand | null }
-    >
-  >({});
-
-  const handleValidate = async (
-    postureSampleId: string,
-    validatedKeypoints: Json,
-  ) => {
-    const result = await onValidate(postureSampleId, validatedKeypoints);
-    const worstBand = worstBandFromRegions(result.regionResults);
-    setOverrides((prev) => ({
-      ...prev,
-      [postureSampleId]: {
-        status: "VALIDATED",
-        validatedAt: result.validatedAt,
-        worstBand,
-      },
-    }));
-    return result;
-  };
-
-  const handleReopen = async (postureSampleId: string, note: string | null) => {
-    const result = await onReopen(postureSampleId, note);
-    const worstBand = worstBandFromRegions(result.regionResults);
-    setOverrides((prev) => ({
-      ...prev,
-      [postureSampleId]: { status: "PENDING_REVIEW", worstBand },
-    }));
-    return result;
-  };
 
   const selectedItem =
     items.find((item) => item.id === selectedId) ?? items[0] ?? null;
@@ -309,15 +274,11 @@ export function PostureSampleSwitcher({
       {items.length > 1 && (
         <div
           role="tablist"
-          aria-label="Posture samples"
+          aria-label={dict.tablistLabel}
           className="flex flex-wrap gap-2"
         >
           {items.map((item) => {
             const isSelected = item.id === selectedItem?.id;
-            const override = overrides[item.id];
-            const validationStatus: ValidationStatus =
-              override?.status ?? item.validationStatus;
-            const worstBand = override ? override.worstBand : item.worstBand;
 
             return (
               <button
@@ -335,25 +296,25 @@ export function PostureSampleSwitcher({
                 <span className="font-technical text-xs text-border">
                   {item.capturedAt.toISOString()}
                   {item.source === "CAMERA_MEDIAPIPE" &&
-                    ` — ${item.cameraAngle}`}
+                    ` — ${commonDict.cameraAngleLabels[item.cameraAngle]}`}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <BandBadge band={worstBand} />
+                  <BandBadge band={item.worstBand} commonDict={commonDict} />
                   {item.source !== "CAMERA_MEDIAPIPE" ? (
-                    <ManualEntryBadge small />
-                  ) : validationStatus === "VALIDATED" ? (
+                    <ManualEntryBadge small commonDict={commonDict} />
+                  ) : item.validationStatus === "VALIDATED" ? (
                     <span
                       className="rounded-full px-1.5 py-0.5 font-technical text-[10px] font-bold text-white"
                       style={{ backgroundColor: VALIDATED_BADGE_COLOR }}
                     >
-                      Validated ✓
+                      {dict.validatedBadge}
                     </span>
                   ) : (
                     <span
                       className="rounded-full px-1.5 py-0.5 font-technical text-[10px] font-bold text-white"
                       style={{ backgroundColor: PENDING_BADGE_COLOR }}
                     >
-                      Pending
+                      {dict.pendingBadgeShort}
                     </span>
                   )}
                 </span>
@@ -363,80 +324,42 @@ export function PostureSampleSwitcher({
         </div>
       )}
 
-      {selectedItem &&
-        (() => {
-          const override = overrides[selectedItem.id];
-          const validationStatus: ValidationStatus =
-            override?.status ?? selectedItem.validationStatus;
-          const validatedAt =
-            override?.status === "VALIDATED"
-              ? override.validatedAt
-              : selectedItem.validatedAt;
-          const validatedByName =
-            override?.status === "VALIDATED"
-              ? currentUserName
-              : selectedItem.validatedByName;
+      {selectedItem && (
+        <div className="rounded-lg border border-border bg-surface p-4">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <span className="font-technical text-xs text-border">
+              {selectedItem.capturedAt.toISOString()}
+              {selectedItem.source === "CAMERA_MEDIAPIPE" &&
+                ` — ${commonDict.cameraAngleLabels[selectedItem.cameraAngle]}`}
+            </span>
+            {selectedItem.source !== "CAMERA_MEDIAPIPE" ? (
+              <ManualEntryBadge commonDict={commonDict} />
+            ) : (
+              <ValidationBadge
+                status={selectedItem.validationStatus}
+                validatedAt={selectedItem.validatedAt}
+                validatedByName={selectedItem.validatedByName}
+                commonDict={commonDict}
+              />
+            )}
+          </div>
 
-          const isManual = selectedItem.source !== "CAMERA_MEDIAPIPE";
-
-          return (
-            <div className="rounded-lg border border-border bg-surface p-4">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                <span className="font-technical text-xs text-border">
-                  {selectedItem.capturedAt.toISOString()}
-                  {!isManual && ` — ${selectedItem.cameraAngle}`}
-                </span>
-                {isManual ? (
-                  <ManualEntryBadge />
-                ) : (
-                  <ValidationBadge
-                    status={validationStatus}
-                    validatedAt={validatedAt}
-                    validatedByName={validatedByName}
-                  />
-                )}
-              </div>
-
-              {selectedItem.error && (
-                <p className="mb-3 text-sm text-accent">{selectedItem.error}</p>
-              )}
-              <HoldTimeInfo holdTime={selectedItem.holdTime} />
-              {selectedItem.regionResults &&
-                (isManual ? (
-                  // No keypoints to hand PostureEditor (frozen — see
-                  // SLD_POSTURE_EDITOR_FIDELITY_PLAN.md) — a plain region
-                  // table instead, same data, no skeleton.
-                  <ManualRegionTable
-                    regionResults={selectedItem.regionResults}
-                  />
-                ) : (
-                  <PostureEditor
-                    key={selectedItem.id}
-                    postureSampleId={selectedItem.id}
-                    keypoints={selectedItem.keypoints}
-                    cameraAngle={selectedItem.cameraAngle}
-                    regionResults={selectedItem.regionResults}
-                    validatedKeypoints={selectedItem.validatedKeypoints}
-                    validationStatus={selectedItem.validationStatus}
-                    validatedAt={selectedItem.validatedAt}
-                    onValidate={(validatedKeypoints) =>
-                      handleValidate(selectedItem.id, validatedKeypoints)
-                    }
-                    onReopen={(note) => handleReopen(selectedItem.id, note)}
-                  />
-                ))}
-            </div>
-          );
-        })()}
+          {selectedItem.error && (
+            <p className="mb-3 text-sm text-accent">{selectedItem.error}</p>
+          )}
+          <HoldTimeInfo
+            holdTime={selectedItem.holdTime}
+            commonDict={commonDict}
+          />
+          {selectedItem.regionResults && (
+            <ManualRegionTable
+              regionResults={selectedItem.regionResults}
+              locale={locale}
+              commonDict={commonDict}
+            />
+          )}
+        </div>
+      )}
     </div>
   );
-}
-
-function worstBandFromRegions(
-  regions: Record<BodyRegion, RegionResult>,
-): RiskBand | null {
-  const bands = Object.values(regions).flatMap((result) =>
-    result.status === "scored" ? [result.riskBand] : [],
-  );
-  return worstRiskBand(bands);
 }

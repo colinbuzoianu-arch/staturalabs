@@ -1,14 +1,17 @@
 // Source-of-truth copy for (app)/administration — the tenant-facing write
 // surface for company_admin/site_admin (see CLAUDE.md M5).
 //
-// Scope boundary, narrower here than dashboard/en.ts's: RiskBand is NOT
-// translated — it's the exact same enum BodyRegionScore implicitly speaks
-// on the ergonomic side (§6's "one risk vocabulary" point), so it stays
-// raw for the same cross-referencing reason BodyRegion does. The other new
-// enums (OrgUnitType, ProcessStatus, RiskAssessmentStatus, ActionStatus,
-// HierarchyOfControl, VerificationOutcome, HazardCategory) ARE translated,
-// via the *Labels objects below — these are ordinary business vocabulary a
-// user picks from a dropdown (matches the M1-locked terminology table for
+// RiskBand — the exact same enum BodyRegionScore implicitly speaks on the
+// ergonomic side (§6's "one risk vocabulary" point) — IS translated as of
+// B8c (SLD_NEXT_STEPS_B8b-B8f.md), via riskBandLabels in the shared
+// common dictionary (src/lib/i18n/dictionaries/common/), not duplicated
+// here; the pre-B8c "stays raw, it's a technical cross-referencing
+// vocabulary" boundary this comment used to describe no longer applies —
+// see common/en.ts's own comment. The other enums (OrgUnitType,
+// ProcessStatus, RiskAssessmentStatus, ActionStatus, HierarchyOfControl,
+// VerificationOutcome, HazardCategory) ARE translated, via the *Labels
+// objects below — these are ordinary business vocabulary a user picks
+// from a dropdown (matches the M1-locked terminology table for
 // OrgUnitType PLANT/DEPARTMENT), the same category as manualInputLabels in
 // dashboard/en.ts, not a technical CV/scoring artifact.
 export const en = {

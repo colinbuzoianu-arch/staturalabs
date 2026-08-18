@@ -559,7 +559,13 @@ function ValidatedRegionRow({
         </span>
       ) : (
         <span className="font-technical text-xs text-border">
-          {describeRegionResult(result)}
+          {/* Frozen component (SLD_POSTURE_EDITOR_FIDELITY_PLAN.md),
+              currently unmounted anywhere (B8b removed its only callers)
+              — "en" here is a mechanical compile fix for
+              describeRegionResult's new required locale param
+              (SLD_NEXT_STEPS_B8b-B8f.md B8c), not a translation pass over
+              this frozen file's own text. */}
+          {describeRegionResult(result, "en")}
         </span>
       )}
     </div>
@@ -684,7 +690,8 @@ function RegionRow({
           </span>
         ) : (
           <span className="text-border">
-            {describeRegionResult(originalResult)}
+            {/* Same mechanical compile-fix note as ValidatedRegionRow above. */}
+            {describeRegionResult(originalResult, "en")}
           </span>
         )}
 

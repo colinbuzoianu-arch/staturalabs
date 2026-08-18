@@ -1,15 +1,121 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import { BodyRegion } from "@/generated/prisma/enums";
 import { describeRegionResult } from "@/lib/capture/describe-region-result";
-import {
-  describeManualInput,
-  MANUAL_INPUT_LABELS,
-} from "@/lib/capture/manual-input";
+import { describeManualInput } from "@/lib/capture/manual-input";
 import type { RegionResult } from "@/lib/capture/types";
+import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
+import { getDashboardDictionary } from "@/lib/i18n/dictionaries/dashboard";
 import { BrandMark } from "./brand-mark";
 import type { TaskReportData } from "./get-task-report-data";
+import type { ReportLang } from "./report-lang";
 
 const ALL_BODY_REGIONS = Object.values(BodyRegion);
+
+// Country-driven (B8c, SLD_NEXT_STEPS_B8b-B8f.md §6, mirroring
+// SgdDocument.tsx's country-driven-not-locale-driven philosophy), not
+// locale-driven — the Route Handler resolves `lang` from the task's
+// site's country (resolveReportLang) before this component ever renders,
+// so there's no getLocale() call anywhere in this file. Every enum value
+// this document interpolates (RiskBand, CameraAngle, BodyRegion, region-
+// result status) reads from getCommonDictionary(lang) — same source of
+// truth the dashboard UI and PostureSampleSwitcher use — so a German
+// report and the German dashboard never describe the same value two
+// different ways. PostureSampleSource (sample.source, "CAMERA_MEDIAPIPE"/
+// "MANUAL_ENTRY") deliberately stays untranslated: it's a provenance/
+// audit identifier this report treats the same way it treats the
+// PostureSample id and the methodology version string, not user-facing
+// prose.
+const REPORT_STRINGS: Record<
+  ReportLang,
+  {
+    documentTitle: (workstationName: string) => string;
+    documentSubject: (taskName: string) => string;
+    generatedPrefix: string;
+    methodologyPrefix: string;
+    methodologyUnavailable: string;
+    taskPrefix: string;
+    postureSamplesHeading: (count: number) => string;
+    cannotRecomputePrefix: string;
+    noSamples: string;
+    sourcePrefix: string;
+    cameraAnglePrefix: string;
+    recomputeErrorPrefix: string;
+    heldPrefix: string;
+    atPostureInfix: string;
+    holdTimeEscalatedSuffix: (overallBand: string) => string;
+    manualInputsHeading: (count: number) => string;
+    noManualInputs: string;
+    manualHandlingHeading: string;
+    manualHandlingSuffix: string;
+    repetitionHeading: string;
+    repetitionUnit: string;
+    repetitionSuffix: string;
+    footerDisclaimer: (methodologyVersion: string) => string;
+  }
+> = {
+  en: {
+    documentTitle: (workstationName) =>
+      `Assessment report — ${workstationName}`,
+    documentSubject: (taskName) =>
+      `Ergonomic screening report for task ${taskName}`,
+    generatedPrefix: "Generated ",
+    methodologyPrefix: "Methodology: ",
+    methodologyUnavailable: "unavailable",
+    taskPrefix: "Task: ",
+    postureSamplesHeading: (count) => `Posture samples (${count})`,
+    cannotRecomputePrefix: "Cannot recompute region breakdowns: ",
+    noSamples: "No captures recorded for this task.",
+    sourcePrefix: " — source: ",
+    cameraAnglePrefix: " — camera angle: ",
+    recomputeErrorPrefix: "Error recomputing this sample: ",
+    heldPrefix: "Held ",
+    atPostureInfix: "s at posture ",
+    holdTimeEscalatedSuffix: (overallBand) =>
+      ` — exceeds safe hold duration for this posture — overall ${overallBand}`,
+    manualInputsHeading: (count) => `Manual inputs (${count})`,
+    noManualInputs: "No manual inputs recorded for this task.",
+    manualHandlingHeading: "Manual handling assessment",
+    manualHandlingSuffix:
+      " — §64 ASchG (no mandated method) — SLD threshold, inspired by ISO 11228-1 / EN 1005-2",
+    repetitionHeading: "Repetition assessment",
+    repetitionUnit: "reps/cycle",
+    repetitionSuffix: " — SLD threshold, inspired by ISO 11228-3 / EN 1005-5",
+    footerDisclaimer: (methodologyVersion) =>
+      `This is an automated ergonomic screening artifact produced under scoring methodology ${methodologyVersion}. It is not a substitute for assessment by a certified ergonomist and does not constitute a professional ergonomic evaluation.`,
+  },
+  de: {
+    documentTitle: (workstationName) =>
+      `Bewertungsbericht — ${workstationName}`,
+    documentSubject: (taskName) =>
+      `Ergonomisches Screening-Bericht für Aufgabe ${taskName}`,
+    generatedPrefix: "Erstellt am ",
+    methodologyPrefix: "Methodik: ",
+    methodologyUnavailable: "nicht verfügbar",
+    taskPrefix: "Aufgabe: ",
+    postureSamplesHeading: (count) => `Haltungsaufnahmen (${count})`,
+    cannotRecomputePrefix:
+      "Regionale Auswertung kann nicht neu berechnet werden: ",
+    noSamples: "Für diese Aufgabe sind noch keine Aufnahmen erfasst.",
+    sourcePrefix: " — Quelle: ",
+    cameraAnglePrefix: " — Kamerawinkel: ",
+    recomputeErrorPrefix: "Fehler bei der Neuberechnung dieser Aufnahme: ",
+    heldPrefix: "",
+    atPostureInfix: "s gehalten bei Haltung ",
+    holdTimeEscalatedSuffix: (overallBand) =>
+      ` — überschreitet die sichere Haltedauer für diese Haltung — gesamt ${overallBand}`,
+    manualInputsHeading: (count) => `Manuelle Eingaben (${count})`,
+    noManualInputs: "Für diese Aufgabe sind keine manuellen Eingaben erfasst.",
+    manualHandlingHeading: "Bewertung der manuellen Lastenhandhabung",
+    manualHandlingSuffix:
+      " — §64 ASchG (keine vorgeschriebene Methode) — SLD-Schwellenwert, orientiert an ISO 11228-1 / EN 1005-2",
+    repetitionHeading: "Bewertung der Wiederholungshäufigkeit",
+    repetitionUnit: "Wdh./Zyklus",
+    repetitionSuffix:
+      " — SLD-Schwellenwert, orientiert an ISO 11228-3 / EN 1005-5",
+    footerDisclaimer: (methodologyVersion) =>
+      `Dies ist ein automatisiert erstelltes ergonomisches Screening-Dokument nach Bewertungsmethodik ${methodologyVersion}. Es ersetzt nicht die Beurteilung durch eine zertifizierte Ergonomie-Fachkraft und stellt keine professionelle ergonomische Bewertung dar.`,
+  },
+};
 
 const COLOR = {
   teal: "#0E3733",
@@ -193,7 +299,13 @@ function formatDate(date: Date): string {
 // user's name or id, no photo. PostureSample/ManualInput carry none by
 // design (ERGO_COMPLIANCE_BY_DESIGN.md §3.1/§3.2); this component doesn't
 // invent a place to show them either.
-export function TaskReportDocument({ data }: { data: TaskReportData }) {
+export function TaskReportDocument({
+  data,
+  lang,
+}: {
+  data: TaskReportData;
+  lang: ReportLang;
+}) {
   const {
     task,
     generatedAt,
@@ -202,17 +314,24 @@ export function TaskReportDocument({ data }: { data: TaskReportData }) {
     samples,
     manualInputGroups,
     manualHandlingResult,
+    repetitionResult,
   } = data;
   const company = task.workstation.site.company;
   const site = task.workstation.site;
   const workstation = task.workstation;
   const year = generatedAt.getUTCFullYear();
+  const s = REPORT_STRINGS[lang];
+  const commonDict = getCommonDictionary(lang);
+  // Reused rather than the plain MANUAL_INPUT_LABELS constant (English-
+  // only) — the dashboard dictionary already carries a translated copy of
+  // exactly this label set for every locale this report supports.
+  const manualInputLabels = getDashboardDictionary(lang).manualInputLabels;
 
   return (
     <Document
-      title={`Assessment report — ${workstation.name}`}
+      title={s.documentTitle(workstation.name)}
       author="Statura Labs Dynamics"
-      subject={`Ergonomic screening report for task ${task.name}`}
+      subject={s.documentSubject(task.name)}
     >
       <Page size="A4" style={styles.page} wrap>
         <View style={styles.headerRow}>
@@ -222,10 +341,12 @@ export function TaskReportDocument({ data }: { data: TaskReportData }) {
           </View>
           <View style={styles.metaBlock}>
             <Text style={styles.metaText}>
-              Generated {formatDate(generatedAt)}
+              {s.generatedPrefix}
+              {formatDate(generatedAt)}
             </Text>
             <Text style={styles.metaText}>
-              Methodology: {methodologyVersion ?? "unavailable"}
+              {s.methodologyPrefix}
+              {methodologyVersion ?? s.methodologyUnavailable}
             </Text>
           </View>
         </View>
@@ -236,25 +357,27 @@ export function TaskReportDocument({ data }: { data: TaskReportData }) {
         <Text style={styles.subtitle}>
           {site.name} · {company.name}
         </Text>
-        <Text style={styles.subtitle}>Task: {task.name}</Text>
+        <Text style={styles.subtitle}>
+          {s.taskPrefix}
+          {task.name}
+        </Text>
         {task.description && (
           <Text style={styles.taskDescription}>{task.description}</Text>
         )}
 
         <Text style={styles.sectionTitle}>
-          Posture samples ({samples.length})
+          {s.postureSamplesHeading(samples.length)}
         </Text>
 
         {methodologyError && (
           <Text style={styles.sampleError}>
-            Cannot recompute region breakdowns: {methodologyError}
+            {s.cannotRecomputePrefix}
+            {methodologyError}
           </Text>
         )}
 
         {samples.length === 0 && (
-          <Text style={styles.emptyNote}>
-            No captures recorded for this task.
-          </Text>
+          <Text style={styles.emptyNote}>{s.noSamples}</Text>
         )}
 
         {samples.map((sample) => (
@@ -265,17 +388,24 @@ export function TaskReportDocument({ data }: { data: TaskReportData }) {
                 same. cameraAngle is a real captured fact only for
                 CAMERA_MEDIAPIPE — MANUAL_ENTRY stores an inert placeholder
                 value there (see createPostureSample), so it's omitted
-                rather than shown as if it meant something. */}
+                rather than shown as if it meant something.
+                sample.source (PostureSampleSource) deliberately stays
+                untranslated — a provenance/audit identifier, not prose,
+                same treatment as the PostureSample id and methodology
+                version string right above it. */}
             <Text style={styles.sampleMeta}>
-              {formatDate(sample.capturedAt)} — source: {sample.source}
+              {formatDate(sample.capturedAt)}
+              {s.sourcePrefix}
+              {sample.source}
               {sample.source === "CAMERA_MEDIAPIPE"
-                ? ` — cameraAngle: ${sample.cameraAngle}`
+                ? `${s.cameraAnglePrefix}${commonDict.cameraAngleLabels[sample.cameraAngle]}`
                 : ""}
             </Text>
 
             {sample.error && (
               <Text style={styles.sampleError}>
-                Error recomputing this sample: {sample.error}
+                {s.recomputeErrorPrefix}
+                {sample.error}
               </Text>
             )}
 
@@ -290,10 +420,14 @@ export function TaskReportDocument({ data }: { data: TaskReportData }) {
                     : styles.sampleHoldTime
                 }
               >
-                Held {sample.holdTime.holdDurationSeconds}s at posture{" "}
-                {sample.holdTime.worstPostureBand}
+                {s.heldPrefix}
+                {sample.holdTime.holdDurationSeconds}
+                {s.atPostureInfix}
+                {commonDict.riskBandLabels[sample.holdTime.worstPostureBand]}
                 {sample.holdTime.holdTimeBand
-                  ? ` — exceeds safe hold duration for this posture — overall ${sample.holdTime.overallBand}`
+                  ? s.holdTimeEscalatedSuffix(
+                      commonDict.riskBandLabels[sample.holdTime.overallBand],
+                    )
                   : ""}
               </Text>
             )}
@@ -302,13 +436,13 @@ export function TaskReportDocument({ data }: { data: TaskReportData }) {
               <View style={styles.table}>
                 <View style={styles.tableHeaderRow}>
                   <Text style={[styles.colRegion, styles.tableHeaderText]}>
-                    Region
+                    {commonDict.postureSampleSwitcher.tableRegion}
                   </Text>
                   <Text style={[styles.colStatus, styles.tableHeaderText]}>
-                    Status
+                    {commonDict.postureSampleSwitcher.tableStatus}
                   </Text>
                   <Text style={[styles.colDetail, styles.tableHeaderText]}>
-                    Detail
+                    {commonDict.postureSampleSwitcher.tableDetail}
                   </Text>
                 </View>
                 {ALL_BODY_REGIONS.map((region) => {
@@ -317,10 +451,14 @@ export function TaskReportDocument({ data }: { data: TaskReportData }) {
                   if (!result) return null;
                   return (
                     <View key={region} style={styles.tableRow}>
-                      <Text style={styles.colRegion}>{region}</Text>
-                      <Text style={styles.colStatus}>{result.status}</Text>
+                      <Text style={styles.colRegion}>
+                        {commonDict.bodyRegionLabels[region]}
+                      </Text>
+                      <Text style={styles.colStatus}>
+                        {commonDict.regionResultStatusLabels[result.status]}
+                      </Text>
                       <Text style={styles.colDetail}>
-                        {describeRegionResult(result)}
+                        {describeRegionResult(result, lang)}
                       </Text>
                     </View>
                   );
@@ -331,14 +469,13 @@ export function TaskReportDocument({ data }: { data: TaskReportData }) {
         ))}
 
         <Text style={styles.sectionTitle}>
-          Manual inputs (
-          {manualInputGroups.reduce((n, g) => n + g.rows.length, 0)})
+          {s.manualInputsHeading(
+            manualInputGroups.reduce((n, g) => n + g.rows.length, 0),
+          )}
         </Text>
 
         {manualInputGroups.length === 0 && (
-          <Text style={styles.emptyNote}>
-            No manual inputs recorded for this task.
-          </Text>
+          <Text style={styles.emptyNote}>{s.noManualInputs}</Text>
         )}
 
         {manualInputGroups.map((group) => (
@@ -348,12 +485,12 @@ export function TaskReportDocument({ data }: { data: TaskReportData }) {
             wrap={false}
           >
             <Text style={styles.manualInputGroupTitle}>
-              {MANUAL_INPUT_LABELS[group.inputType]} ({group.rows.length})
+              {manualInputLabels[group.inputType]} ({group.rows.length})
             </Text>
             {group.rows.map((row) => (
               <View key={row.id} style={styles.manualInputRow}>
                 <Text style={styles.manualInputValue}>
-                  {describeManualInput(row)}
+                  {describeManualInput(row, lang)}
                 </Text>
                 {row.notes && (
                   <Text style={styles.manualInputNotes}>{row.notes}</Text>
@@ -372,12 +509,25 @@ export function TaskReportDocument({ data }: { data: TaskReportData }) {
             weight to score. */}
         {manualHandlingResult && (
           <>
-            <Text style={styles.sectionTitle}>Manual handling assessment</Text>
+            <Text style={styles.sectionTitle}>{s.manualHandlingHeading}</Text>
             <Text style={styles.manualInputRow}>
               {manualHandlingResult.loadWeightKg} kg —{" "}
-              {manualHandlingResult.riskBand} ({manualHandlingResult.riskScore})
-              — §64 ASchG (no mandated method) — SLD threshold, inspired by ISO
-              11228-1 / EN 1005-2
+              {commonDict.riskBandLabels[manualHandlingResult.riskBand]} (
+              {manualHandlingResult.riskScore}){s.manualHandlingSuffix}
+            </Text>
+          </>
+        )}
+
+        {/* B8d (SLD_NEXT_STEPS_B8b-B8f.md): same parallel-sub-score
+            treatment as manualHandlingResult above, against the most
+            recently recorded REPETITION_COUNT manual input. */}
+        {repetitionResult && (
+          <>
+            <Text style={styles.sectionTitle}>{s.repetitionHeading}</Text>
+            <Text style={styles.manualInputRow}>
+              {repetitionResult.repetitionCount} {s.repetitionUnit} —{" "}
+              {commonDict.riskBandLabels[repetitionResult.riskBand]} (
+              {repetitionResult.riskScore}){s.repetitionSuffix}
             </Text>
           </>
         )}
@@ -385,10 +535,7 @@ export function TaskReportDocument({ data }: { data: TaskReportData }) {
         <View style={styles.footer} fixed>
           <Text style={styles.footerCopyright}>© {year} Verumsell SRL</Text>
           <Text style={styles.footerDisclaimer}>
-            This is an automated ergonomic screening artifact produced under
-            scoring methodology {methodologyVersion ?? "unavailable"}. It is not
-            a substitute for assessment by a certified ergonomist and does not
-            constitute a professional ergonomic evaluation.
+            {s.footerDisclaimer(methodologyVersion ?? s.methodologyUnavailable)}
           </Text>
         </View>
         <Text

@@ -3,6 +3,8 @@ import { PresentModeNav } from "@/components/present-mode-nav";
 import { BodyRegion } from "@/generated/prisma/enums";
 import { requireWorkstationAccess } from "@/lib/auth/require-access";
 import { buildRegionResultsForSample } from "@/lib/capture/build-region-results";
+import { resolveCountryTerm } from "@/lib/country/dashboard-terminology";
+import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
 import { getDashboardDictionary } from "@/lib/i18n/dictionaries/dashboard";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { isPresentMode } from "@/lib/present-mode";
@@ -45,6 +47,24 @@ export default async function WorkstationRiskPage({
   const hazardCategoryLabels = dashboardDict.hazardCategoryLabels;
   const actionStatusLabels = dashboardDict.actionStatusLabels;
   const verificationOutcomeLabels = dashboardDict.verificationOutcomeLabels;
+  const riskAssessmentStatusLabels = dashboardDict.riskAssessmentStatusLabels;
+  const riskBandLabels = getCommonDictionary(locale).riskBandLabels;
+
+  // B8c item 8: an AT-sited workstation, viewed in German, should say
+  // "Evaluierung" (the ASchG term) rather than the generic German
+  // "Gefährdungsbeurteilung" this dictionary otherwise uses — see
+  // resolveCountryTerm's own comment for why this is German-only and
+  // AT-only rather than a general translation.
+  const evaluationTerm = resolveCountryTerm(
+    "evaluationProcess",
+    workstation.site.country,
+    locale,
+  );
+  const eyebrowText = evaluationTerm ? `${evaluationTerm} //` : dict.eyebrow;
+  const breadcrumbLabelText = evaluationTerm ?? dict.breadcrumbLabel;
+  const latestAssessmentHeadingText = evaluationTerm
+    ? `Letzte freigegebene ${evaluationTerm}`
+    : dict.latestAssessmentHeading;
 
   const [latestApproved, allAssessments, tasks, actions] = await Promise.all([
     prisma.riskAssessment.findFirst({
@@ -174,12 +194,12 @@ export default async function WorkstationRiskPage({
         >
           {workstation.name}
         </Link>{" "}
-        / {dict.breadcrumbLabel}
+        / {breadcrumbLabelText}
       </p>
 
       <div className="flex flex-col gap-1">
         <p className="font-technical text-xs uppercase tracking-[0.2em] text-border">
-          {dict.eyebrow}
+          {eyebrowText}
         </p>
         <h1 className="font-heading text-2xl font-bold">{workstation.name}</h1>
         <Link
@@ -222,7 +242,7 @@ export default async function WorkstationRiskPage({
       <section className="flex flex-col gap-4">
         <div className="flex items-baseline justify-between">
           <h2 className="font-heading text-lg font-bold">
-            {dict.latestAssessmentHeading}
+            {latestAssessmentHeadingText}
           </h2>
           {latestApproved && (
             <Link
@@ -272,7 +292,9 @@ export default async function WorkstationRiskPage({
                         {hazardCategoryLabels[finding.hazard.category]}
                       </td>
                       <td className="py-1 pr-4">{finding.hazard.name}</td>
-                      <td className="py-1 pr-4">{finding.riskBand}</td>
+                      <td className="py-1 pr-4">
+                        {riskBandLabels[finding.riskBand]}
+                      </td>
                       <td className="py-1 pr-4">{finding.riskScore}</td>
                       <td className="py-1">
                         {finding.existingControls ?? ""}
@@ -284,11 +306,13 @@ export default async function WorkstationRiskPage({
                                 const parts = [`${m.value} ${m.unit}`];
                                 if (m.actionValue !== null) {
                                   parts.push(
-                                    `action ${m.actionValue} ${m.unit}`,
+                                    `${dict.actionValuePrefix} ${m.actionValue} ${m.unit}`,
                                   );
                                 }
                                 if (m.limitValue !== null) {
-                                  parts.push(`limit ${m.limitValue} ${m.unit}`);
+                                  parts.push(
+                                    `${dict.limitPrefix} ${m.limitValue} ${m.unit}`,
+                                  );
                                 }
                                 return parts.join(", ");
                               })
@@ -439,11 +463,16 @@ export default async function WorkstationRiskPage({
                     <span className="text-border">
                       {assessment.assessedAt.toISOString()}
                     </span>
-                    <span className="text-border">{assessment.status}</span>
+                    <span className="text-border">
+                      {riskAssessmentStatusLabels[assessment.status]}
+                    </span>
                     <span className="font-semibold">
-                      {worstRiskBand(
-                        assessment.findings.map((f) => f.riskBand),
-                      ) ?? ""}
+                      {(() => {
+                        const band = worstRiskBand(
+                          assessment.findings.map((f) => f.riskBand),
+                        );
+                        return band ? riskBandLabels[band] : "";
+                      })()}
                     </span>
                   </div>
                 </li>

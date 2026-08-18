@@ -1,4 +1,6 @@
 import { ManualInputType } from "@/generated/prisma/enums";
+import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
+import type { Locale } from "@/lib/i18n/locale";
 
 // Deliberately no `import "server-only"` here — this module is shared by
 // the capture page (client, for form field visibility + a pre-submit
@@ -71,11 +73,28 @@ export function validateManualInputShape(
 }
 
 // Shared one-line rendering of a ManualInput row — used by the capture
-// page's "just added" list and the task page's read view, so the two don't
-// drift into describing the same row differently (same reasoning as
-// describe-region-result.ts for RegionResult).
-export function describeManualInput(entry: ManualInputShapeInput): string {
-  return isTextManualInputType(entry.inputType)
-    ? (entry.textValue ?? "")
-    : `${entry.value} ${entry.unit}`;
+// page's "just added" list, the task page's read view, and the task PDF
+// report, so none of them drift into describing the same row differently
+// (same reasoning as describe-region-result.ts for RegionResult).
+//
+// `entry.unit` is always one of the canonical strings MANUAL_INPUT_UNITS
+// locks at write time (kg/N/reps/s — see validateManualInputShape) — this
+// only translates the display of that fixed vocabulary (B8c,
+// SLD_NEXT_STEPS_B8b-B8f.md: "reps" reads as an English abbreviation next
+// to a German number), never the persisted value itself. Defaults to
+// English so every pre-existing call site (none of which passed a second
+// argument before this) keeps behaving exactly as before.
+export function describeManualInput(
+  entry: ManualInputShapeInput,
+  locale: Locale = "en",
+): string {
+  if (isTextManualInputType(entry.inputType)) {
+    return entry.textValue ?? "";
+  }
+  const unitLabels = getCommonDictionary(locale).manualInputUnitLabels;
+  const unit =
+    entry.unit && entry.unit in unitLabels
+      ? unitLabels[entry.unit as keyof typeof unitLabels]
+      : entry.unit;
+  return `${entry.value} ${unit}`;
 }

@@ -1,10 +1,12 @@
 // Source-of-truth copy for the authenticated company_admin/site_admin
-// dashboard. Deliberately does NOT cover BodyRegion/CameraAngle/RiskBand/
-// RegionResult-status values, or describeRegionResult()/describeManualInput
-// ()'s generated text — those are technical identifiers that are also what
-// the DB/API/PDF report show verbatim; translating them would mean a
-// parallel technical vocabulary that doesn't match the data itself. See
-// CLAUDE.md i18n notes for the full rule.
+// dashboard. BodyRegion/CameraAngle/RiskBand/RegionResult-status values,
+// and describeRegionResult()/describeManualInput()'s generated text, ARE
+// translated as of B8c (SLD_NEXT_STEPS_B8b-B8f.md) — the pre-B8c "stays
+// raw, they mirror the DB/API/PDF verbatim" rule this comment used to
+// state made sense when the product was a dev tool; for a customer-facing
+// Austrian product it read as unfinished. The label maps themselves live
+// in the shared common dictionary (src/lib/i18n/dictionaries/common/),
+// not duplicated here — see that file's own comment for why.
 export const en = {
   // Present mode (SLD_IMPLEMENTATION_PLAN_austria-first.md §7 B6): shared
   // shell chrome (exitLabel) plus one label per stop in the fixed keyboard
@@ -33,8 +35,14 @@ export const en = {
   },
   // Duplicated from administration/en.ts rather than shared — every i18n
   // area in this app is self-contained (no cross-area dictionary imports),
-  // same as admin/dashboard/marketing already are. RiskBand itself stays
-  // untranslated here too, same reasoning as administration's.
+  // same as admin/dashboard/marketing already are. RiskBand itself IS
+  // translated as of B8c (SLD_NEXT_STEPS_B8b-B8f.md) — via
+  // riskBandLabels in the shared common dictionary
+  // (src/lib/i18n/dictionaries/common/), not duplicated here, since it's
+  // literally the same enum BodyRegionScore speaks on the ergonomic side
+  // and PostureSampleSwitcher/describeRegionResult already read it from
+  // there — see common/en.ts's own comment for why that one label set
+  // isn't duplicated per area the way this one is.
   hazardCategoryLabels: {
     PHYSICAL_MECHANICAL: "Physical / mechanical",
     NOISE: "Noise",
@@ -56,6 +64,17 @@ export const en = {
     IMPLEMENTED: "Implemented",
     VERIFIED: "Verified",
     CANCELLED: "Cancelled",
+  },
+  // Duplicated from administration/en.ts, same reasoning as
+  // hazardCategoryLabels/actionStatusLabels above. Added in B8c
+  // (SLD_NEXT_STEPS_B8b-B8f.md) — the workstation risk page's band-trend
+  // timeline renders RiskAssessment.status directly and had no
+  // translated label for it until now.
+  riskAssessmentStatusLabels: {
+    DRAFT: "Draft",
+    IN_REVIEW: "In review",
+    APPROVED: "Approved",
+    ARCHIVED: "Archived",
   },
   // Duplicated from administration/en.ts, same reasoning as
   // hazardCategoryLabels/actionStatusLabels above — no cross-area
@@ -110,6 +129,14 @@ export const en = {
       `${kg} kg — ${band}`,
     manualHandlingDescription:
       "Austria (§64 ASchG) requires manual load handling to be evaluated but prescribes no method — SLD applies its own thresholds, inspired by ISO 11228-1/EN 1005-2, cited in the generated SGD.",
+    // B8d (SLD_NEXT_STEPS_B8b-B8f.md): a parallel sub-score against the
+    // most recently recorded REPETITION_COUNT manual input — reps per
+    // task cycle, no frequency calculation.
+    repetitionHeading: "Repetition assessment",
+    repetitionResultLabel: (reps: number, band: string) =>
+      `${reps} reps/cycle — ${band}`,
+    repetitionDescription:
+      "SLD applies its own thresholds to repetitions per task cycle, inspired by ISO 11228-3/EN 1005-5, cited in the generated SGD.",
     postureSamplesHeading: "Posture samples",
     postureSamplesEmpty: "No captures yet for this task.",
     cannotRecompute: (error: string) =>
@@ -124,25 +151,6 @@ export const en = {
   capturePage: {
     backToTask: "← Back to task",
     heading: "Capture posture sample",
-    cameraLabel: "Camera",
-    cameraAngleLabel: "Camera angle",
-    cameraAngleHint: {
-      SAGITTAL: "Side-on — required for trunk, neck, elbow, and knee scoring.",
-      FRONTAL:
-        "Front-on — only shoulder regions can be scored from this angle.",
-      OBLIQUE:
-        "Neither side-on nor front-on — only shoulder regions can be scored from this angle.",
-    },
-    noPersonDetected:
-      "No person detected in frame. Adjust framing and try again.",
-    loadingPoseModel: "Loading pose model…",
-    detecting: "Detecting…",
-    submitting: "Submitting…",
-    captureSample: "Capture Sample",
-    peopleDetected: (count: number) =>
-      `${count} people detected. Click the highlighted skeleton for the person being assessed.`,
-    selectPerson: (n: number) => `Select person ${n}`,
-    cancelAndRetake: "Cancel and retake",
     sampleMeta: (id: string, version: string) =>
       `Sample ${id} — methodology ${version}`,
     tableRegion: "Region",
@@ -158,28 +166,18 @@ export const en = {
     notesLabel: "Notes (optional)",
     adding: "Adding…",
     add: "Add",
-    cameraFeedNotReady:
-      "Camera feed not ready yet — wait a moment for the preview to appear, then try again.",
-    canvasUnavailable: "Canvas 2D context unavailable",
-    failedToLoadPoseModel: (message: string) =>
-      `Failed to load pose model: ${message}`,
-    cameraAccessFailed: (message: string) => `Camera access failed: ${message}`,
-    couldNotSwitchCamera: (message: string) =>
-      `Could not switch camera: ${message}`,
     submitFailed: "Submit failed",
-    detectionFailed: "Detection failed",
     requestFailed: (status: number) => `Request failed: ${status}`,
-    // Manual entry (SLD_IMPLEMENTATION_PLAN_austria-first.md §5): a
-    // goniometer/tape-measure alternative to the camera flow above,
-    // switched via a tab on this same page — not a separate route. Region
-    // names themselves stay untranslated everywhere in this dictionary
-    // (see the file-level i18n scope note) — angleDegreesLabel takes the
-    // raw BodyRegion string and only wraps it with translated framing.
-    captureTabLabel: "Capture",
-    manualEntryTabLabel: "Manual entry",
+    // Manual entry (SLD_IMPLEMENTATION_PLAN_austria-first.md §5): the
+    // goniometer/tape-measure alternative to the camera flow removed in
+    // B8b (SLD_NEXT_STEPS_B8b-B8f.md) — now this page's only entry path.
+    // Region names themselves stay untranslated everywhere in this
+    // dictionary (see the file-level i18n scope note) — angleDegreesLabel
+    // takes the raw BodyRegion string and only wraps it with translated
+    // framing.
     manualEntryHeading: "Enter measured angles",
     manualEntryDescription:
-      "For every region below, enter the flexion angle from neutral (0° = upright, increasing = more flexed) as measured with a goniometer or estimated by eye. All eight are required for a complete sample.",
+      "For every region below, enter the flexion angle from neutral (0° = upright, increasing = more flexed) as measured with a goniometer or estimated by eye. All ten are required for a complete sample.",
     angleDegreesLabel: (region: string) => `${region} (°)`,
     manualEntryNotScored: "not scored yet",
     manualEntrySubmit: "Submit manual entry",
@@ -216,6 +214,8 @@ export const en = {
     colScore: "Score",
     colControls: "Existing controls",
     measurementsLabel: "Measurements:",
+    actionValuePrefix: "action",
+    limitPrefix: "limit",
     overLimit: "over limit",
     overActionValue: "over action value",
     ergonomicHeading: "Ergonomic scores",

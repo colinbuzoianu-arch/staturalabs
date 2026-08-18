@@ -4,6 +4,7 @@ import { createElement } from "react";
 import { requireSiteAccess } from "@/lib/auth/require-access";
 import { getRiskAssessmentReportData } from "@/lib/report/get-risk-assessment-report-data";
 import { RiskAssessmentReportDocument } from "@/lib/report/RiskAssessmentReportDocument";
+import { resolveReportLang } from "@/lib/report/report-lang";
 
 // Resource-first access, same pattern as the risk-assessment/action detail
 // pages under (app)/administration: a RiskAssessment id already fully
@@ -12,7 +13,7 @@ import { RiskAssessmentReportDocument } from "@/lib/report/RiskAssessmentReportD
 // no new authorization logic, and a report is a read action available to
 // anyone who can read the site, not gated to the write surface.
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ riskAssessmentId: string }> },
 ) {
   const { riskAssessmentId } = await params;
@@ -20,10 +21,18 @@ export async function GET(
   if (!data) notFound();
   await requireSiteAccess(data.riskAssessment.siteId);
 
+  // Country-driven (B8c, SLD_NEXT_STEPS_B8b-B8f.md §6) — same
+  // resolveReportLang the task report route uses.
+  const lang = resolveReportLang(
+    data.riskAssessment.site.country,
+    new URL(request.url).searchParams.get("lang"),
+  );
+
   const buffer = await renderToBuffer(
-    createElement(RiskAssessmentReportDocument, { data }) as Parameters<
-      typeof renderToBuffer
-    >[0],
+    createElement(RiskAssessmentReportDocument, {
+      data,
+      lang,
+    }) as Parameters<typeof renderToBuffer>[0],
   );
 
   const subjectName =

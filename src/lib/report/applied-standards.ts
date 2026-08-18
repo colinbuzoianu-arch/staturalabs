@@ -22,6 +22,7 @@ export function deriveAppliedStandards(params: {
   hasScoringRules: boolean;
   hasHoldTimeRules: boolean;
   hasManualHandlingRules: boolean;
+  hasRepetitionRules: boolean;
 }): AppliedStandard[] {
   const standards: AppliedStandard[] = [];
 
@@ -59,6 +60,16 @@ export function deriveAppliedStandards(params: {
         "ISO 11228-1 / EN 1005-2 (Manuelle Handhabung – Heben und Tragen)",
       appliesTo: "Bewertung der manuellen Lastenhandhabung (§64 ASchG)",
       note: "Österreich schreibt für §64 ASchG keine Methode vor (keine Lastenhandhabungsverordnung) — SLD wendet eigene, an dieser Norm orientierte Schwellenwerte an (nicht deren Reproduktion).",
+    });
+  }
+
+  // B8d (SLD_NEXT_STEPS_B8b-B8f.md): a repetition-count sub-score closing
+  // the "posture + hold time + load all scored, repetition wasn't" gap.
+  if (params.hasRepetitionRules) {
+    standards.push({
+      reference: "ISO 11228-3 / EN 1005-5 (Handhabung hoher Frequenz)",
+      appliesTo: "Bewertung der Wiederholungshäufigkeit",
+      note: "SLD-eigene Schwellenwerte auf Basis der pro Arbeitszyklus erfassten Wiederholungszahl, am allgemeinen Prinzip dieser Normen orientiert (nicht deren Reproduktion) — ohne die vollständige Frequenzberechnung dieser Normen, die Zyklus- und Erholungszeiten voraussetzt.",
     });
   }
 

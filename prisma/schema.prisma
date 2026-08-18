@@ -517,6 +517,7 @@ model MethodologyVersion {
   scoringRules        ScoringRule[]
   holdTimeRules       HoldTimeRule[]
   manualHandlingRules ManualHandlingRule[]
+  repetitionRules     RepetitionRule[]
 }
 
 /// Versioned scoring thresholds (§3.8): the "rule content" that
@@ -612,6 +613,46 @@ model ManualHandlingRule {
   createdAt          DateTime @default(now())
 
   // Restrict: same reasoning as ScoringRule.methodology.
+  methodology MethodologyVersion @relation(fields: [methodologyVersion], references: [version], onDelete: Restrict)
+
+  @@index([methodologyVersion])
+}
+
+/// Versioned repetition-count bands (SLD_NEXT_STEPS_B8b-B8f.md B8d): a
+/// parallel sub-score against `ManualInput`'s `REPETITION_COUNT` value,
+/// closing the "a high-rep low-load task shows three green sub-scores"
+/// gap — posture, hold-time, and manual-handling were all scored, but raw
+/// repetition count was captured and read by nothing. Independently
+/// designed by SLD, inspired by ISO 11228-3's general "the more frequently
+/// a movement repeats, the higher the risk" principle — deliberately NOT
+/// a reproduction of ISO 11228-3's own frequency (repetitions/minute)
+/// tables or EN 1005-5's OCRA-derived multiplier method (a full frequency
+/// calculation needs cycle time and recovery time this app doesn't
+/// collect in v1 — see the plan's own "no frequency calculation
+/// introduced" scope note); this scores the raw REPETITION_COUNT value
+/// (reps per task cycle) directly, same coarser-than-the-standard
+/// relationship HoldTimeRule already has to ISO 11226.
+///
+/// Keyed by raw rep count, same [min, max) inclusive-min/exclusive-max
+/// shape as ManualHandlingRule's kg ranges (matchRepetitionRule mirrors
+/// matchManualHandlingRule directly) — a fresh, independent scoring axis,
+/// never blended with posture/hold-time/manual-handling (§6/§11:
+/// "parallel sub-scores, not a blended composite").
+///
+/// Folded into the existing `v2-2026-08` MethodologyVersion rather than a
+/// new version, same "folded into the same v2 methodology version"
+/// instruction ManualHandlingRule followed — a brand-new capability with
+/// no historical row to preserve parity against.
+model RepetitionRule {
+  id                 String   @id @default(cuid())
+  methodologyVersion String
+  riskBand           RiskBand
+  riskScore          Int
+  minReps            Float?
+  maxReps            Float?
+  createdAt          DateTime @default(now())
+
+  // Restrict: same reasoning as ManualHandlingRule.methodology.
   methodology MethodologyVersion @relation(fields: [methodologyVersion], references: [version], onDelete: Restrict)
 
   @@index([methodologyVersion])

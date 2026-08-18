@@ -41,6 +41,12 @@ export const de: typeof en = {
     VERIFIED: "Verifiziert",
     CANCELLED: "Storniert",
   },
+  riskAssessmentStatusLabels: {
+    DRAFT: "Entwurf",
+    IN_REVIEW: "In Prüfung",
+    APPROVED: "Freigegeben",
+    ARCHIVED: "Archiviert",
+  },
   verificationOutcomeLabels: {
     EFFECTIVE: "Wirksam",
     PARTIALLY_EFFECTIVE: "Teilweise wirksam",
@@ -87,6 +93,11 @@ export const de: typeof en = {
       `${kg} kg — ${band}`,
     manualHandlingDescription:
       "§64 ASchG verlangt die Bewertung manueller Lastenhandhabung, schreibt aber keine Methode vor — SLD wendet eigene Schwellenwerte an, orientiert an ISO 11228-1/EN 1005-2, im generierten SGD zitiert.",
+    repetitionHeading: "Bewertung der Wiederholungshäufigkeit",
+    repetitionResultLabel: (reps: number, band: string) =>
+      `${reps} Wdh./Zyklus — ${band}`,
+    repetitionDescription:
+      "SLD wendet eigene Schwellenwerte auf die Wiederholungszahl pro Arbeitszyklus an, orientiert an ISO 11228-3/EN 1005-5, im generierten SGD zitiert.",
     postureSamplesHeading: "Haltungsaufnahmen",
     postureSamplesEmpty: "Für diese Aufgabe liegen noch keine Aufnahmen vor.",
     cannotRecompute: (error: string) =>
@@ -101,26 +112,6 @@ export const de: typeof en = {
   capturePage: {
     backToTask: "← Zurück zur Aufgabe",
     heading: "Haltungsaufnahme erfassen",
-    cameraLabel: "Kamera",
-    cameraAngleLabel: "Kamerawinkel",
-    cameraAngleHint: {
-      SAGITTAL:
-        "Seitlich — erforderlich für die Bewertung von Rumpf, Nacken, Ellbogen und Knie.",
-      FRONTAL:
-        "Frontal — aus diesem Winkel können nur die Schulterregionen bewertet werden.",
-      OBLIQUE:
-        "Weder seitlich noch frontal — aus diesem Winkel können nur die Schulterregionen bewertet werden.",
-    },
-    noPersonDetected:
-      "Keine Person im Bild erkannt. Bildausschnitt anpassen und erneut versuchen.",
-    loadingPoseModel: "Haltungsmodell wird geladen…",
-    detecting: "Erkennung läuft…",
-    submitting: "Wird gesendet…",
-    captureSample: "Aufnahme starten",
-    peopleDetected: (count: number) =>
-      `${count} Personen erkannt. Klicken Sie auf das hervorgehobene Skelett der zu bewertenden Person.`,
-    selectPerson: (n: number) => `Person ${n} auswählen`,
-    cancelAndRetake: "Abbrechen und erneut aufnehmen",
     sampleMeta: (id: string, version: string) =>
       `Aufnahme ${id} — Methodik ${version}`,
     tableRegion: "Region",
@@ -136,23 +127,11 @@ export const de: typeof en = {
     notesLabel: "Notizen (optional)",
     adding: "Wird hinzugefügt…",
     add: "Hinzufügen",
-    cameraFeedNotReady:
-      "Kamerabild noch nicht bereit — bitte kurz warten, bis die Vorschau erscheint, und erneut versuchen.",
-    canvasUnavailable: "Canvas-2D-Kontext nicht verfügbar",
-    failedToLoadPoseModel: (message: string) =>
-      `Haltungsmodell konnte nicht geladen werden: ${message}`,
-    cameraAccessFailed: (message: string) =>
-      `Kamerazugriff fehlgeschlagen: ${message}`,
-    couldNotSwitchCamera: (message: string) =>
-      `Kamera konnte nicht gewechselt werden: ${message}`,
     submitFailed: "Senden fehlgeschlagen",
-    detectionFailed: "Erkennung fehlgeschlagen",
     requestFailed: (status: number) => `Anfrage fehlgeschlagen: ${status}`,
-    captureTabLabel: "Aufnahme",
-    manualEntryTabLabel: "Manuelle Eingabe",
     manualEntryHeading: "Gemessene Winkel eingeben",
     manualEntryDescription:
-      "Geben Sie für jede Region unten den Beugewinkel ausgehend von der neutralen Haltung ein (0° = aufrecht, zunehmend = stärker gebeugt), gemessen mit einem Goniometer oder nach Augenmaß geschätzt. Alle acht Werte sind für eine vollständige Probe erforderlich.",
+      "Geben Sie für jede Region unten den Beugewinkel ausgehend von der neutralen Haltung ein (0° = aufrecht, zunehmend = stärker gebeugt), gemessen mit einem Goniometer oder nach Augenmaß geschätzt. Alle zehn Werte sind für eine vollständige Probe erforderlich.",
     angleDegreesLabel: (region: string) => `${region} (°)`,
     manualEntryNotScored: "noch nicht bewertet",
     manualEntrySubmit: "Manuelle Eingabe absenden",
@@ -186,6 +165,8 @@ export const de: typeof en = {
     colScore: "Risikowert",
     colControls: "Bestehende Maßnahmen",
     measurementsLabel: "Messungen:",
+    actionValuePrefix: "Auslösewert",
+    limitPrefix: "Grenzwert",
     overLimit: "über Grenzwert",
     overActionValue: "über Auslösewert",
     ergonomicHeading: "Ergonomische Bewertung",

@@ -1,10 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  reopenPostureSampleForEdit,
-  validatePostureSample,
-} from "@/app/(app)/tasks/[taskId]/actions";
-import {
   PostureSampleSwitcher,
   type PostureSampleSwitcherItem,
 } from "@/components/posture-sample-switcher";
@@ -27,7 +23,7 @@ export default async function TaskResultsPage({
 }: {
   params: Promise<{ taskId: string }>;
 }) {
-  const adminUser = await requireSuperAdmin();
+  await requireSuperAdmin();
   const { taskId } = await params;
 
   const task = await prisma.task.findUnique({
@@ -200,14 +196,7 @@ export default async function TaskResultsPage({
 
       {samples.length === 0 && <p className="text-sm">{dict.empty}</p>}
 
-      {items.length > 0 && (
-        <PostureSampleSwitcher
-          items={items}
-          currentUserName={adminUser.name}
-          onValidate={validatePostureSample}
-          onReopen={reopenPostureSampleForEdit}
-        />
-      )}
+      {items.length > 0 && <PostureSampleSwitcher items={items} />}
     </div>
   );
 }

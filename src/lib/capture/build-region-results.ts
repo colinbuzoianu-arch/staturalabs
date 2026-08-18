@@ -15,16 +15,32 @@ import {
 } from "@/lib/pose/angles";
 import { prisma } from "@/lib/prisma";
 import { lookupScoringRule } from "@/lib/scoring/lookup";
-import type { ManualAngles } from "./manual-angles";
+import {
+  MANUAL_ENTRY_BODY_REGIONS,
+  type ManualAngles,
+  type ManualEntryBodyRegion,
+} from "./manual-angles";
 import type { RegionResult } from "./types";
 
 // Exported so createPostureSample's manual-entry write path (which needs
-// the exact same "which BodyRegion values are computed" check while
-// building rows to persist) doesn't re-derive its own copy of this test.
+// the exact same "which BodyRegion values the CAMERA source computes"
+// check while building rows to persist) doesn't re-derive its own copy of
+// this test. Camera-only — deliberately NOT used to gate the MANUAL_ENTRY
+// branch below (see isManuallyScorableRegion), since computeBodyAngles
+// has no wrist formula but manual entry does (B8e).
 export function isComputedRegion(
   region: BodyRegion,
 ): region is ComputedBodyRegion {
   return (COMPUTED_BODY_REGIONS as readonly BodyRegion[]).includes(region);
+}
+
+// The manual-entry counterpart to isComputedRegion above — the broader
+// superset (COMPUTED_BODY_REGIONS + wrist) MANUAL_ENTRY samples can
+// score. Never used to gate the CAMERA_MEDIAPIPE branch.
+export function isManuallyScorableRegion(
+  region: BodyRegion,
+): region is ManualEntryBodyRegion {
+  return (MANUAL_ENTRY_BODY_REGIONS as readonly BodyRegion[]).includes(region);
 }
 
 export type BuildRegionResultsOutput = {
@@ -157,7 +173,7 @@ async function buildManualRegionResults(params: {
 
   const regionResults = {} as Record<BodyRegion, RegionResult>;
   for (const region of Object.values(BodyRegion)) {
-    if (!isComputedRegion(region)) {
+    if (!isManuallyScorableRegion(region)) {
       regionResults[region] = { status: "not-yet-supported" };
       continue;
     }

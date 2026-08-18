@@ -93,7 +93,7 @@ export const en = {
         heading: "What workplace ergonomics actually measures",
         paragraphs: [
           "Musculoskeletal disorders — back, shoulder, and knee strain from repeated or sustained awkward posture — remain one of the largest categories of occupational injury, and one of the hardest to catch early, because the damage accumulates from ordinary movements repeated thousands of times, not a single accident.",
-          "A proper assessment doesn't look at one moment — it looks at posture, repetition, force, and duration together, region by region: trunk, neck, shoulders, elbows, knees. Statura's scoring engine follows that same logic, built on ISO 11228 and EN 1005 rather than a single simplified \"risk score.\"",
+          "A proper assessment doesn't look at one moment — it looks at posture, repetition, force, and duration together, region by region: trunk, neck, shoulders, elbows, wrists, knees. Statura's scoring engine follows that same logic, built on ISO 11228 and EN 1005 rather than a single simplified \"risk score.\"",
         ],
         roadmapNote: null as string | null,
       },
@@ -104,7 +104,7 @@ export const en = {
           "Today, Statura works with any camera a browser can access — a laptop or USB camera mounted once at a workstation for repeated audits, or a phone carried by an assessor from station to station across a facility. No proprietary hardware, no wearables.",
         ],
         roadmapNote:
-          "In development: a dedicated close-range capture mode for regions a full-body shot can't resolve well — wrist and hand posture in particular. Not yet part of the product.",
+          "In development: camera-based close-range detection for wrist and hand posture, which a full-body shot can't resolve well. Wrist posture itself is already scored today, entered manually — this gap is specifically about extending camera capture to reach it too.",
       },
       {
         kicker: "Beyond posture",

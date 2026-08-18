@@ -5,12 +5,18 @@ import {
   type CameraAngle,
   type RiskBand,
 } from "@/generated/prisma/enums";
-import { COMPUTED_BODY_REGIONS, type PoseLandmark } from "@/lib/pose/angles";
+import type { PoseLandmark } from "@/lib/pose/angles";
 import { prisma } from "@/lib/prisma";
 import { matchScoringRule } from "@/lib/scoring/match";
-import { buildRegionResults, isComputedRegion } from "./build-region-results";
+import {
+  buildRegionResults,
+  isManuallyScorableRegion,
+} from "./build-region-results";
 import { computeHoldTimeResult } from "./hold-time-result";
-import { validateManualAngles } from "./manual-angles";
+import {
+  MANUAL_ENTRY_BODY_REGIONS,
+  validateManualAngles,
+} from "./manual-angles";
 import type { PostureSampleResponse, RegionResult } from "./types";
 
 // PostureSample.cameraAngle is a NOT NULL column with no "not applicable"
@@ -164,7 +170,7 @@ async function createManualPostureSample(params: {
 
   const rules = await prisma.scoringRule.findMany({
     where: {
-      bodyRegion: { in: [...COMPUTED_BODY_REGIONS] },
+      bodyRegion: { in: [...MANUAL_ENTRY_BODY_REGIONS] },
       methodologyVersion: params.methodologyVersion,
     },
   });
@@ -183,7 +189,7 @@ async function createManualPostureSample(params: {
     scoringRuleVersion: string;
   }> = [];
 
-  for (const region of COMPUTED_BODY_REGIONS) {
+  for (const region of MANUAL_ENTRY_BODY_REGIONS) {
     const degrees = angles[region];
     const match = matchScoringRule(rulesByRegion.get(region) ?? [], degrees);
     if (match) {
@@ -210,11 +216,11 @@ async function createManualPostureSample(params: {
       regionResults[region] = { status: "no-matching-rule", degrees };
     }
   }
-  // Every BodyRegion not in COMPUTED_BODY_REGIONS never gets a formula —
-  // same "not-yet-supported" reporting as buildRegionResults' camera
-  // branch.
+  // Every BodyRegion not in MANUAL_ENTRY_BODY_REGIONS never gets a
+  // formula — same "not-yet-supported" reporting as buildRegionResults'
+  // manual branch.
   for (const region of Object.values(BodyRegion)) {
-    if (!isComputedRegion(region)) {
+    if (!isManuallyScorableRegion(region)) {
       regionResults[region] = { status: "not-yet-supported" };
     }
   }

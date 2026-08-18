@@ -111,6 +111,22 @@ async function main() {
        )`,
       [siteIds],
     );
+    // B8f (SLD_NEXT_STEPS_B8b-B8f.md): PsychosocialFindingDetail (added in
+    // B7) was missing from this delete sequence — a real gap, same class
+    // of bug as the pre-existing PostureSampleValidationEvent one this
+    // file's own history already fixed once. riskFindingId is ON DELETE
+    // RESTRICT, so a leftover row here would block the RiskFinding delete
+    // just below.
+    await del(
+      db,
+      "PsychosocialFindingDetail",
+      `DELETE FROM "PsychosocialFindingDetail" WHERE "riskFindingId" IN (
+         SELECT rf.id FROM "RiskFinding" rf
+         JOIN "RiskAssessment" ra ON ra.id = rf."riskAssessmentId"
+         WHERE ra."siteId" = ANY($1)
+       )`,
+      [siteIds],
+    );
     await del(
       db,
       "RiskFinding",
