@@ -18,31 +18,31 @@ export const ro: typeof en = {
   hero: {
     eyebrow: "Mișcare măsurată // ergonomia la locul de muncă",
     h1: "Riscul ergonomic, citit ca de un instrument de măsură.",
-    lede: "Statura Labs Dynamics transformă o cameră video obișnuită într-un instrument de evaluare ergonomică de precizie. Unghiurile trunchiului, gâtului, umărului, cotului și genunchiului sunt evaluate conform ISO 11228 și EN 1005 — în condiții reale de lucru, nu într-un laborator.",
+    lede: "Statura Labs Dynamics transformă evaluarea riscului ergonomic într-un instrument de precizie. Un evaluator încadrează postura observată — trunchi, gât, umăr, cot, încheietura mâinii, genunchi — evaluată conform ISO 11228 și EN 1005, în condiții reale de lucru, nu într-un laborator. Fără cameră video, fără înregistrări video, fără date cu caracter personal.",
     ctaPrimary: "Solicită un proiect pilot",
     ctaSecondary: "Vezi cum funcționează",
   },
   pipeline: {
     eyebrow: "Fluxul de lucru",
-    heading: "De la o singură cameră la un scor documentat.",
+    heading: "De la o observație structurată la un scor documentat.",
     steps: [
       {
-        step: "01 / CAPTURE",
-        heading: "Îndreaptă o cameră spre locul de muncă",
+        step: "01 / ASSESS",
+        heading: "Încadrează postura la locul de muncă",
         description:
-          "Fără dispozitive purtabile, fără senzori de instalat. Funcționează cu orice cameră de laptop sau USB.",
+          "Fără cameră video, fără dispozitive purtabile, fără senzori. Un evaluator instruit înregistrează postura pe care o observă.",
       },
       {
-        step: "02 / ANALYZE",
-        heading: "Postura este analizată direct pe dispozitiv",
+        step: "02 / RECORD",
+        heading: "Postura și contextul, consemnate ca date",
         description:
-          "Estimarea posturii rulează în browser. Videoclipul nu este niciodată stocat sau transmis.",
+          "Categorii de postură observate, plus greutate, forță și durată — introduse direct. Niciun material video nu este implicat în vreun moment.",
       },
       {
         step: "03 / SCORE",
         heading: "Unghiurile sunt verificate, regiune cu regiune",
         description:
-          "Trunchi, gât, umăr, cot, genunchi — fiecare evaluat conform ISO 11228 / EN 1005.",
+          "Trunchi, gât, umăr, cot, încheietura mâinii, genunchi — fiecare evaluat conform ISO 11228 / EN 1005.",
       },
       {
         step: "04 / REPORT",
@@ -54,12 +54,12 @@ export const ro: typeof en = {
   },
   privacy: {
     eyebrow: "Construit pentru confidențialitate, nu adăugat ulterior",
-    heading: "Camera vede o postură. Nu vede niciodată o persoană.",
+    heading: "Evaluează o postură, niciodată o persoană.",
     items: [
       {
-        heading: "Niciun videoclip nu este stocat vreodată",
+        heading: "Fără cameră, fără video, niciunde",
         description:
-          "Cadrele sunt procesate și eliminate direct pe dispozitiv, în browser. Nimic nu este salvat, nimic nu părăsește dispozitivul sub formă de video.",
+          "Nu există nicio cameră în proces și niciun material video care ar putea fi stocat, transmis sau scurs. O evaluare este un set de observații structurate — categorii de postură și valori măsurate — nimic mai mult.",
       },
       {
         heading: "Nicio dată de identitate, nicăieri",
@@ -88,7 +88,7 @@ export const ro: typeof en = {
   },
   fieldNotes: {
     eyebrow: "Note de pe teren",
-    heading: "Ergonomia înseamnă mai mult decât un singur unghi de cameră.",
+    heading: "Ergonomia înseamnă mai mult decât un singur instantaneu.",
     notes: [
       {
         kicker: "De ce contează",
@@ -100,19 +100,18 @@ export const ro: typeof en = {
         roadmapNote: null as string | null,
       },
       {
-        kicker: "Flexibilitate în captură",
-        heading: "Fixă, portabilă și ce urmează",
+        kicker: "Cum funcționează evaluarea",
+        heading: "Observație structurată, nu o transmisie video",
         paragraphs: [
-          "Astăzi, Statura funcționează cu orice cameră accesibilă unui browser — o cameră de laptop sau USB montată permanent la un loc de muncă pentru audituri repetate, sau telefonul mobil purtat de un evaluator de la o stație la alta în cadrul unei fabrici. Fără hardware proprietar, fără dispozitive purtabile.",
+          "Statura nu vă supraveghează angajații. Un evaluator instruit încadrează la fiecare loc de muncă postura pe care o observă — trunchi, gât, umeri, coate, încheieturile mâinii, genunchi — și înregistrează greutatea, forța și durata care determină riscul real. Fără hardware proprietar, fără dispozitive purtabile, fără cameră, fără material video. Preia metoda pe care un ergonomist certificat o folosește deja pe teren și o face consecventă, versionată și documentată.",
         ],
-        roadmapNote:
-          "În dezvoltare: detectarea prin cameră, la distanță mică, a posturii încheieturii și mâinii, pe care o imagine de corp întreg nu o poate surprinde suficient de bine. Postura încheieturii este deja evaluată astăzi — introdusă manual; acest decalaj privește exclusiv extinderea capturii prin cameră la această regiune.",
+        roadmapNote: null as string | null,
       },
       {
         kicker: "Dincolo de postură",
         heading: "Adăugăm în ecuație greutatea, forța și uneltele",
         paragraphs: [
-          "Postura, singură, nu spune toată povestea — o aplecare moderată fără nimic în mâini reprezintă un risc diferit față de aceeași aplecare cu 20 kg. Alături de fiecare captură de postură, Statura înregistrează contextul manual care determină riscul real: greutatea obiectului, forța de împingere/tragere și unealta folosită, introduse de persoana care realizează evaluarea.",
+          "Postura, singură, nu spune toată povestea — o aplecare moderată fără nimic în mâini reprezintă un risc diferit față de aceeași aplecare cu 20 kg. Alături de fiecare evaluare de postură, Statura înregistrează contextul manual care determină riscul real: greutatea obiectului, forța de împingere/tragere și unealta folosită, introduse de persoana care realizează evaluarea.",
           "Acestea nu sunt presupuneri adăugate peste un scor — sunt date structurate, asociate aceleiași sarcini și aceluiași loc de muncă, vizibile împreună în fiecare raport.",
         ],
         roadmapNote: null as string | null,
@@ -121,7 +120,7 @@ export const ro: typeof en = {
         kicker: "Pe foaia de parcurs",
         heading: "Spații de lucru comune om-robot",
         paragraphs: [
-          "Același motor de recunoaștere a posturii, care rulează direct pe dispozitiv și citește postura umană, este un punct de plecare firesc pentru o întrebare conexă, dar distinctă: cum împart oamenii și roboții în siguranță același spațiu de producție.",
+          "A înțelege cum se mișcă un corp printr-un spațiu de lucru este un punct de plecare firesc pentru o întrebare conexă, dar distinctă: cum împart oamenii și roboții în siguranță același spațiu de producție.",
         ],
         roadmapNote:
           "Aceasta este o direcție pe care o explorăm, nu o funcționalitate lansată. Monitorizarea siguranței în medii comune om-robot se supune unui regim de reglementare diferit de evaluarea ergonomică (standarde de siguranță funcțională, nu doar protecția datelor), iar orice capabilitate în acest domeniu va trece printr-o evaluare de conformitate dedicată înainte de lansare — nepreluată automat din produsul de ergonomie din jurul ei.",
@@ -153,7 +152,7 @@ export const ro: typeof en = {
     eyebrow: "Despre",
     h1: "Construit pentru a măsura ceea ce înainte se ghicea.",
     paragraphs: [
-      "Statura Labs Dynamics a pornit de la o frustrare simplă: riscul ergonomic în mediile industriale este de obicei evaluat din ochi, pe o clemă de hârtii, o dată pe an dacă e cazul — nu pentru că nimănui nu îi pasă, ci pentru că o evaluare instrumentată corectă a însemnat mereu dispozitive purtabile, senzori specializați sau timpul unui consultant extern. Ne-am propus să construim ceva care funcționează cu o cameră pe care probabil o aveți deja.",
+      "Statura Labs Dynamics a pornit de la o frustrare simplă: riscul ergonomic în mediile industriale este de obicei evaluat din ochi, pe o clemă de hârtii, o dată pe an dacă e cazul — nu pentru că nimănui nu îi pasă, ci pentru că o evaluare instrumentată corectă a însemnat mereu dispozitive purtabile, senzori specializați sau timpul unui consultant extern. Ne-am propus să construim ceva care aduce această rigoare oricărui evaluator de pe teren — fără hardware special și fără cameră video.",
       "Statura este construit de un inginer cu experiență în sisteme industriale de securitate și sănătate în muncă, dezvoltat sub Verumsell SRL, un studio de software din România. Produsul se află în pilot tehnic activ alături de parteneri din producția industrială. Îl construim deliberat și transparent în privința a ceea ce este deja dovedit față de ceea ce este încă în dezvoltare, în loc să grăbim o afirmație lustruită înaintea dovezilor.",
     ],
     grounded: {
@@ -179,7 +178,7 @@ export const ro: typeof en = {
     dataHandling: {
       heading: "Cum gestionează produsul Statura Labs Dynamics datele",
       paragraph:
-        "Produsul Statura Labs Dynamics — utilizat într-un proiect pilot sau într-o implementare, separat de acest website — procesează videoclipul de la cameră integral pe dispozitiv. Cadrele video nu sunt niciodată stocate sau transmise; sunt folosite exclusiv coordonate anonime ale articulațiilor corpului, asociate unui loc de muncă, niciodată unei persoane identificate nominal. Statura Labs Dynamics este conceput să îndeplinească cerințele relevante ale AI Act al UE și ale RGPD încă din faza de dezvoltare. Încadrarea regulatorie finală va fi confirmată printr-un aviz juridic formal, înainte de lansarea comercială. Documentația tehnică completă este disponibilă la cerere pentru potențialii parteneri de pilot.",
+        "Produsul Statura Labs Dynamics — utilizat într-un proiect pilot sau într-o implementare, separat de acest website — nu folosește o cameră video și nu captează, nu înregistrează, nu stochează și nu transmite niciun material video sau imagini. O evaluare este consemnată sub formă de observații structurate: încadrări de postură și valori măsurate precum greutatea, forța și durata, introduse de un evaluator instruit și asociate unui loc de muncă, niciodată unei persoane identificate nominal. Statura Labs Dynamics este conceput să îndeplinească cerințele relevante ale AI Act al UE și ale RGPD încă din faza de dezvoltare. Încadrarea regulatorie finală va fi confirmată printr-un aviz juridic formal, înainte de lansarea comercială. Documentația tehnică completă este disponibilă la cerere pentru potențialii parteneri de pilot.",
     },
     terms: {
       heading: "Termeni de utilizare",

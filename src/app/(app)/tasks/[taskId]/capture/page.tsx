@@ -47,16 +47,19 @@ export default function CapturePage({
       </Link>
       <h1 className="text-xl font-semibold">{dict.heading}</h1>
 
-      {/* Camera capture (getUserMedia, MediaPipe, the skeleton overlay/
-          multi-person picker) was removed from this page in B8b
-          (SLD_NEXT_STEPS_B8b-B8f.md) — manual entry is now the only entry
-          path reachable from the dashboard. POST /api/posture-samples and
-          the client libs behind the camera flow (mediapipe-client.ts,
-          draw-skeleton.ts, angles.ts) stay in the repo, tested, reachable
-          again if the B10 decision reinstates a capture UI. B11
-          (SLD_IMPLEMENTATION_PLAN_posture-input.md) then replaced this
-          panel's own default entry precision — category pick, not a typed
-          degree — see PostureCategoryPanel's own comment. */}
+      {/* Manual entry is the only posture-capture path. Camera capture
+          (getUserMedia, MediaPipe, the skeleton overlay/multi-person
+          picker) was removed from this page in B8b
+          (SLD_NEXT_STEPS_B8b-B8f.md); the camera client libs
+          (mediapipe-client.ts, draw-skeleton.ts) and the camera ingest
+          endpoint (POST /api/posture-samples) were then deleted entirely
+          for GDPR — the product no longer captures camera/pose data at all,
+          and createPostureSample refuses a CAMERA_MEDIAPIPE write.
+          Historical camera samples still render read-only via
+          angles.ts/buildRegionResults, which stay. B11
+          (SLD_IMPLEMENTATION_PLAN_posture-input.md) made this panel's own
+          entry a category pick, not a typed degree — see
+          PostureCategoryPanel's own comment. */}
       <PostureCategoryPanel taskId={taskId} />
 
       {/*

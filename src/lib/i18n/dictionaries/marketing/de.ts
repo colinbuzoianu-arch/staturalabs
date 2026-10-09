@@ -18,31 +18,32 @@ export const de: typeof en = {
   hero: {
     eyebrow: "Gemessene Bewegung // Ergonomie am Arbeitsplatz",
     h1: "Ergonomisches Risiko, abgelesen wie von einem Messgerät.",
-    lede: "Statura Labs Dynamics macht aus einer gewöhnlichen Kamera ein präzises Werkzeug zur Ergonomie-Bewertung. Rumpf-, Nacken-, Schulter-, Ellbogen- und Kniewinkel werden nach ISO 11228 und EN 1005 bewertet — unter realen Arbeitsbedingungen, nicht im Labor.",
+    lede: "Statura Labs Dynamics macht die ergonomische Risikobewertung zu einem Präzisionsinstrument. Eine prüfende Person stuft die beobachtete Körperhaltung ein — Rumpf, Nacken, Schulter, Ellbogen, Handgelenk, Knie — bewertet nach ISO 11228 und EN 1005, unter realen Arbeitsbedingungen, nicht im Labor. Keine Kamera, kein Video, keine personenbezogenen Daten.",
     ctaPrimary: "Pilotprojekt anfragen",
     ctaSecondary: "So funktioniert es",
   },
   pipeline: {
     eyebrow: "Der Ablauf",
-    heading: "Von einer einzigen Kamera zum dokumentierten Ergebnis.",
+    heading:
+      "Von einer strukturierten Beobachtung zum dokumentierten Ergebnis.",
     steps: [
       {
-        step: "01 / CAPTURE",
-        heading: "Kamera auf den Arbeitsplatz richten",
+        step: "01 / ASSESS",
+        heading: "Haltung am Arbeitsplatz einstufen",
         description:
-          "Keine Wearables, keine zu installierenden Sensoren. Jede Laptop- oder USB-Kamera funktioniert.",
+          "Keine Kamera, keine Wearables, keine Sensoren. Eine geschulte prüfende Person erfasst die beobachtete Haltung.",
       },
       {
-        step: "02 / ANALYZE",
-        heading: "Haltung wird direkt auf dem Gerät erkannt",
+        step: "02 / RECORD",
+        heading: "Haltung und Kontext als Daten erfasst",
         description:
-          "Die Haltungserkennung läuft im Browser. Video wird nie gespeichert oder übertragen.",
+          "Beobachtete Haltungskategorien sowie Last, Kraft und Dauer — direkt eingegeben. Zu keinem Zeitpunkt ist Videomaterial beteiligt.",
       },
       {
         step: "03 / SCORE",
         heading: "Winkel werden Region für Region geprüft",
         description:
-          "Rumpf, Nacken, Schulter, Ellbogen, Knie — jeweils bewertet nach ISO 11228 / EN 1005.",
+          "Rumpf, Nacken, Schulter, Ellbogen, Handgelenk, Knie — jeweils bewertet nach ISO 11228 / EN 1005.",
       },
       {
         step: "04 / REPORT",
@@ -54,12 +55,12 @@ export const de: typeof en = {
   },
   privacy: {
     eyebrow: "Datenschutz von Grund auf, nicht nachträglich",
-    heading: "Die Kamera sieht eine Haltung. Nie einen Menschen.",
+    heading: "Bewertet wird eine Haltung, nie ein Mensch.",
     items: [
       {
-        heading: "Es wird niemals Video gespeichert",
+        heading: "Keine Kamera, kein Video, nirgends",
         description:
-          "Einzelbilder werden direkt im Browser verarbeitet und verworfen. Nichts wird gespeichert, nichts verlässt das Gerät als Video.",
+          "Es gibt keine Kamera im Ablauf und kein Videomaterial, das gespeichert, übertragen oder nach außen gelangen könnte. Eine Bewertung besteht aus strukturierten Beobachtungen — Haltungskategorien und gemessenen Werten — mehr nicht.",
       },
       {
         heading: "Keine Identitätsdaten, nirgendwo",
@@ -91,7 +92,7 @@ export const de: typeof en = {
   },
   fieldNotes: {
     eyebrow: "Notizen aus der Praxis",
-    heading: "Ergonomie ist mehr als ein Kamerawinkel.",
+    heading: "Ergonomie ist mehr als eine Momentaufnahme.",
     notes: [
       {
         kicker: "Warum das wichtig ist",
@@ -103,19 +104,18 @@ export const de: typeof en = {
         roadmapNote: null as string | null,
       },
       {
-        kicker: "Flexible Aufnahme",
-        heading: "Fest montiert, mobil, und was als Nächstes kommt",
+        kicker: "So funktioniert die Bewertung",
+        heading: "Strukturierte Beobachtung statt Kamerabild",
         paragraphs: [
-          "Statura funktioniert heute mit jeder Kamera, auf die ein Browser zugreifen kann — einer Laptop- oder USB-Kamera, die dauerhaft an einem Arbeitsplatz montiert für wiederkehrende Prüfungen genutzt wird, oder einem Smartphone, das eine prüfende Person von Station zu Station durch die Anlage trägt. Keine proprietäre Hardware, keine Wearables.",
+          "Statura überwacht Ihre Mitarbeitenden nicht. Eine geschulte prüfende Person stuft an jedem Arbeitsplatz die beobachtete Haltung ein — Rumpf, Nacken, Schultern, Ellbogen, Handgelenke, Knie — und erfasst Last, Kraft und Dauer, die das tatsächliche Risiko bestimmen. Keine proprietäre Hardware, keine Wearables, keine Kamera, kein Videomaterial. Es nimmt die Methode, die eine zertifizierte ergonomische Fachkraft ohnehin vor Ort anwendet, und macht sie konsistent, versioniert und dokumentiert.",
         ],
-        roadmapNote:
-          "In Entwicklung: kamerabasierte Nahbereichserkennung für Handgelenk und Hand, die eine Ganzkörperaufnahme nicht zuverlässig erfassen kann. Das Handgelenk selbst wird bereits heute bewertet — manuell erfasst; diese Lücke betrifft speziell die Erweiterung der Kameraaufnahme auf diesen Bereich.",
+        roadmapNote: null as string | null,
       },
       {
         kicker: "Mehr als Haltung",
         heading: "Last, Kraft und Werkzeuge mit ins Bild",
         paragraphs: [
-          "Haltung allein erzählt nicht die ganze Geschichte — eine mäßige Vorbeuge ohne Last ist ein anderes Risiko als dieselbe Vorbeuge mit 20 kg. Zu jeder Haltungsaufnahme erfasst Statura zusätzlich den manuellen Kontext, der das tatsächliche Risiko bestimmt: Objektgewicht, Schub-/Zugkraft und das verwendete Werkzeug — eingegeben von der Person, die die Bewertung durchführt.",
+          "Haltung allein erzählt nicht die ganze Geschichte — eine mäßige Vorbeuge ohne Last ist ein anderes Risiko als dieselbe Vorbeuge mit 20 kg. Zu jeder Haltungsbewertung erfasst Statura zusätzlich den manuellen Kontext, der das tatsächliche Risiko bestimmt: Objektgewicht, Schub-/Zugkraft und das verwendete Werkzeug — eingegeben von der Person, die die Bewertung durchführt.",
           "Das sind keine Vermutungen, die über einen Wert gelegt werden — es sind strukturierte Datenpunkte, die derselben Aufgabe und demselben Arbeitsplatz zugeordnet sind und gemeinsam in jedem Bericht sichtbar werden.",
         ],
         roadmapNote: null as string | null,
@@ -124,7 +124,7 @@ export const de: typeof en = {
         kicker: "Auf der Roadmap",
         heading: "Gemeinsame Arbeitsbereiche von Mensch und Roboter",
         paragraphs: [
-          "Dieselbe geräteseitige Haltungserkennung, die menschliche Körperhaltung liest, ist ein naheliegender Ausgangspunkt für eine verwandte, aber eigenständige Frage: wie Menschen und Roboter sich denselben Raum in der Fertigung sicher teilen.",
+          "Zu verstehen, wie sich ein Körper durch einen Arbeitsbereich bewegt, ist ein naheliegender Ausgangspunkt für eine verwandte, aber eigenständige Frage: wie Menschen und Roboter sich denselben Raum in der Fertigung sicher teilen.",
         ],
         roadmapNote:
           "Das ist eine Richtung, die wir untersuchen, kein ausgeliefertes Feature. Sicherheitsüberwachung in gemeinsamen Mensch-Roboter-Umgebungen unterliegt einem anderen regulatorischen Rahmen als die Ergonomie-Bewertung (funktionale Sicherheitsnormen, nicht nur Datenschutz), und jede Fähigkeit in diesem Bereich durchläuft vor der Veröffentlichung eine eigene, dedizierte Compliance-Prüfung — nicht übernommen vom umgebenden Ergonomie-Produkt.",
@@ -156,7 +156,7 @@ export const de: typeof en = {
     eyebrow: "Über uns",
     h1: "Entwickelt, um zu messen, was früher geschätzt wurde.",
     paragraphs: [
-      "Statura Labs Dynamics entstand aus einer einfachen Frustration: Ergonomisches Risiko in industriellen Arbeitsumgebungen wird meist nach Augenmaß beurteilt, auf einem Klemmbrett, wenn überhaupt einmal im Jahr — nicht, weil es niemanden kümmert, sondern weil eine echte instrumentierte Bewertung bisher immer Wearables, spezielle Sensorik oder die Zeit eines externen Beraters bedeutete. Wir wollten etwas bauen, das mit einer Kamera funktioniert, die Sie wahrscheinlich bereits besitzen.",
+      "Statura Labs Dynamics entstand aus einer einfachen Frustration: Ergonomisches Risiko in industriellen Arbeitsumgebungen wird meist nach Augenmaß beurteilt, auf einem Klemmbrett, wenn überhaupt einmal im Jahr — nicht, weil es niemanden kümmert, sondern weil eine echte instrumentierte Bewertung bisher immer Wearables, spezielle Sensorik oder die Zeit eines externen Beraters bedeutete. Wir wollten etwas bauen, das diese Sorgfalt jeder prüfenden Person vor Ort zugänglich macht — ohne spezielle Hardware und ohne Kamera.",
       "Statura wird von einem Ingenieur mit Hintergrund in industriellen Arbeitsschutzsystemen entwickelt, unter dem Dach von Verumsell SRL, einem Software-Studio mit Sitz in Rumänien. Das Produkt befindet sich im aktiven technischen Pilotbetrieb mit Partnern aus der Industrieproduktion. Wir entwickeln es bewusst und offen — mit klarer Unterscheidung zwischen dem, was bereits belegt ist, und dem, was noch in Entwicklung ist, statt einer polierten Behauptung vorzugreifen, bevor die Belege dafür vorliegen.",
     ],
     grounded: {
@@ -182,7 +182,7 @@ export const de: typeof en = {
     dataHandling: {
       heading: "Wie das Produkt Statura Labs Dynamics mit Daten umgeht",
       paragraph:
-        "Das Produkt Statura Labs Dynamics — im Rahmen eines Pilotprojekts oder einer Implementierung, getrennt von dieser Website — verarbeitet Kameravideo vollständig auf dem Gerät. Videobilder werden niemals gespeichert oder übertragen; verwendet werden ausschließlich anonyme Körpergelenk-Koordinaten, die einem Arbeitsplatz zugeordnet sind, niemals einer namentlich bekannten Person. Statura Labs Dynamics ist darauf ausgelegt, die relevanten Anforderungen des EU AI Act und der DSGVO bereits ab der Entwicklungsphase zu erfüllen. Die endgültige regulatorische Einstufung wird vor der kommerziellen Markteinführung durch ein förmliches Rechtsgutachten bestätigt. Vollständige technische Dokumentation ist für potenzielle Pilotpartner auf Anfrage erhältlich.",
+        "Das Produkt Statura Labs Dynamics — im Rahmen eines Pilotprojekts oder einer Implementierung, getrennt von dieser Website — verwendet keine Kamera und erfasst, speichert oder überträgt kein Video- oder Bildmaterial. Eine Bewertung wird als strukturierte Beobachtungen festgehalten: Haltungseinstufungen und gemessene Werte wie Last, Kraft und Dauer, eingegeben von einer geschulten prüfenden Person und einem Arbeitsplatz zugeordnet, niemals einer namentlich bekannten Person. Statura Labs Dynamics ist darauf ausgelegt, die relevanten Anforderungen des EU AI Act und der DSGVO bereits ab der Entwicklungsphase zu erfüllen. Die endgültige regulatorische Einstufung wird vor der kommerziellen Markteinführung durch ein förmliches Rechtsgutachten bestätigt. Vollständige technische Dokumentation ist für potenzielle Pilotpartner auf Anfrage erhältlich.",
     },
     terms: {
       heading: "Nutzungsbedingungen",
