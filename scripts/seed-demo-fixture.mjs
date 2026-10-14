@@ -34,7 +34,7 @@ const DEMO_EMAIL = "demo-admin@statura.local";
 // password is genuinely hard to enter correctly before a page reload.
 const DEMO_PASSWORD = "demo1234";
 const DEMO_NAME = "Statura Demo Account";
-const DEMO_SITE_NAME = "Riverside Fabrication Plant";
+const DEMO_SITE_NAME = "Fertigungswerk Wien";
 
 // §3.6: internal-only audit-trail metadata marking every session/
 // assessment this script creates as demo/test data, never customer data —
@@ -298,7 +298,7 @@ async function main() {
         // Austria, per SLD_IMPLEMENTATION_PLAN_austria-first.md §4.3/§7
         // B1b — the demo company is the Austria-first build's reference
         // deployment, so its address and country now agree.
-        address: "14 Riverside Way, Vienna, Austria",
+        address: "Industriestraße 14, 1210 Wien, Österreich",
         country: "AT",
         updatedAt: new Date(),
       },
@@ -309,22 +309,22 @@ async function main() {
     const { row: plant } = await selectOrInsert(
       db,
       "OrgUnit",
-      { siteId: site.id, name: "Riverside Plant", parentId: null },
+      { siteId: site.id, name: "Werk Wien", parentId: null },
       {
         id: crypto.randomUUID(),
         siteId: site.id,
         parentId: null,
         type: "PLANT",
-        name: "Riverside Plant",
+        name: "Werk Wien",
         updatedAt: new Date(),
       },
     );
 
     const departmentNames = [
-      "Assembly",
-      "Welding & Fabrication",
-      "Finishing & Coating",
-      "Warehousing & Logistics",
+      "Montage",
+      "Schweißen & Fertigung",
+      "Oberfläche & Lackierung",
+      "Lager & Logistik",
     ];
     const departments = {};
     for (const name of departmentNames) {
@@ -347,52 +347,52 @@ async function main() {
 
     const workstationDefs = [
       {
-        name: "Panel Assembly Station 1",
-        dept: "Assembly",
+        name: "Montageplatz Paneele 1",
+        dept: "Montage",
         tasks: [
-          "Manual panel fitting",
-          "Fastener installation",
-          "Sub-assembly quality check",
+          "Paneelmontage von Hand",
+          "Verbindungselemente montieren",
+          "Baugruppen-Qualitätsprüfung",
         ],
       },
       {
-        name: "Panel Assembly Station 2",
-        dept: "Assembly",
-        tasks: ["Sub-assembly mounting", "Component alignment"],
+        name: "Montageplatz Paneele 2",
+        dept: "Montage",
+        tasks: ["Baugruppenmontage", "Bauteilausrichtung"],
       },
       {
-        name: "Weld Cell A",
-        dept: "Welding & Fabrication",
+        name: "Schweißzelle A",
+        dept: "Schweißen & Fertigung",
         tasks: [
-          "MIG welding of frame joints",
-          "Weld seam inspection",
-          "Jig setup",
+          "MIG-Schweißen von Rahmenverbindungen",
+          "Schweißnahtprüfung",
+          "Vorrichtung einrichten",
         ],
       },
       {
-        name: "Press Brake Station",
-        dept: "Welding & Fabrication",
-        tasks: ["Sheet metal bending", "Die changeover"],
+        name: "Abkantpresse",
+        dept: "Schweißen & Fertigung",
+        tasks: ["Blechbiegen", "Werkzeugwechsel"],
       },
       {
-        name: "Spray Booth",
-        dept: "Finishing & Coating",
-        tasks: ["Panel spray coating", "Booth cleaning"],
+        name: "Lackierkabine",
+        dept: "Oberfläche & Lackierung",
+        tasks: ["Paneel-Spritzlackierung", "Kabinenreinigung"],
       },
       {
-        name: "Sanding & Finishing Bench",
-        dept: "Finishing & Coating",
-        tasks: ["Manual sanding", "Surface inspection"],
+        name: "Schleif- und Finishplatz",
+        dept: "Oberfläche & Lackierung",
+        tasks: ["Schleifen von Hand", "Oberflächenprüfung"],
       },
       {
-        name: "Pallet Loading Dock",
-        dept: "Warehousing & Logistics",
-        tasks: ["Manual pallet loading", "Forklift staging support"],
+        name: "Palettenverladung",
+        dept: "Lager & Logistik",
+        tasks: ["Paletten beladen von Hand", "Bereitstellung für Stapler"],
       },
       {
-        name: "Component Racking Area",
-        dept: "Warehousing & Logistics",
-        tasks: ["Component put-away", "Pick for kitting"],
+        name: "Bauteilregal",
+        dept: "Lager & Logistik",
+        tasks: ["Bauteile einlagern", "Kommissionieren für Sets"],
       },
     ];
 
@@ -436,22 +436,22 @@ async function main() {
     const { row: assemblyProcess } = await selectOrInsert(
       db,
       "Process",
-      { siteId: site.id, name: "Panel Assembly Line" },
+      { siteId: site.id, name: "Paneelmontagelinie" },
       {
         id: crypto.randomUUID(),
         siteId: site.id,
-        orgUnitId: departments.Assembly.id,
-        name: "Panel Assembly Line",
+        orgUnitId: departments.Montage.id,
+        name: "Paneelmontagelinie",
         status: "ACTIVE",
         updatedAt: new Date(),
       },
     );
     const assemblyLineTasks = [
-      "Manual panel fitting",
-      "Fastener installation",
-      "Sub-assembly mounting",
-      "Panel spray coating",
-      "Manual sanding",
+      "Paneelmontage von Hand",
+      "Verbindungselemente montieren",
+      "Baugruppenmontage",
+      "Paneel-Spritzlackierung",
+      "Schleifen von Hand",
     ];
     for (const [i, taskName] of assemblyLineTasks.entries()) {
       await selectOrInsert(
@@ -470,21 +470,21 @@ async function main() {
     const { row: frameProcess } = await selectOrInsert(
       db,
       "Process",
-      { siteId: site.id, name: "Frame Fabrication Line" },
+      { siteId: site.id, name: "Rahmenfertigungslinie" },
       {
         id: crypto.randomUUID(),
         siteId: site.id,
-        orgUnitId: departments["Welding & Fabrication"].id,
-        name: "Frame Fabrication Line",
+        orgUnitId: departments["Schweißen & Fertigung"].id,
+        name: "Rahmenfertigungslinie",
         status: "ACTIVE",
         updatedAt: new Date(),
       },
     );
     const frameLineTasks = [
-      "Sheet metal bending",
-      "MIG welding of frame joints",
-      "Weld seam inspection",
-      "Component put-away",
+      "Blechbiegen",
+      "MIG-Schweißen von Rahmenverbindungen",
+      "Schweißnahtprüfung",
+      "Bauteile einlagern",
     ];
     for (const [i, taskName] of frameLineTasks.entries()) {
       await selectOrInsert(
@@ -499,7 +499,7 @@ async function main() {
         },
       );
     }
-    console.log("Processes: Panel Assembly Line, Frame Fabrication Line");
+    console.log("Processes: Paneelmontagelinie, Rahmenfertigungslinie");
 
     // --- Floor plan + heatmap positions ---
     // A structural, always-idempotent block like OrgUnit/Workstation/Task
@@ -508,7 +508,7 @@ async function main() {
     // workstations/tasks created above.
     const FLOOR_PLAN_WIDTH = 1200;
     const FLOOR_PLAN_HEIGHT = 800;
-    const FLOOR_PLAN_NAME = "Riverside Plant — Ground Floor";
+    const FLOOR_PLAN_NAME = "Werk Wien — Erdgeschoss";
     const FLOOR_PLAN_STORAGE_PATH = `${site.id}/demo-floor-plan.png`;
 
     const floorPlanPng = buildFloorPlanPng(FLOOR_PLAN_WIDTH, FLOOR_PLAN_HEIGHT);
@@ -543,21 +543,21 @@ async function main() {
     );
 
     // Workstation-level pins — spread across the plan, not clustered:
-    // - Panel Assembly Station 1 (hero): mixed — 2 of 3 tasks pinned below.
-    // - Press Brake Station: no task pins at all — exercises the pure
+    // - Montageplatz Paneele 1 (hero): mixed — 2 of 3 tasks pinned below.
+    // - Abkantpresse: no task pins at all — exercises the pure
     //   workstation-level fallback tier, colored via its NOISE finding.
-    // - Panel Assembly Station 2: no task pins AND no RiskAssessment
+    // - Montageplatz Paneele 2: no task pins AND no RiskAssessment
     //   (deliberately left unassessed above) — exercises the grey
     //   "not yet assessed" marker.
-    // - Weld Cell A: mixed — 1 of 3 tasks pinned below.
-    // Spray Booth deliberately has NO WorkstationPlanPosition: both its
+    // - Schweißzelle A: mixed — 1 of 3 tasks pinned below.
+    // Lackierkabine deliberately has NO WorkstationPlanPosition: both its
     // tasks are individually pinned below, so the map should render only
     // those two task pins and no workstation-level marker for it at all.
     const workstationPinDefs = [
-      { name: "Panel Assembly Station 1", x: 0.15, y: 0.25 },
-      { name: "Press Brake Station", x: 0.75, y: 0.2 },
-      { name: "Panel Assembly Station 2", x: 0.45, y: 0.15 },
-      { name: "Weld Cell A", x: 0.6, y: 0.7 },
+      { name: "Montageplatz Paneele 1", x: 0.15, y: 0.25 },
+      { name: "Abkantpresse", x: 0.75, y: 0.2 },
+      { name: "Montageplatz Paneele 2", x: 0.45, y: 0.15 },
+      { name: "Schweißzelle A", x: 0.6, y: 0.7 },
     ];
     for (const { name, x, y } of workstationPinDefs) {
       await selectOrInsert(
@@ -574,17 +574,17 @@ async function main() {
       );
     }
 
-    // Task-level pins. "Manual panel fitting" and "Fastener installation"
+    // Task-level pins. "Paneelmontage von Hand" and "Verbindungselemente montieren"
     // (both at the hero workstation) get real PostureSample data below, so
     // their pins render a real color; the other three are deliberately
     // left without a posture sample to also exercise a task pin's own
     // "no data yet" grey state, rather than every task pin being colored.
     const taskPinDefs = [
-      { name: "Manual panel fitting", x: 0.12, y: 0.22 },
-      { name: "Fastener installation", x: 0.2, y: 0.3 },
-      { name: "Panel spray coating", x: 0.3, y: 0.55 },
-      { name: "Booth cleaning", x: 0.36, y: 0.6 },
-      { name: "Weld seam inspection", x: 0.62, y: 0.68 },
+      { name: "Paneelmontage von Hand", x: 0.12, y: 0.22 },
+      { name: "Verbindungselemente montieren", x: 0.2, y: 0.3 },
+      { name: "Paneel-Spritzlackierung", x: 0.3, y: 0.55 },
+      { name: "Kabinenreinigung", x: 0.36, y: 0.6 },
+      { name: "Schweißnahtprüfung", x: 0.62, y: 0.68 },
     ];
     for (const { name, x, y } of taskPinDefs) {
       await selectOrInsert(
@@ -638,7 +638,7 @@ async function main() {
     }
 
     // --- The historical demo narrative: seeded once, as a block ---
-    const heroWorkstation = workstations["Panel Assembly Station 1"];
+    const heroWorkstation = workstations["Montageplatz Paneele 1"];
     const alreadySeeded = await db.query(
       `SELECT id FROM "RiskAssessment" WHERE "workstationId" = $1 AND "pilotContext" = $2 LIMIT 1`,
       [heroWorkstation.id, DEMO_PILOT_CONTEXT],
@@ -716,41 +716,41 @@ async function main() {
       // single EU-directive number, since it shows two thresholds
       // crossing at once (SLD_IMPLEMENTATION_PLAN_austria-first.md §4.4).
       const heroAssessment = await createApprovedAssessment(
-        "Panel Assembly Station 1",
+        "Montageplatz Paneele 1",
       );
       const heroFinding = await addFinding(
         heroAssessment,
         "ERGO-01",
         4,
         4,
-        "None — manual lifting and fitting performed at fixed floor-level bench height.",
+        "Keine — manuelles Heben und Einpassen an fester Werkbank in Bodenhöhe.",
       );
       await addFinding(
         heroAssessment,
         "NOISE-01",
         3,
         4,
-        "Hearing protection available at the station but not consistently worn.",
+        "Gehörschutz am Arbeitsplatz vorhanden, aber nicht durchgängig getragen.",
       );
       console.log(
-        `Hero RiskAssessment (Panel Assembly Station 1): ${heroAssessment.id}`,
+        `Hero RiskAssessment (Montageplatz Paneele 1): ${heroAssessment.id}`,
       );
 
-      // 2. Press Brake Station — NOISE at HIGH, with a real over-limit
+      // 2. Abkantpresse — NOISE at HIGH, with a real over-limit
       // measurement already on file (contrasts with the hero finding's
       // deliberately-empty one). Pinned to the real seeded AT ExposureLimit
       // catalog row (v1-at-2026, VOLV) via exposureLimitId, same provenance
       // discipline as RiskAssessment.matrixVersion — not the old placeholder
       // EU-directive figure.
       const pressBrakeAssessment = await createApprovedAssessment(
-        "Press Brake Station",
+        "Abkantpresse",
       );
       const pressBrakeNoise = await addFinding(
         pressBrakeAssessment,
         "NOISE-01",
         4,
         4,
-        "Hearing protection zone signage in place.",
+        "Kennzeichnung als Gehörschutzbereich vorhanden.",
       );
       const pressBrakeNoiseLimit = await getExposureLimit(
         db,
@@ -768,8 +768,8 @@ async function main() {
         limitValue: pressBrakeNoiseLimit.limitValue,
         limitReference: pressBrakeNoiseLimit.legalReference,
         exposureLimitId: pressBrakeNoiseLimit.id,
-        instrument: "Class 2 sound level meter",
-        method: "Point measurement, 1m from operator ear position",
+        instrument: "Schallpegelmesser der Klasse 2",
+        method: "Punktmessung, 1 m vom Ohr der Bedienperson",
         measuredAt: assessedAt,
       });
       await addFinding(
@@ -777,67 +777,67 @@ async function main() {
         "MECH-02",
         3,
         3,
-        "Interlocked guarding on the press brake's primary nip point.",
+        "Verriegelte Schutzeinrichtung an der primären Quetschstelle der Abkantpresse.",
       );
 
-      // 3. Spray Booth — CHEMICAL
+      // 3. Lackierkabine — CHEMICAL
       const sprayBoothAssessment =
-        await createApprovedAssessment("Spray Booth");
+        await createApprovedAssessment("Lackierkabine");
       await addFinding(
         sprayBoothAssessment,
         "CHEM-01",
         3,
         4,
-        "Extraction fan running; respirator required by site policy.",
+        "Absaugung in Betrieb; Atemschutz gemäß Betriebsanweisung erforderlich.",
       );
 
-      // 4. Sanding & Finishing Bench — DUST_PARTICULATE
+      // 4. Schleif- und Finishplatz — DUST_PARTICULATE
       const sandingAssessment = await createApprovedAssessment(
-        "Sanding & Finishing Bench",
+        "Schleif- und Finishplatz",
       );
       await addFinding(
         sandingAssessment,
         "DUST-01",
         3,
         3,
-        "Local exhaust ventilation at the bench.",
+        "Lokale Absaugung am Arbeitsplatz.",
       );
 
-      // 5. Weld Cell A — RADIATION + CLIMATE_THERMAL
-      const weldAssessment = await createApprovedAssessment("Weld Cell A");
+      // 5. Schweißzelle A — RADIATION + CLIMATE_THERMAL
+      const weldAssessment = await createApprovedAssessment("Schweißzelle A");
       await addFinding(
         weldAssessment,
         "RAD-01",
         3,
         3,
-        "Welding curtains and mandatory eye protection.",
+        "Schweißvorhänge und verpflichtender Augenschutz.",
       );
       await addFinding(
         weldAssessment,
         "THERM-01",
         2,
         3,
-        "Local spot cooling fan.",
+        "Lokaler Kühlventilator.",
       );
 
-      // 6. Pallet Loading Dock — ERGONOMIC_MSD (moderate, distinct from the
+      // 6. Palettenverladung — ERGONOMIC_MSD (moderate, distinct from the
       // hero's HIGH) + PSYCHOSOCIAL
       const dockAssessment = await createApprovedAssessment(
-        "Pallet Loading Dock",
+        "Palettenverladung",
       );
       await addFinding(
         dockAssessment,
         "ERGO-01",
         3,
         3,
-        "Team-lift policy for loads over 20kg.",
+        "Hebe-im-Team-Regelung für Lasten über 20 kg.",
       );
       const dockPsychFinding = await addFinding(
         dockAssessment,
         "PSYCH-01",
         2,
         2,
-        "Rotating shift schedule, no fixed night-only assignment.",
+        "Rotierendes Schichtmodell, keine fixe reine Nachtschichtzuteilung.",
       );
       // B8f (SLD_NEXT_STEPS_B8b-B8f.md): B7 built PsychosocialFindingDetail
       // but the demo fixture never showed it. GROUP_DISCUSSION at 8 people
@@ -856,7 +856,7 @@ async function main() {
       });
 
       console.log(
-        "RiskAssessments seeded for 6 of 8 workstations (Panel Assembly Station 2 and Component Racking Area deliberately left unassessed).",
+        "RiskAssessments seeded for 6 of 8 workstations (Montageplatz Paneele 2 and Bauteilregal deliberately left unassessed).",
       );
 
       // --- The action: raised against the hero finding, IMPLEMENTED but
@@ -871,9 +871,9 @@ async function main() {
         siteId: site.id,
         riskFindingId: heroFinding.id,
         title:
-          "Install adjustable-height lift table at Panel Assembly Station 1",
+          "Höhenverstellbaren Hubtisch am Montageplatz Paneele 1 installieren",
         description:
-          "Replace the fixed-height fitting bench with a pneumatic lift table to reduce sustained trunk/neck flexion during manual panel fitting.",
+          "Die höhenfeste Montagebank durch einen pneumatischen Hubtisch ersetzen, um die dauerhafte Rumpf-/Nackenbeugung bei der Paneelmontage von Hand zu verringern.",
         hierarchyOfControl: "ENGINEERING_CONTROL",
         responsibleUserId: demoUserId,
         dueDate: addDays(assessedAt, 45),
@@ -889,7 +889,7 @@ async function main() {
         fromStatus: "OPEN",
         toStatus: "IN_PROGRESS",
         byUserId: demoUserId,
-        note: "Lift table ordered.",
+        note: "Hubtisch bestellt.",
         createdAt: actionInProgressAt,
       });
       await insertRow(db, "ActionStatusEvent", {
@@ -898,7 +898,7 @@ async function main() {
         fromStatus: "IN_PROGRESS",
         toStatus: "IMPLEMENTED",
         byUserId: demoUserId,
-        note: "Lift table installed and commissioned.",
+        note: "Hubtisch installiert und in Betrieb genommen.",
         createdAt: actionImplementedAt,
       });
       console.log(
@@ -918,10 +918,10 @@ async function main() {
         startedAt: sessionStartedAt,
         endedAt: addMinutes(sessionStartedAt, 10),
         notes:
-          "Baseline capture — manual panel fitting, before the lift table.",
+          "Ausgangserfassung — Paneelmontage von Hand, vor dem Hubtisch.",
         updatedAt: new Date(),
       });
-      const fittingTask = tasks["Manual panel fitting"];
+      const fittingTask = tasks["Paneelmontage von Hand"];
       await insertRow(db, "AssessmentSessionTask", {
         id: crypto.randomUUID(),
         assessmentSessionId: session.id,
@@ -990,7 +990,7 @@ async function main() {
       // (non-null) colored task pin to show — not part of the original M7
       // demo narrative otherwise.
       await createPoorPostureSample(
-        tasks["Fastener installation"],
+        tasks["Verbindungselemente montieren"],
         addMinutes(sessionStartedAt, 6),
       );
 
@@ -1006,16 +1006,16 @@ async function main() {
       // workstation otherwise having a real HIGH-band assessment — giving
       // it real data here means the map has at least one colored "mixed"
       // marker to demonstrate that tier, not just the colored "full"
-      // marker (Press Brake Station) and grey ones (Panel Assembly
-      // Station 2's "not yet assessed", Weld Cell A's "no ergonomic data
+      // marker (Abkantpresse) and grey ones (Montageplatz Paneele
+      // 2's "not yet assessed", Schweißzelle A's "no ergonomic data
       // among its unplaced tasks").
       await createPoorPostureSample(
-        tasks["Sub-assembly quality check"],
+        tasks["Baugruppen-Qualitätsprüfung"],
         addMinutes(sessionStartedAt, 10),
       );
 
       console.log(
-        `"Before" AssessmentSession + PostureSamples seeded for "Manual panel fitting", "Fastener installation", and "Sub-assembly quality check" (TRUNK ${POOR_POSTURE_DEGREES.TRUNK.toFixed(1)}°, NECK ${POOR_POSTURE_DEGREES.NECK.toFixed(1)}° — both HIGH).`,
+        `"Before" AssessmentSession + PostureSamples seeded for "Paneelmontage von Hand", "Verbindungselemente montieren", and "Baugruppen-Qualitätsprüfung" (TRUNK ${POOR_POSTURE_DEGREES.TRUNK.toFixed(1)}°, NECK ${POOR_POSTURE_DEGREES.NECK.toFixed(1)}° — both HIGH).`,
       );
 
       // --- Repetition count (B8d, SLD_NEXT_STEPS_B8b-B8f.md) — B8d built
@@ -1034,7 +1034,7 @@ async function main() {
         createdAt: sessionStartedAt,
       });
       console.log(
-        `REPETITION_COUNT ManualInput seeded for "Manual panel fitting" (450 reps/cycle — HIGH).`,
+        `REPETITION_COUNT ManualInput seeded for "Paneelmontage von Hand" (450 reps/cycle — HIGH).`,
       );
     }
 
@@ -1046,8 +1046,8 @@ async function main() {
           companyName: DEMO_COMPANY_NAME,
           siteId: site.id,
           heroWorkstationId: heroWorkstation.id,
-          heroWorkstationName: "Panel Assembly Station 1",
-          heroTaskName: "Manual panel fitting",
+          heroWorkstationName: "Montageplatz Paneele 1",
+          heroTaskName: "Paneelmontage von Hand",
           demoUser: {
             platformUserId: demoUserId,
             email: DEMO_EMAIL,
