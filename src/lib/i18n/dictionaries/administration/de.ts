@@ -238,6 +238,8 @@ export const de: typeof en = {
     addMeasurement: "Messung hinzufügen",
     raiseAction: "Maßnahme aus dieser Feststellung erstellen",
     hazardRequired: "Bitte eine Gefährdung auswählen",
+    notesRequiredForOther:
+      "Bei einer „Sonstigen“ Gefährdung (‑99) ist eine Notiz erforderlich — bitte die beobachtete Gefährdung beschreiben.",
     psychosocialDimensionRequired: "Bitte eine Dimension auswählen",
     psychosocialMethodRequired: "Bitte eine Erhebungsmethode auswählen",
     psychosocialGroupSizeRequired:
@@ -252,6 +254,8 @@ export const de: typeof en = {
     measuredAtRequired: "Datum/Uhrzeit der Messung ist erforderlich",
     illegalTransition:
       "Dieser Statuswechsel ist vom aktuellen Status der Beurteilung aus nicht zulässig",
+    reviewBlocked: (categories: string) =>
+      `Noch nicht zur Prüfung freigebbar — jede Gefährdungskategorie muss zuerst beurteilt werden. Noch offen: ${categories}`,
   },
   actionsPage: {
     eyebrow: "Maßnahmen //",

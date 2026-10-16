@@ -237,6 +237,8 @@ export const ro: typeof en = {
     addMeasurement: "Adaugă măsurătoarea",
     raiseAction: "Creează măsură corectivă din această constatare",
     hazardRequired: "Selectați un pericol",
+    notesRequiredForOther:
+      "Notele sunt obligatorii când alegeți un pericol „altul” (‑99) — descrieți pericolul observat.",
     psychosocialDimensionRequired: "Selectați o dimensiune",
     psychosocialMethodRequired: "Selectați o metodă de evaluare",
     psychosocialGroupSizeRequired:
@@ -252,6 +254,8 @@ export const ro: typeof en = {
     measuredAtRequired: "Data/ora măsurătorii este obligatorie",
     illegalTransition:
       "Această schimbare de stare nu este permisă din starea curentă a evaluării",
+    reviewBlocked: (categories: string) =>
+      `Nu poate fi trimisă spre revizuire încă — fiecare categorie de pericol trebuie evaluată mai întâi. Încă deschise: ${categories}`,
   },
   actionsPage: {
     eyebrow: "Măsuri corective //",

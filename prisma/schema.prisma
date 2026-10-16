@@ -865,15 +865,79 @@ model RiskAssessment {
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
 
-  site            Site              @relation(fields: [siteId], references: [id], onDelete: Restrict)
-  workstation     Workstation?      @relation(fields: [workstationId], references: [id], onDelete: Restrict)
-  process         Process?          @relation(fields: [processId], references: [id], onDelete: Restrict)
-  matrix          RiskMatrixVersion @relation(fields: [matrixVersion], references: [version], onDelete: Restrict)
-  findings        RiskFinding[]
-  verifiedActions Action[]          @relation("ActionVerificationAssessment")
+  site                Site                  @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  workstation         Workstation?          @relation(fields: [workstationId], references: [id], onDelete: Restrict)
+  process             Process?              @relation(fields: [processId], references: [id], onDelete: Restrict)
+  matrix              RiskMatrixVersion     @relation(fields: [matrixVersion], references: [version], onDelete: Restrict)
+  findings            RiskFinding[]
+  categoryChecks      HazardCategoryCheck[]
+  verifiedActions     Action[]              @relation("ActionVerificationAssessment")
 
   @@index([siteId])
   @@index([workstationId])
+}
+
+/// Which status a single HazardCategory holds within one RiskAssessment —
+/// the completeness axis an ASchG §4/§5 Evaluierung turns on
+/// (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §3.1). OPEN is the
+/// only one never set by a human judgement: it's the explicit "not yet
+/// assessed" state every category starts in, never inferred at read time
+/// and never written by a backfill as anything else (§3.17, §8 "no inferred
+/// completeness"). NOT_APPLICABLE and CHECKED_NO_HAZARD both require a
+/// rationale (hand-added CHECK, below). HAZARD_PRESENT means at least one
+/// RiskFinding of this category exists — kept in sync by a status-flip at
+/// finding creation, never standing alone as a claim.
+enum CategoryCheckStatus {
+  NOT_APPLICABLE
+  CHECKED_NO_HAZARD
+  HAZARD_PRESENT
+  OPEN
+}
+
+/// One row per (RiskAssessment, HazardCategory): the proof that EVERY hazard
+/// type was considered, including "not present" and "not applicable", not
+/// just the ones found present — the core legal deliverable of an
+/// Evaluierung and the thing the completeness gate
+/// (canSubmitForReview, src/lib/risk/category-check.ts) checks before a
+/// DRAFT can move to IN_REVIEW
+/// (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §3.1).
+///
+/// Created explicitly — one OPEN row per HazardCategory in the same
+/// transaction that creates the RiskAssessment — never inferred at read
+/// time (§3.11 discipline, ERGO_COMPLIANCE_BY_DESIGN.md §3.17/§4).
+///
+/// `checkedByUserId`/`checkedAt` are nullable, and deliberately so: an OPEN
+/// row (seeded on creation or backfilled onto a pre-existing assessment)
+/// has no human behind its status yet, and claiming one would violate the
+/// plan's "we didn't check, so we don't claim we did" rule. They're set
+/// only when a human records a real NOT_APPLICABLE/CHECKED_NO_HAZARD/
+/// HAZARD_PRESENT status via the checklist UI. `checkedByUserId` references
+/// PlatformUser only (§3.13), a plain @db.Uuid column, not a DB-level FK —
+/// same pattern as RiskAssessment.assessorUserId.
+///
+/// `rationale` is required (app + hand-added `HazardCategoryCheck_rationale_check`
+/// CHECK, migration SQL, same technique as ManualInput_value_shape_check)
+/// when status is NOT_APPLICABLE or CHECKED_NO_HAZARD — "nicht zutreffend"
+/// and "geprüft, keine Gefährdung" are claims an inspector will read, so
+/// they can't be made without a one-line reason.
+model HazardCategoryCheck {
+  id               String              @id @default(cuid())
+  riskAssessmentId String
+  category         HazardCategory
+  status           CategoryCheckStatus
+  rationale        String?
+  checkedByUserId  String?             @db.Uuid
+  checkedAt        DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  // Restrict, matching every other FK off RiskAssessment: completeness
+  // rows can't be wiped out from under the assessment whose audit trail
+  // they are.
+  riskAssessment RiskAssessment @relation(fields: [riskAssessmentId], references: [id], onDelete: Restrict)
+
+  @@unique([riskAssessmentId, category])
+  @@index([riskAssessmentId])
 }
 
 model RiskFinding {

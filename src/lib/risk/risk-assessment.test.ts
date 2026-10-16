@@ -1,13 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({
-  prisma: { riskAssessment: { create: vi.fn() } },
+  prisma: {
+    riskAssessment: { create: vi.fn() },
+    hazardCategoryCheck: { createMany: vi.fn() },
+    $transaction: vi.fn(),
+  },
 }));
 vi.mock("./matrix-version", () => ({
   getActiveRiskMatrixVersion: vi.fn(),
 }));
 
 import { prisma } from "@/lib/prisma";
+import { ALL_HAZARD_CATEGORIES } from "./category-check";
 import { getActiveRiskMatrixVersion } from "./matrix-version";
 import {
   createRiskAssessment,
@@ -39,6 +44,10 @@ describe("validateExactlyOneSubject (pure)", () => {
 describe("createRiskAssessment", () => {
   beforeEach(() => {
     vi.mocked(prisma.riskAssessment.create).mockReset();
+    vi.mocked(prisma.hazardCategoryCheck.createMany).mockReset();
+    vi.mocked(prisma.$transaction).mockReset();
+    vi.mocked(prisma.$transaction).mockImplementation(((cb: never) =>
+      (cb as (tx: typeof prisma) => unknown)(prisma)) as never);
     vi.mocked(getActiveRiskMatrixVersion).mockReset();
   });
 
@@ -55,6 +64,7 @@ describe("createRiskAssessment", () => {
 
     expect(getActiveRiskMatrixVersion).not.toHaveBeenCalled();
     expect(prisma.riskAssessment.create).not.toHaveBeenCalled();
+    expect(prisma.hazardCategoryCheck.createMany).not.toHaveBeenCalled();
   });
 
   it("resolves the matrix version from the active row rather than accepting one as input", async () => {
@@ -62,6 +72,9 @@ describe("createRiskAssessment", () => {
     vi.mocked(prisma.riskAssessment.create).mockResolvedValue({
       id: "ra1",
     } as never);
+    vi.mocked(prisma.hazardCategoryCheck.createMany).mockResolvedValue(
+      {} as never,
+    );
 
     const assessedAt = new Date("2026-07-30T00:00:00Z");
     await createRiskAssessment({
@@ -86,6 +99,32 @@ describe("createRiskAssessment", () => {
     });
   });
 
+  it("seeds one OPEN HazardCategoryCheck row per category in the same transaction", async () => {
+    vi.mocked(getActiveRiskMatrixVersion).mockResolvedValue("v1-generic-5x5");
+    vi.mocked(prisma.riskAssessment.create).mockResolvedValue({
+      id: "ra1",
+    } as never);
+    vi.mocked(prisma.hazardCategoryCheck.createMany).mockResolvedValue(
+      {} as never,
+    );
+
+    await createRiskAssessment({
+      siteId: "site1",
+      workstationId: "ws1",
+      assessorUserId: "00000000-0000-0000-0000-000000000001",
+      assessedAt: new Date("2026-07-30T00:00:00Z"),
+    });
+
+    expect(prisma.$transaction).toHaveBeenCalled();
+    expect(prisma.hazardCategoryCheck.createMany).toHaveBeenCalledWith({
+      data: ALL_HAZARD_CATEGORIES.map((category) => ({
+        riskAssessmentId: "ra1",
+        category,
+        status: "OPEN",
+      })),
+    });
+  });
+
   it("propagates the fail-closed error from getActiveRiskMatrixVersion when there is no active matrix", async () => {
     vi.mocked(getActiveRiskMatrixVersion).mockRejectedValue(
       new Error("No active RiskMatrixVersion found"),
@@ -101,5 +140,6 @@ describe("createRiskAssessment", () => {
     ).rejects.toThrow(/No active RiskMatrixVersion/);
 
     expect(prisma.riskAssessment.create).not.toHaveBeenCalled();
+    expect(prisma.hazardCategoryCheck.createMany).not.toHaveBeenCalled();
   });
 });

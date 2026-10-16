@@ -1,5 +1,6 @@
 import type { RiskAssessmentModel } from "@/generated/prisma/models";
 import { prisma } from "@/lib/prisma";
+import { initialCategoryCheckRows } from "./category-check";
 import { getActiveRiskMatrixVersion } from "./matrix-version";
 
 // Deliberately no `import "server-only"` here — needs to be directly
@@ -55,16 +56,28 @@ export async function createRiskAssessment(
 
   const matrixVersion = await getActiveRiskMatrixVersion();
 
-  return prisma.riskAssessment.create({
-    data: {
-      siteId: input.siteId,
-      workstationId,
-      processId,
-      matrixVersion,
-      assessorUserId: input.assessorUserId,
-      assessedAt: input.assessedAt,
-      pilotContext: input.pilotContext ?? null,
-      notes: input.notes ?? null,
-    },
+  // One transaction: the assessment and its 13 OPEN completeness rows are
+  // created together, so an assessment can never exist without the full set
+  // of HazardCategoryCheck rows the completeness gate relies on (§3.1 — the
+  // rows are created explicitly, never inferred at read time).
+  return prisma.$transaction(async (tx) => {
+    const riskAssessment = await tx.riskAssessment.create({
+      data: {
+        siteId: input.siteId,
+        workstationId,
+        processId,
+        matrixVersion,
+        assessorUserId: input.assessorUserId,
+        assessedAt: input.assessedAt,
+        pilotContext: input.pilotContext ?? null,
+        notes: input.notes ?? null,
+      },
+    });
+
+    await tx.hazardCategoryCheck.createMany({
+      data: initialCategoryCheckRows(riskAssessment.id),
+    });
+
+    return riskAssessment;
   });
 }

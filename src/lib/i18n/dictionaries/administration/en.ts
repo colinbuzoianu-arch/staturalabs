@@ -263,6 +263,8 @@ export const en = {
     addMeasurement: "Add measurement",
     raiseAction: "Raise action from this finding",
     hazardRequired: "Select a hazard",
+    notesRequiredForOther:
+      "Notes are required when you pick an “other” (‑99) hazard — describe the hazard you observed.",
     psychosocialDimensionRequired: "Select a psychosocial dimension",
     psychosocialMethodRequired: "Select an assessment method",
     psychosocialGroupSizeRequired:
@@ -276,6 +278,11 @@ export const en = {
     measuredAtRequired: "Measured-at date/time is required",
     illegalTransition:
       "That status change isn't allowed from the assessment's current status",
+    // Completeness gate (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md
+    // §3.1): DRAFT -> IN_REVIEW is blocked until every hazard category has
+    // an explicit status. The message names the categories still blocking.
+    reviewBlocked: (categories: string) =>
+      `Can't submit for review yet — every hazard category must be assessed first. Still open: ${categories}`,
   },
   actionsPage: {
     eyebrow: "Actions //",

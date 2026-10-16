@@ -21,9 +21,15 @@ import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { isPresentMode } from "@/lib/present-mode";
 import { prisma } from "@/lib/prisma";
+import {
+  assertCanSubmitForReview,
+  CategoryCompletenessError,
+  markCategoryHazardPresent,
+} from "@/lib/risk/category-check";
 import { getActiveExposureLimitCatalog } from "@/lib/risk/exposure-limit-catalog-version";
 import { matchExposureLimits } from "@/lib/risk/exposure-limit-lookup";
 import { exposureThresholdStatus } from "@/lib/risk/exposure-threshold-status";
+import { isOtherHazardCode } from "@/lib/risk/hazard-catalog";
 import { lookupRiskMatrixCell } from "@/lib/risk/matrix-lookup";
 import { createPsychosocialFinding } from "@/lib/risk/psychosocial-finding";
 
@@ -85,13 +91,31 @@ export default async function RiskAssessmentDetailPage({
     const { site: currentSite } = await requireSiteAdministrationAccess(
       current.siteId,
     );
-    const dict = getAdministrationDictionary(
-      await getLocale(),
-    ).riskAssessmentDetailPage;
+    const administrationDict = getAdministrationDictionary(await getLocale());
+    const dict = administrationDict.riskAssessmentDetailPage;
 
     if (current.status !== RiskAssessmentStatus.DRAFT) {
       throw new Error(dict.illegalTransition);
     }
+
+    // Completeness gate (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md
+    // §3.1): every hazard category must be assessed before review. The
+    // error carries the blocking categories so the message can name them in
+    // the viewer's language.
+    try {
+      await assertCanSubmitForReview(riskAssessmentId);
+    } catch (error) {
+      if (error instanceof CategoryCompletenessError) {
+        const categoryLabels = administrationDict.hazardCategoryLabels;
+        const blocking = [
+          ...error.openCategories,
+          ...error.inconsistentCategories,
+        ].map((category) => categoryLabels[category]);
+        throw new Error(dict.reviewBlocked(blocking.join(", ")));
+      }
+      throw error;
+    }
+
     await prisma.riskAssessment.update({
       where: { id: riskAssessmentId },
       data: { status: RiskAssessmentStatus.IN_REVIEW },
@@ -185,10 +209,17 @@ export default async function RiskAssessmentDetailPage({
     // than trusted from outer scope).
     const hazard = await prisma.hazard.findUnique({
       where: { id: hazardId },
-      select: { category: true },
+      select: { category: true, code: true },
     });
     if (!hazard) {
       throw new Error(dict.hazardRequired);
+    }
+
+    // A "-99 / Sonstige" catalogue row means the hazard isn't named by the
+    // catalogue, so a free-text description is mandatory (§3.2). Checked
+    // before the category branch so it applies to psychosocial -99 too.
+    if (isOtherHazardCode(hazard.code) && !notes) {
+      throw new Error(dict.notesRequiredForOther);
     }
 
     if (hazard.category === "PSYCHOSOCIAL") {
@@ -260,6 +291,12 @@ export default async function RiskAssessmentDetailPage({
         },
       });
     }
+
+    // A finding of this category means the category is, by definition, now
+    // HAZARD_PRESENT — flip its completeness check so the
+    // HAZARD_PRESENT <-> finding invariant holds and the gate doesn't keep
+    // naming a category that already has a finding (§3.1, status-flip rule).
+    await markCategoryHazardPresent(prisma, riskAssessmentId, hazard.category);
 
     revalidatePath(`/administration/risk-assessments/${riskAssessmentId}`);
   }
