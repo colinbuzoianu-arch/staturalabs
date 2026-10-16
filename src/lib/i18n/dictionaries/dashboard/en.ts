@@ -433,5 +433,11 @@ export const en = {
       "Worst ergonomic band (remaining tasks):",
     workstationPopoverNoUnplacedData:
       "No posture data yet for the remaining tasks",
+    // H1d (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §3.4): a
+    // started-but-incomplete assessment (open hazard categories) is itself
+    // a gap an inspector should see — marked distinctly on the map.
+    legendIncompleteMarker: "Assessment incomplete (open categories)",
+    workstationPopoverIncomplete:
+      "Assessment incomplete — open hazard categories remain",
   },
 };

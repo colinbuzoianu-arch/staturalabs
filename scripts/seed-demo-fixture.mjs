@@ -550,6 +550,9 @@ async function main() {
     //   (deliberately left unassessed above) — exercises the grey
     //   "not yet assessed" marker.
     // - Schweißzelle A: mixed — 1 of 3 tasks pinned below.
+    // - Bauteilregal: an incomplete DRAFT assessment (H1d) — exercises the
+    //   amber dashed "unvollständig" ring alongside the complete, APPROVED
+    //   hero marker.
     // Lackierkabine deliberately has NO WorkstationPlanPosition: both its
     // tasks are individually pinned below, so the map should render only
     // those two task pins and no workstation-level marker for it at all.
@@ -558,6 +561,7 @@ async function main() {
       { name: "Abkantpresse", x: 0.75, y: 0.2 },
       { name: "Montageplatz Paneele 2", x: 0.45, y: 0.15 },
       { name: "Schweißzelle A", x: 0.6, y: 0.7 },
+      { name: "Bauteilregal", x: 0.82, y: 0.78 },
     ];
     for (const { name, x, y } of workstationPinDefs) {
       await selectOrInsert(
@@ -678,6 +682,20 @@ async function main() {
         });
       }
 
+      async function createDraftAssessment(workstationName) {
+        return insertRow(db, "RiskAssessment", {
+          id: crypto.randomUUID(),
+          siteId: site.id,
+          workstationId: workstations[workstationName].id,
+          matrixVersion,
+          status: "DRAFT",
+          assessorUserId: demoUserId,
+          assessedAt,
+          pilotContext: DEMO_PILOT_CONTEXT,
+          updatedAt: new Date(),
+        });
+      }
+
       async function addFinding(
         assessment,
         hazardCode,
@@ -703,6 +721,62 @@ async function main() {
           existingControls: existingControls ?? null,
           updatedAt: new Date(),
         });
+      }
+
+      // H1d (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §3.1/§3.4):
+      // every assessment needs its HazardCategoryCheck rows, since the demo
+      // seeds RiskAssessments via raw SQL rather than createRiskAssessment
+      // (which would seed the 13 OPEN rows). `present` -> HAZARD_PRESENT
+      // (the categories that actually have a finding); `open` -> OPEN (the
+      // still-to-assess ones, only used for the deliberately-incomplete
+      // DRAFT below); everything else -> CHECKED_NO_HAZARD with a rationale
+      // (required by the hand-added CHECK). An APPROVED assessment passes
+      // present only, so no category is left OPEN — it reads as a complete
+      // Evaluierung.
+      const ALL_CATEGORIES = [
+        "PHYSICAL_MECHANICAL",
+        "NOISE",
+        "VIBRATION",
+        "LIGHTING",
+        "CLIMATE_THERMAL",
+        "CHEMICAL",
+        "DUST_PARTICULATE",
+        "BIOLOGICAL",
+        "ERGONOMIC_MSD",
+        "PSYCHOSOCIAL",
+        "ELECTRICAL",
+        "FIRE_EXPLOSION",
+        "RADIATION",
+      ];
+      const CHECKED_NO_HAZARD_RATIONALE =
+        "Im Rahmen der Begehung geprüft — keine relevante Gefährdung dieser Kategorie festgestellt.";
+
+      async function addCategoryChecks(
+        assessment,
+        { present = [], open = [] },
+      ) {
+        for (const category of ALL_CATEGORIES) {
+          let status;
+          let rationale = null;
+          if (present.includes(category)) {
+            status = "HAZARD_PRESENT";
+          } else if (open.includes(category)) {
+            status = "OPEN";
+          } else {
+            status = "CHECKED_NO_HAZARD";
+            rationale = CHECKED_NO_HAZARD_RATIONALE;
+          }
+          await insertRow(db, "HazardCategoryCheck", {
+            id: crypto.randomUUID(),
+            riskAssessmentId: assessment.id,
+            category,
+            status,
+            rationale,
+            checkedByUserId: status === "OPEN" ? null : demoUserId,
+            checkedAt: status === "OPEN" ? null : assessedAt,
+            updatedAt: new Date(),
+          });
+        }
       }
 
       // 1. The hero workstation — ERGONOMIC_MSD at HIGH (the finding the
@@ -732,6 +806,9 @@ async function main() {
         4,
         "Gehörschutz am Arbeitsplatz vorhanden, aber nicht durchgängig getragen.",
       );
+      await addCategoryChecks(heroAssessment, {
+        present: ["ERGONOMIC_MSD", "NOISE"],
+      });
       console.log(
         `Hero RiskAssessment (Montageplatz Paneele 1): ${heroAssessment.id}`,
       );
@@ -742,9 +819,8 @@ async function main() {
       // catalog row (v1-at-2026, VOLV) via exposureLimitId, same provenance
       // discipline as RiskAssessment.matrixVersion — not the old placeholder
       // EU-directive figure.
-      const pressBrakeAssessment = await createApprovedAssessment(
-        "Abkantpresse",
-      );
+      const pressBrakeAssessment =
+        await createApprovedAssessment("Abkantpresse");
       const pressBrakeNoise = await addFinding(
         pressBrakeAssessment,
         "NOISE-01",
@@ -779,6 +855,9 @@ async function main() {
         3,
         "Verriegelte Schutzeinrichtung an der primären Quetschstelle der Abkantpresse.",
       );
+      await addCategoryChecks(pressBrakeAssessment, {
+        present: ["NOISE", "PHYSICAL_MECHANICAL"],
+      });
 
       // 3. Lackierkabine — CHEMICAL
       const sprayBoothAssessment =
@@ -790,6 +869,7 @@ async function main() {
         4,
         "Absaugung in Betrieb; Atemschutz gemäß Betriebsanweisung erforderlich.",
       );
+      await addCategoryChecks(sprayBoothAssessment, { present: ["CHEMICAL"] });
 
       // 4. Schleif- und Finishplatz — DUST_PARTICULATE
       const sandingAssessment = await createApprovedAssessment(
@@ -802,6 +882,9 @@ async function main() {
         3,
         "Lokale Absaugung am Arbeitsplatz.",
       );
+      await addCategoryChecks(sandingAssessment, {
+        present: ["DUST_PARTICULATE"],
+      });
 
       // 5. Schweißzelle A — RADIATION + CLIMATE_THERMAL
       const weldAssessment = await createApprovedAssessment("Schweißzelle A");
@@ -819,12 +902,14 @@ async function main() {
         3,
         "Lokaler Kühlventilator.",
       );
+      await addCategoryChecks(weldAssessment, {
+        present: ["RADIATION", "CLIMATE_THERMAL"],
+      });
 
       // 6. Palettenverladung — ERGONOMIC_MSD (moderate, distinct from the
       // hero's HIGH) + PSYCHOSOCIAL
-      const dockAssessment = await createApprovedAssessment(
-        "Palettenverladung",
-      );
+      const dockAssessment =
+        await createApprovedAssessment("Palettenverladung");
       await addFinding(
         dockAssessment,
         "ERGO-01",
@@ -854,9 +939,43 @@ async function main() {
         groupSize: 8,
         externalProcedureName: null,
       });
+      await addCategoryChecks(dockAssessment, {
+        present: ["ERGONOMIC_MSD", "PSYCHOSOCIAL"],
+      });
+
+      // 7. Bauteilregal — the deliberately INCOMPLETE workstation (H1d
+      // "one complete and one incomplete workstation side by side"). A
+      // DRAFT Evaluierung part-way through: one hazard recorded
+      // (PHYSICAL_MECHANICAL), a few categories actively checked-clear, and
+      // the rest still OPEN — so the site map shows the "unvollständig"
+      // marker, the workstation hub shows an in-progress checklist, and the
+      // submit-for-review gate stays blocked. Contrasts with the complete,
+      // APPROVED hero assessment above.
+      const shelvingDraft = await createDraftAssessment("Bauteilregal");
+      await addFinding(
+        shelvingDraft,
+        "MECH-03",
+        3,
+        3,
+        "Verkehrswege markiert; Stolperstellen durch lose Kabel noch nicht beseitigt.",
+      );
+      await addCategoryChecks(shelvingDraft, {
+        present: ["PHYSICAL_MECHANICAL"],
+        open: [
+          "VIBRATION",
+          "CLIMATE_THERMAL",
+          "DUST_PARTICULATE",
+          "BIOLOGICAL",
+          "ERGONOMIC_MSD",
+          "PSYCHOSOCIAL",
+          "ELECTRICAL",
+          "FIRE_EXPLOSION",
+          "RADIATION",
+        ],
+      });
 
       console.log(
-        "RiskAssessments seeded for 6 of 8 workstations (Montageplatz Paneele 2 and Bauteilregal deliberately left unassessed).",
+        "RiskAssessments seeded: 6 APPROVED and complete, Bauteilregal an incomplete DRAFT; Montageplatz Paneele 2 left fully unassessed.",
       );
 
       // --- The action: raised against the hero finding, IMPLEMENTED but
@@ -917,8 +1036,7 @@ async function main() {
         pilotContext: DEMO_PILOT_CONTEXT,
         startedAt: sessionStartedAt,
         endedAt: addMinutes(sessionStartedAt, 10),
-        notes:
-          "Ausgangserfassung — Paneelmontage von Hand, vor dem Hubtisch.",
+        notes: "Ausgangserfassung — Paneelmontage von Hand, vor dem Hubtisch.",
         updatedAt: new Date(),
       });
       const fittingTask = tasks["Paneelmontage von Hand"];

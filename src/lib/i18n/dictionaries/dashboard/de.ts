@@ -369,5 +369,8 @@ export const de: typeof en = {
       "Schlechteste ergonomische Stufe (verbleibende Aufgaben):",
     workstationPopoverNoUnplacedData:
       "Noch keine Haltungsdaten für die verbleibenden Aufgaben",
+    legendIncompleteMarker: "Evaluierung unvollständig (offene Kategorien)",
+    workstationPopoverIncomplete:
+      "Evaluierung unvollständig — es bestehen noch offene Gefährdungskategorien",
   },
 };

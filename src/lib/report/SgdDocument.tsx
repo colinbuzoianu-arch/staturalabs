@@ -111,6 +111,29 @@ const styles = StyleSheet.create({
   },
   standardRef: { fontFamily: "Helvetica-Bold" },
   historyRow: { fontFamily: "Courier", fontSize: 8, marginBottom: 2 },
+  complHeaderRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+    borderBottomColor: COLOR.sageDark,
+    paddingBottom: 2,
+    marginBottom: 2,
+  },
+  complRow: {
+    flexDirection: "row",
+    paddingVertical: 1.5,
+    borderBottomWidth: 0.5,
+    borderBottomColor: COLOR.sageLight,
+  },
+  complCatCell: { width: "40%", fontFamily: "Helvetica", fontSize: 8.5 },
+  complStatusCell: { width: "27%", fontFamily: "Helvetica", fontSize: 8.5 },
+  complDetailCell: { width: "20%", fontFamily: "Courier", fontSize: 8 },
+  complBandCell: {
+    width: "13%",
+    fontFamily: "Courier",
+    fontSize: 8,
+    color: COLOR.coral,
+  },
+  complHeadText: { fontFamily: "Helvetica-Bold", fontSize: 8 },
   footer: {
     position: "absolute",
     bottom: 24,
@@ -204,6 +227,23 @@ const psychosocialMethodLabelsDe: Record<string, string> = {
   OBSERVATION: "Beobachtung",
   INTERVIEW: "Interview",
 };
+// H1d (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §3.4): the
+// completeness table's status column.
+const categoryCheckStatusLabelsDe: Record<string, string> = {
+  OPEN: "Noch offen",
+  NOT_APPLICABLE: "Nicht zutreffend",
+  CHECKED_NO_HAZARD: "Geprüft, keine Gefährdung",
+  HAZARD_PRESENT: "Gefährdung vorhanden",
+};
+const RISK_BAND_ORDER: Record<string, number> = {
+  LOW: 1,
+  MODERATE: 2,
+  ELEVATED: 3,
+  HIGH: 4,
+};
+// Canonical display order for the 13 categories = the label map's own key
+// order (there's only this one list to keep in sync).
+const CATEGORY_ORDER = Object.keys(hazardCategoryLabelsDe);
 
 function formatDate(date: Date): string {
   return `${date.toISOString().replace("T", " ").slice(0, 19)} UTC`;
@@ -310,10 +350,91 @@ export function SgdDocument({ data }: { data: SgdReportData }) {
           </Text>
         </View>
 
-        {/* 2. Who performed the evaluation and when — from the
+        {/* 2. Completeness: proof that every HazardCategory was considered
+            — the Arbeitsinspektor's first question (§4/§5 ASchG). H1d. */}
+        <Text style={styles.sectionTitle}>
+          2. Vollständigkeit der Gefährdungsermittlung
+        </Text>
+        <Text style={styles.sectionIntro}>
+          Nachweis, dass jede Gefährdungskategorie berücksichtigt wurde —
+          einschließlich „nicht zutreffend" und „geprüft, keine Gefährdung".
+        </Text>
+        {currentAssessments.length === 0 ? (
+          <Text style={styles.emptyNote}>
+            Für diesen Umfang liegt noch keine Gefährdungsbeurteilung vor.
+          </Text>
+        ) : (
+          currentAssessments.map((ra) => {
+            const checkByCategory = new Map<
+              string,
+              (typeof ra.categoryChecks)[number]
+            >(ra.categoryChecks.map((c) => [c.category, c]));
+            const findingsByCategory = new Map<string, typeof ra.findings>();
+            for (const finding of ra.findings) {
+              const list =
+                findingsByCategory.get(finding.hazard.category) ?? [];
+              list.push(finding);
+              findingsByCategory.set(finding.hazard.category, list);
+            }
+            return (
+              <View key={ra.id} style={{ marginBottom: 8 }} wrap={false}>
+                <Text style={styles.blockTitle}>{subjectLabel(ra)}</Text>
+                <View style={styles.complHeaderRow}>
+                  <Text style={[styles.complCatCell, styles.complHeadText]}>
+                    Kategorie
+                  </Text>
+                  <Text style={[styles.complStatusCell, styles.complHeadText]}>
+                    Status
+                  </Text>
+                  <Text style={[styles.complDetailCell, styles.complHeadText]}>
+                    Detail
+                  </Text>
+                  <Text style={[styles.complBandCell, styles.complHeadText]}>
+                    Höchste Stufe
+                  </Text>
+                </View>
+                {CATEGORY_ORDER.map((category) => {
+                  const check = checkByCategory.get(category);
+                  const status = check?.status ?? "OPEN";
+                  const categoryFindings =
+                    findingsByCategory.get(category) ?? [];
+                  const detail =
+                    status === "HAZARD_PRESENT"
+                      ? `${categoryFindings.length} Befund(e)`
+                      : (check?.rationale ?? "—");
+                  const highestBand =
+                    categoryFindings.length > 0
+                      ? categoryFindings.reduce(
+                          (worst, f) =>
+                            (RISK_BAND_ORDER[f.riskBand] ?? 0) >
+                            (RISK_BAND_ORDER[worst] ?? 0)
+                              ? f.riskBand
+                              : worst,
+                          categoryFindings[0].riskBand,
+                        )
+                      : "—";
+                  return (
+                    <View key={category} style={styles.complRow}>
+                      <Text style={styles.complCatCell}>
+                        {hazardCategoryLabelsDe[category] ?? category}
+                      </Text>
+                      <Text style={styles.complStatusCell}>
+                        {categoryCheckStatusLabelsDe[status] ?? status}
+                      </Text>
+                      <Text style={styles.complDetailCell}>{detail}</Text>
+                      <Text style={styles.complBandCell}>{highestBand}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            );
+          })
+        )}
+
+        {/* 3. Who performed the evaluation and when — from the
             assessment's own assessor/approver + date fields, not a
             free-text field. */}
-        <Text style={styles.sectionTitle}>2. Durchgeführt von und wann</Text>
+        <Text style={styles.sectionTitle}>3. Durchgeführt von und wann</Text>
         {currentAssessments.length === 0 ? (
           <Text style={styles.emptyNote}>
             Für diesen Umfang liegt noch keine Gefährdungsbeurteilung vor.
@@ -342,7 +463,7 @@ export function SgdDocument({ data }: { data: SgdReportData }) {
             assessment, existing controls. 4. Measurements against limits
             (both tiers). */}
         <Text style={styles.sectionTitle}>
-          3. Gefährdungen, Bewertung und Maßnahmen je Arbeitsplatz
+          4. Gefährdungen, Bewertung und Maßnahmen je Arbeitsplatz
         </Text>
         {currentAssessments.map((ra) => (
           <View key={ra.id} style={{ marginBottom: 10 }}>
@@ -403,7 +524,7 @@ export function SgdDocument({ data }: { data: SgdReportData }) {
         ))}
 
         {/* Plan item 5: Maßnahmen — the Action register. */}
-        <Text style={styles.sectionTitle}>4. Maßnahmen</Text>
+        <Text style={styles.sectionTitle}>5. Maßnahmen</Text>
         {actions.length === 0 ? (
           <Text style={styles.emptyNote}>Keine Maßnahmen erfasst.</Text>
         ) : (
@@ -438,7 +559,7 @@ export function SgdDocument({ data }: { data: SgdReportData }) {
         {/* 6. Applied standards and technical rules, generated from the
             active methodology version's own rule set. */}
         <Text style={styles.sectionTitle}>
-          5. Angewandte Normen und Regeln der Technik
+          6. Angewandte Normen und Regeln der Technik
         </Text>
         <Text style={styles.sectionIntro}>
           Wo ÖNORMEN, harmonisierte europäische Normen oder sonstige anerkannte
@@ -460,7 +581,7 @@ export function SgdDocument({ data }: { data: SgdReportData }) {
 
         {/* 7. Verification of effectiveness — §4 Abs 4 ASchG. */}
         <Text style={styles.sectionTitle}>
-          6. Überprüfung der Wirksamkeit von Maßnahmen
+          7. Überprüfung der Wirksamkeit von Maßnahmen
         </Text>
         <Text style={styles.sectionIntro}>
           §4 Abs 4 ASchG verlangt, dass die Wirksamkeit gesetzter Maßnahmen
@@ -501,7 +622,7 @@ export function SgdDocument({ data }: { data: SgdReportData }) {
         {/* 8. Review/adaptation history — every assessment in scope,
             regardless of status, chronologically. */}
         <Text style={styles.sectionTitle}>
-          7. Überprüfungs- und Anpassungshistorie
+          8. Überprüfungs- und Anpassungshistorie
         </Text>
         {history.length === 0 ? (
           <Text style={styles.emptyNote}>Keine Historie vorhanden.</Text>

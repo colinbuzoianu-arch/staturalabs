@@ -52,6 +52,10 @@ export async function getSgdReportData(scope: SgdScope) {
         },
         orderBy: { createdAt: "asc" },
       },
+      // H1d (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §3.4): the
+      // completeness table — proof every HazardCategory was considered —
+      // renders from these per-assessment category checks.
+      categoryChecks: true,
     },
     orderBy: { assessedAt: "asc" },
   });

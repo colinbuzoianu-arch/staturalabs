@@ -114,7 +114,7 @@ export default async function SiteDetailPage({
       ]),
     ];
 
-    const [mapWorkstations, openActions] = await Promise.all([
+    const [mapWorkstations, openActions, incompleteChecks] = await Promise.all([
       prisma.workstation.findMany({
         where: { id: { in: relevantWorkstationIds } },
         include: {
@@ -164,7 +164,26 @@ export default async function SiteDetailPage({
           assessmentSession: { select: { workstationId: true } },
         },
       }),
+      // H1d: a started-but-incomplete assessment — a DRAFT with at least one
+      // OPEN hazard category — marks the workstation "unvollständig" on the
+      // map (§3.4).
+      prisma.hazardCategoryCheck.findMany({
+        where: {
+          status: "OPEN",
+          riskAssessment: {
+            status: "DRAFT",
+            workstationId: { in: relevantWorkstationIds },
+          },
+        },
+        select: { riskAssessment: { select: { workstationId: true } } },
+      }),
     ]);
+
+    const incompleteWorkstationIds = new Set(
+      incompleteChecks
+        .map((c) => c.riskAssessment.workstationId)
+        .filter((id): id is string => id !== null),
+    );
 
     let methodologyVersion: string | null;
     try {
@@ -278,6 +297,7 @@ export default async function SiteDetailPage({
           placedTaskCount,
           unplacedErgonomicBand: worstRiskBand(unplacedBands),
           hasApprovedAssessment: latestApproved !== null,
+          incomplete: incompleteWorkstationIds.has(workstation.id),
           findings: latestApproved
             ? latestApproved.findings.map((f) => ({
                 category: f.hazard.category,

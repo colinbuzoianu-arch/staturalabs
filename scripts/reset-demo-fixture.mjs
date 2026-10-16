@@ -133,6 +133,16 @@ async function main() {
       `DELETE FROM "RiskFinding" WHERE "riskAssessmentId" IN (SELECT id FROM "RiskAssessment" WHERE "siteId" = ANY($1))`,
       [siteIds],
     );
+    // H1d (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §3.1):
+    // HazardCategoryCheck is FK'd to RiskAssessment with ON DELETE RESTRICT,
+    // so its rows must go before the RiskAssessment rows they belong to —
+    // same ordering discipline as PsychosocialFindingDetail above.
+    await del(
+      db,
+      "HazardCategoryCheck",
+      `DELETE FROM "HazardCategoryCheck" WHERE "riskAssessmentId" IN (SELECT id FROM "RiskAssessment" WHERE "siteId" = ANY($1))`,
+      [siteIds],
+    );
     await del(
       db,
       "RiskAssessment",

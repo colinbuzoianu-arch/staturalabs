@@ -356,5 +356,8 @@ export const ro: typeof en = {
       "Cel mai grav nivel ergonomic (sarcini rămase):",
     workstationPopoverNoUnplacedData:
       "Încă nu există date de postură pentru sarcinile rămase",
+    legendIncompleteMarker: "Evaluare incompletă (categorii deschise)",
+    workstationPopoverIncomplete:
+      "Evaluare incompletă — rămân categorii de pericol deschise",
   },
 };

@@ -36,6 +36,8 @@ export type SiteMapDict = {
   workstationPopoverTasksPlacedSuffix: string;
   workstationPopoverUnplacedBandPrefix: string;
   workstationPopoverNoUnplacedData: string;
+  legendIncompleteMarker: string;
+  workstationPopoverIncomplete: string;
 };
 
 type TaskPin = {
@@ -58,9 +60,15 @@ type WorkstationPin = {
   placedTaskCount: number;
   unplacedErgonomicBand: RiskBand | null;
   hasApprovedAssessment: boolean;
+  // A started-but-incomplete assessment: a DRAFT with at least one OPEN
+  // hazard category (H1d). Independent of band/approval — a workstation can
+  // be mid-assessment regardless of what its latest approved findings say.
+  incomplete: boolean;
   findings: Array<{ category: HazardCategory; band: RiskBand }>;
   openActionsCount: number;
 };
+
+const INCOMPLETE_MARKER_COLOR = "#b45309";
 
 type PinKey = `task:${string}` | `workstation:${string}`;
 
@@ -235,36 +243,54 @@ export function SiteMapClient({
               // into it — larger, dashed, coral-stroked, same treatment
               // this app already uses for an over-limit measurement.
               const isUnassessed = !dimmed && band === null;
+              const baseRadius = dimmed
+                ? WORKSTATION_MARKER_RADIUS_MIXED
+                : isUnassessed
+                  ? WORKSTATION_MARKER_RADIUS + 3
+                  : WORKSTATION_MARKER_RADIUS;
               return (
-                // biome-ignore lint/a11y/noStaticElementInteractions: decorative heatmap marker on a visual overlay — same tradeoff as the floor-plan placement page's task markers. The workstation it represents is always reachable via the "view workstation risk" link inside the popover this opens.
-                <circle
-                  key={key}
-                  cx={`${pin.x * 100}%`}
-                  cy={`${pin.y * 100}%`}
-                  r={
-                    dimmed
-                      ? WORKSTATION_MARKER_RADIUS_MIXED
-                      : isUnassessed
-                        ? WORKSTATION_MARKER_RADIUS + 3
-                        : WORKSTATION_MARKER_RADIUS
-                  }
-                  fill={colorForBand(band)}
-                  opacity={dimmed ? 0.55 : 1}
-                  stroke={isUnassessed ? "var(--accent)" : "var(--background)"}
-                  strokeWidth={isUnassessed ? 2.5 : 1.5}
-                  strokeDasharray={isUnassessed ? "3 2" : undefined}
-                  className="pointer-events-auto cursor-pointer"
-                  onMouseEnter={() => setHoveredKey(key)}
-                  onMouseLeave={() =>
-                    setHoveredKey((current) =>
-                      current === key ? null : current,
-                    )
-                  }
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setSelectedKey((current) => (current === key ? null : key));
-                  }}
-                />
+                <g key={key}>
+                  {/* biome-ignore lint/a11y/noStaticElementInteractions: decorative heatmap marker on a visual overlay — same tradeoff as the floor-plan placement page's task markers. The workstation it represents is always reachable via the "view workstation risk" link inside the popover this opens. */}
+                  <circle
+                    cx={`${pin.x * 100}%`}
+                    cy={`${pin.y * 100}%`}
+                    r={baseRadius}
+                    fill={colorForBand(band)}
+                    opacity={dimmed ? 0.55 : 1}
+                    stroke={
+                      isUnassessed ? "var(--accent)" : "var(--background)"
+                    }
+                    strokeWidth={isUnassessed ? 2.5 : 1.5}
+                    strokeDasharray={isUnassessed ? "3 2" : undefined}
+                    className="pointer-events-auto cursor-pointer"
+                    onMouseEnter={() => setHoveredKey(key)}
+                    onMouseLeave={() =>
+                      setHoveredKey((current) =>
+                        current === key ? null : current,
+                      )
+                    }
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setSelectedKey((current) =>
+                        current === key ? null : key,
+                      );
+                    }}
+                  />
+                  {/* H1d: incomplete-assessment ring (amber, dashed) drawn
+                      around the marker, independent of band/approval. */}
+                  {pin.incomplete && (
+                    <circle
+                      cx={`${pin.x * 100}%`}
+                      cy={`${pin.y * 100}%`}
+                      r={baseRadius + 4}
+                      fill="none"
+                      stroke={INCOMPLETE_MARKER_COLOR}
+                      strokeWidth={2}
+                      strokeDasharray="2 2"
+                      className="pointer-events-none"
+                    />
+                  )}
+                </g>
               );
             })}
 
@@ -352,6 +378,11 @@ export function SiteMapClient({
               <p className="font-semibold">
                 {activeWorkstationEntry.pin.workstationName}
               </p>
+              {activeWorkstationEntry.pin.incomplete && (
+                <p className="font-semibold text-coral">
+                  {dict.workstationPopoverIncomplete}
+                </p>
+              )}
               {activeWorkstationEntry.variant === "full" ? (
                 <>
                   <p>
@@ -428,6 +459,20 @@ export function SiteMapClient({
                 style={{ backgroundColor: NOT_ASSESSED_COLOR }}
               />
               <span>{dict.legendNotAssessedColor}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width={16} height={16} aria-hidden="true">
+                <circle
+                  cx={8}
+                  cy={8}
+                  r={6}
+                  fill="none"
+                  stroke={INCOMPLETE_MARKER_COLOR}
+                  strokeWidth={2}
+                  strokeDasharray="2 2"
+                />
+              </svg>
+              <span>{dict.legendIncompleteMarker}</span>
             </div>
           </div>
         </div>
