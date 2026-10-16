@@ -71,6 +71,22 @@ export async function requireWorkstationAccess(workstationId: string) {
   return { user, workstation };
 }
 
+// Write-surface equivalent of requireWorkstationAccess, used by the
+// workstation assessment hub ((app)/workstations/[workstationId]) and its
+// Server Actions (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §3.3 —
+// the workstation page became the primary Evaluierung entry point, which
+// writes). Gated behind requireAdministrationAccess first (super_admin/
+// l3_support are sent to /admin), then the same canAccessSite scoping as the
+// read-only workstation view — "company_admin; site_admin within assigned
+// sites", exactly what canAccessSite already grants, no new permission
+// model.
+export async function requireWorkstationAdministrationAccess(
+  workstationId: string,
+) {
+  await requireAdministrationAccess();
+  return requireWorkstationAccess(workstationId);
+}
+
 export async function requireTaskAccess(taskId: string) {
   const user = await requireAuthenticatedUser();
   const task = await prisma.task.findUnique({

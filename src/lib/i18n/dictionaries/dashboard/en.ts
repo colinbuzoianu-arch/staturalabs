@@ -108,11 +108,104 @@ export const en = {
     empty: "No tasks defined at this workstation yet.",
     riskAssessmentLink: "Risk assessment →",
   },
+  // H1c (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §3.3): the
+  // workstation is now the assessment hub — start/continue an Evaluierung,
+  // work through all 13 hazard categories (each with an explicit status),
+  // and submit for review only once every category is assessed. Psychosocial
+  // and hazard-category labels are duplicated here (not imported from
+  // administration) per this app's no-cross-area-imports convention, same as
+  // hazardCategoryLabels above.
+  workstationHub: {
+    breadcrumbSites: "Sites",
+    eyebrow: "Workstation //",
+    description:
+      "Work through every hazard category for this workstation, then submit the assessment for review.",
+    noDraftHeading: "No open assessment",
+    noDraftDescription:
+      "There is no open (draft) assessment for this workstation yet. Start one to work through all 13 hazard categories.",
+    startEvaluation: "Start assessment",
+    draftHeading: "Current assessment (draft)",
+    assessedAtLabel: "Started:",
+    openDetailLink: "Open full assessment (measurements, approval) →",
+    riskAnalysisLink: "Risk analysis →",
+    progress: (done: number, total: number) =>
+      `${done} of ${total} categories assessed`,
+    progressComplete: "Every category assessed — ready for review.",
+    submitForReview: "Submit for review",
+    reviewBlocked: (categories: string) =>
+      `Can't submit yet — every hazard category must be assessed. Still open: ${categories}`,
+    illegalTransition:
+      "This assessment can no longer be submitted from its current status.",
+    submittedHeading: "Submitted for review",
+    submittedDescription:
+      "This assessment is in review. Open the full assessment to approve it.",
+    categoryStatusLabels: {
+      OPEN: "Not yet assessed",
+      NOT_APPLICABLE: "Not applicable",
+      CHECKED_NO_HAZARD: "Checked — no hazard",
+      HAZARD_PRESENT: "Hazard present",
+    },
+    findingsHeading: "Recorded hazards",
+    findingsCount: (n: number) => (n === 1 ? "1 finding" : `${n} findings`),
+    riskLabel: "Risk:",
+    raiseAction: "Raise action from this finding →",
+    setStatusHeading: "No hazard here?",
+    statusChoiceLabel: "Status",
+    markNotApplicable: "Not applicable (nicht zutreffend)",
+    markCheckedNoHazard: "Checked — no hazard (geprüft, keine Gefährdung)",
+    rationaleLabel: "Reason (required)",
+    rationaleRequired: "A reason is required for this status.",
+    statusConflict:
+      "This category already has a finding, so it can't be marked not-applicable or no-hazard.",
+    saveStatus: "Save status",
+    addFindingHeading: "Record a hazard (finding)",
+    hazardLabel: "Hazard",
+    probabilityLabel: "Probability (1-5)",
+    severityLabel: "Severity (1-5)",
+    existingControlsLabel: "Existing controls (optional)",
+    notesLabel: "Notes (optional)",
+    addFinding: "Add finding",
+    hazardRequired: "Select a hazard",
+    notesRequiredForOther:
+      'Notes are required when you pick an "other" (-99) hazard — describe the hazard you observed.',
+    probabilityRangeError: "Probability must be an integer from 1 to 5",
+    severityRangeError: "Severity must be an integer from 1 to 5",
+    noMatrixCellError:
+      "No matrix cell defined for this probability/severity combination under the active matrix version.",
+    psychosocialDimensionRequired: "Select a psychosocial dimension",
+    psychosocialMethodRequired: "Select an assessment method",
+    psychosocialGroupSizeRequired:
+      "Group size is required and must be a whole number",
+    psychosocialDimensionLabel: "Dimension (ÖNORM EN ISO 10075)",
+    psychosocialDimensionLabels: {
+      TASK_AND_ACTIVITY: "Task and activity",
+      WORK_ORGANIZATION: "Work organisation",
+      WORK_ENVIRONMENT: "Work environment",
+      SOCIAL_CLIMATE: "Social and organisational climate",
+    },
+    psychosocialMethodLabel: "Assessment method",
+    psychosocialMethodLabels: {
+      QUESTIONNAIRE: "Questionnaire",
+      GROUP_DISCUSSION: "Group discussion",
+      OBSERVATION: "Observation",
+      INTERVIEW: "Interview",
+    },
+    psychosocialGroupSizeLabel: "Group size",
+    psychosocialGroupSizeQuestionnaireHint:
+      "Questionnaires require at least 15 people (anonymity can't be preserved below that scale) — use group discussion, observation, or interview for smaller groups.",
+    psychosocialExternalProcedureNameLabel:
+      "External procedure name (optional)",
+    tasksHeading: "Tasks — ergonomic detail assessment",
+    tasksDescription:
+      "Open a task to record posture, load, and repetition detail.",
+    tasksEmpty: "No tasks defined at this workstation yet.",
+    unexpectedError: (message: string) => `Something went wrong: ${message}`,
+  },
   taskPage: {
     breadcrumbSites: "Sites",
     eyebrow: "Task //",
     downloadReport: "Download report",
-    captureSample: "Capture Sample",
+    captureSample: "Assess task",
     assessmentSessions: "Assessment sessions",
     ongoing: "(ongoing)",
     manualInputsHeading: "Manual inputs",
@@ -138,7 +231,7 @@ export const en = {
     repetitionDescription:
       "SLD applies its own thresholds to repetitions per task cycle, inspired by ISO 11228-3/EN 1005-5, cited in the generated SGD.",
     postureSamplesHeading: "Posture samples",
-    postureSamplesEmpty: "No captures yet for this task.",
+    postureSamplesEmpty: "No assessments recorded yet for this task.",
     cannotRecompute: (error: string) =>
       `Cannot recompute region breakdowns: ${error}`,
     recomputeError: (error: string) =>
@@ -150,13 +243,13 @@ export const en = {
   },
   capturePage: {
     backToTask: "← Back to task",
-    heading: "Capture posture sample",
+    heading: "Assess posture",
     sampleMeta: (id: string, version: string) =>
       `Sample ${id} — methodology ${version}`,
     tableRegion: "Region",
     tableStatus: "Status",
     tableDetail: "Detail",
-    captureAnother: "Capture another sample",
+    captureAnother: "Record another assessment",
     manualInputsHeading: "Manual inputs",
     manualInputsDescription:
       "Load weight, push/pull force, or tool used for this task — not tied to a specific posture sample.",
@@ -270,9 +363,9 @@ export const en = {
     ergonomicDescription:
       "Most recent posture sample per task at this workstation — full per-region detail is on each task's page.",
     ergonomicEmpty:
-      "No posture samples captured for this workstation's tasks yet.",
+      "No posture samples recorded for this workstation's tasks yet.",
     colTask: "Task",
-    colCapturedAt: "Captured",
+    colCapturedAt: "Recorded",
     noSamples: "No samples yet",
     concerningRegions: (count: number) => `${count} region(s) elevated or high`,
     noConcerningRegions: "No elevated/high regions",

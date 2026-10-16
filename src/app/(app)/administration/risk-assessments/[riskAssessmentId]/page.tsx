@@ -24,14 +24,13 @@ import { prisma } from "@/lib/prisma";
 import {
   assertCanSubmitForReview,
   CategoryCompletenessError,
-  markCategoryHazardPresent,
 } from "@/lib/risk/category-check";
 import { getActiveExposureLimitCatalog } from "@/lib/risk/exposure-limit-catalog-version";
 import { matchExposureLimits } from "@/lib/risk/exposure-limit-lookup";
 import { exposureThresholdStatus } from "@/lib/risk/exposure-threshold-status";
+import { createFinding } from "@/lib/risk/finding";
 import { isOtherHazardCode } from "@/lib/risk/hazard-catalog";
 import { lookupRiskMatrixCell } from "@/lib/risk/matrix-lookup";
-import { createPsychosocialFinding } from "@/lib/risk/psychosocial-finding";
 
 const PSYCHOSOCIAL_DIMENSIONS = Object.values(PsychosocialDimension);
 const PSYCHOSOCIAL_METHODS = Object.values(PsychosocialMethod);
@@ -222,6 +221,11 @@ export default async function RiskAssessmentDetailPage({
       throw new Error(dict.notesRequiredForOther);
     }
 
+    let dimension: PsychosocialDimension | null = null;
+    let method: PsychosocialMethod | null = null;
+    let groupSize: number | null = null;
+    let externalProcedureName: string | null = null;
+
     if (hazard.category === "PSYCHOSOCIAL") {
       const dimensionRaw = formData.get("dimension");
       if (
@@ -240,63 +244,51 @@ export default async function RiskAssessmentDetailPage({
       }
 
       const groupSizeRaw = formData.get("groupSize");
-      const groupSize =
+      const parsedGroupSize =
         typeof groupSizeRaw === "string"
           ? Number.parseInt(groupSizeRaw, 10)
           : NaN;
-      if (!Number.isInteger(groupSize)) {
+      if (!Number.isInteger(parsedGroupSize)) {
         throw new Error(dict.psychosocialGroupSizeRequired);
       }
 
       const externalProcedureNameRaw = formData.get("externalProcedureName");
-      const externalProcedureName =
+      dimension = dimensionRaw as PsychosocialDimension;
+      method = methodRaw as PsychosocialMethod;
+      groupSize = parsedGroupSize;
+      externalProcedureName =
         typeof externalProcedureNameRaw === "string" &&
         externalProcedureNameRaw.trim().length > 0
           ? externalProcedureNameRaw.trim()
           : null;
-
-      try {
-        await createPsychosocialFinding({
-          riskAssessmentId,
-          hazardId,
-          probability,
-          severity,
-          riskScore: cell.riskScore,
-          riskBand: cell.riskBand,
-          existingControls,
-          notes,
-          dimension: dimensionRaw as PsychosocialDimension,
-          method: methodRaw as PsychosocialMethod,
-          groupSize,
-          externalProcedureName,
-        });
-      } catch (error) {
-        throw new Error(
-          commonDict.unexpectedError(
-            error instanceof Error ? error.message : String(error),
-          ),
-        );
-      }
-    } else {
-      await prisma.riskFinding.create({
-        data: {
-          riskAssessmentId,
-          hazardId,
-          probability,
-          severity,
-          riskScore: cell.riskScore,
-          riskBand: cell.riskBand,
-          existingControls,
-          notes,
-        },
-      });
     }
 
-    // A finding of this category means the category is, by definition, now
-    // HAZARD_PRESENT — flip its completeness check so the
-    // HAZARD_PRESENT <-> finding invariant holds and the gate doesn't keep
-    // naming a category that already has a finding (§3.1, status-flip rule).
-    await markCategoryHazardPresent(prisma, riskAssessmentId, hazard.category);
+    // Single shared write path — same createFinding the workstation hub
+    // calls, so the two surfaces can't drift (§3.3). It creates the finding
+    // (plus psychosocial detail) and flips the category to HAZARD_PRESENT.
+    try {
+      await createFinding({
+        riskAssessmentId,
+        hazardId,
+        category: hazard.category,
+        probability,
+        severity,
+        riskScore: cell.riskScore,
+        riskBand: cell.riskBand,
+        existingControls,
+        notes,
+        dimension,
+        method,
+        groupSize,
+        externalProcedureName,
+      });
+    } catch (error) {
+      throw new Error(
+        commonDict.unexpectedError(
+          error instanceof Error ? error.message : String(error),
+        ),
+      );
+    }
 
     revalidatePath(`/administration/risk-assessments/${riskAssessmentId}`);
   }

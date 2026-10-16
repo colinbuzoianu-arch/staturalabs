@@ -180,7 +180,7 @@ export default async function TaskResultsPage({
       </p>
       <h1 className="text-xl font-semibold">{dict.heading(task.name)}</h1>
       <p className="flex gap-3">
-        <Link href={`/tasks/${task.id}/capture`} className="underline">
+        <Link href={`/tasks/${task.id}/assess`} className="underline">
           {dict.captureNewSample}
         </Link>
         {/* Plain <a>, not next/link: file download (Content-Disposition:

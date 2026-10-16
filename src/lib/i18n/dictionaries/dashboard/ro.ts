@@ -76,16 +76,105 @@ export const ro: typeof en = {
     empty: "Pentru acest loc de muncă nu sunt încă definite sarcini.",
     riskAssessmentLink: "Evaluare de riscuri →",
   },
+  workstationHub: {
+    breadcrumbSites: "Locații",
+    eyebrow: "Loc de muncă //",
+    description:
+      "Parcurgeți fiecare categorie de pericol pentru acest loc de muncă, apoi trimiteți evaluarea spre revizuire.",
+    noDraftHeading: "Nicio evaluare deschisă",
+    noDraftDescription:
+      "Nu există încă o evaluare deschisă (ciornă) pentru acest loc de muncă. Începeți una pentru a parcurge toate cele 13 categorii de pericole.",
+    startEvaluation: "Începe evaluarea",
+    draftHeading: "Evaluarea curentă (ciornă)",
+    assessedAtLabel: "Începută:",
+    openDetailLink: "Deschide evaluarea completă (măsurători, aprobare) →",
+    riskAnalysisLink: "Analiza riscurilor →",
+    progress: (done: number, total: number) =>
+      `${done} din ${total} categorii evaluate`,
+    progressComplete: "Toate categoriile evaluate — gata pentru revizuire.",
+    submitForReview: "Trimite spre revizuire",
+    reviewBlocked: (categories: string) =>
+      `Nu se poate trimite încă — fiecare categorie de pericol trebuie evaluată. Încă deschise: ${categories}`,
+    illegalTransition:
+      "Această evaluare nu mai poate fi trimisă din starea sa curentă.",
+    submittedHeading: "Trimisă spre revizuire",
+    submittedDescription:
+      "Această evaluare este în revizuire. Deschideți evaluarea completă pentru a o aproba.",
+    categoryStatusLabels: {
+      OPEN: "Încă neevaluată",
+      NOT_APPLICABLE: "Nu se aplică",
+      CHECKED_NO_HAZARD: "Verificat — fără pericol",
+      HAZARD_PRESENT: "Pericol prezent",
+    },
+    findingsHeading: "Pericole înregistrate",
+    findingsCount: (n: number) =>
+      n === 1 ? "1 constatare" : `${n} constatări`,
+    riskLabel: "Risc:",
+    raiseAction: "Creează o măsură din această constatare →",
+    setStatusHeading: "Niciun pericol aici?",
+    statusChoiceLabel: "Stare",
+    markNotApplicable: "Nu se aplică",
+    markCheckedNoHazard: "Verificat — fără pericol",
+    rationaleLabel: "Motiv (obligatoriu)",
+    rationaleRequired: "Pentru această stare este obligatoriu un motiv.",
+    statusConflict:
+      "Această categorie are deja o constatare, deci nu poate fi marcată ca inaplicabilă sau fără pericol.",
+    saveStatus: "Salvează starea",
+    addFindingHeading: "Înregistrează un pericol (constatare)",
+    hazardLabel: "Pericol",
+    probabilityLabel: "Probabilitate (1-5)",
+    severityLabel: "Gravitate (1-5)",
+    existingControlsLabel: "Măsuri existente (opțional)",
+    notesLabel: "Note (opțional)",
+    addFinding: "Adaugă constatare",
+    hazardRequired: "Selectați un pericol",
+    notesRequiredForOther:
+      "Notele sunt obligatorii când alegeți un pericol „altul” (-99) — descrieți pericolul observat.",
+    probabilityRangeError:
+      "Probabilitatea trebuie să fie un număr întreg de la 1 la 5",
+    severityRangeError:
+      "Gravitatea trebuie să fie un număr întreg de la 1 la 5",
+    noMatrixCellError:
+      "Nicio celulă de matrice definită pentru această combinație probabilitate/gravitate în versiunea de matrice activă.",
+    psychosocialDimensionRequired: "Selectați o dimensiune psihosocială",
+    psychosocialMethodRequired: "Selectați o metodă de evaluare",
+    psychosocialGroupSizeRequired:
+      "Mărimea grupului este obligatorie și trebuie să fie un număr întreg",
+    psychosocialDimensionLabel: "Dimensiune (ÖNORM EN ISO 10075)",
+    psychosocialDimensionLabels: {
+      TASK_AND_ACTIVITY: "Sarcină și activitate",
+      WORK_ORGANIZATION: "Organizarea muncii",
+      WORK_ENVIRONMENT: "Mediul de lucru",
+      SOCIAL_CLIMATE: "Climatul social și organizațional",
+    },
+    psychosocialMethodLabel: "Metodă de evaluare",
+    psychosocialMethodLabels: {
+      QUESTIONNAIRE: "Chestionar",
+      GROUP_DISCUSSION: "Discuție de grup",
+      OBSERVATION: "Observație",
+      INTERVIEW: "Interviu",
+    },
+    psychosocialGroupSizeLabel: "Mărimea grupului",
+    psychosocialGroupSizeQuestionnaireHint:
+      "Chestionarele necesită cel puțin 15 persoane (sub acest prag anonimatul nu poate fi păstrat) — pentru grupuri mai mici folosiți discuția de grup, observația sau interviul.",
+    psychosocialExternalProcedureNameLabel:
+      "Numele procedurii externe (opțional)",
+    tasksHeading: "Sarcini — evaluare ergonomică detaliată",
+    tasksDescription:
+      "Deschideți o sarcină pentru a înregistra detalii de postură, încărcare și repetiție.",
+    tasksEmpty: "Pentru acest loc de muncă nu sunt încă definite sarcini.",
+    unexpectedError: (message: string) => `Ceva nu a mers bine: ${message}`,
+  },
   taskPage: {
     breadcrumbSites: "Locații",
     eyebrow: "Sarcină //",
     downloadReport: "Descarcă raportul",
-    captureSample: "Pornește captura",
+    captureSample: "Evaluează sarcina",
     assessmentSessions: "Sesiuni de evaluare",
     ongoing: "(în desfășurare)",
     manualInputsHeading: "Date introduse manual",
     manualInputsDescription:
-      "Context privind greutatea, forța și uneltele, înregistrat pentru această sarcină — nelegat de o anumită captură de postură. Momentan doar pentru înregistrare; nimic de aici nu poate fi editat sau șters din această vizualizare.",
+      "Context privind greutatea, forța și uneltele, înregistrat pentru această sarcină — nelegat de o anumită mostră de postură. Momentan doar pentru înregistrare; nimic de aici nu poate fi editat sau șters din această vizualizare.",
     manualInputsEmpty:
       "Pentru această sarcină nu au fost încă înregistrate date manuale.",
     manualHandlingHeading: "Evaluarea manipulării manuale",
@@ -98,12 +187,12 @@ export const ro: typeof en = {
       `${reps} repetări/ciclu — ${band}`,
     repetitionDescription:
       "SLD aplică propriile praguri numărului de repetări pe ciclu de lucru, inspirate din ISO 11228-3/EN 1005-5, citate în SGD-ul generat.",
-    postureSamplesHeading: "Capturi de postură",
-    postureSamplesEmpty: "Pentru această sarcină nu există încă nicio captură.",
+    postureSamplesHeading: "Mostre de postură",
+    postureSamplesEmpty: "Pentru această sarcină nu există încă nicio mostră.",
     cannotRecompute: (error: string) =>
       `Detalierea pe regiuni nu poate fi recalculată: ${error}`,
     recomputeError: (error: string) =>
-      `Eroare la recalcularea acestei capturi: ${error}`,
+      `Eroare la recalcularea acestei mostre: ${error}`,
     cameraAngleField: "cameraAngle:",
     tableRegion: "Regiune",
     tableStatus: "Status",
@@ -111,16 +200,16 @@ export const ro: typeof en = {
   },
   capturePage: {
     backToTask: "← Înapoi la sarcină",
-    heading: "Captură postură",
+    heading: "Evaluează postura",
     sampleMeta: (id: string, version: string) =>
-      `Captură ${id} — metodologie ${version}`,
+      `Mostră ${id} — metodologie ${version}`,
     tableRegion: "Regiune",
     tableStatus: "Status",
     tableDetail: "Detalii",
-    captureAnother: "Realizează o nouă captură",
+    captureAnother: "Înregistrează o nouă evaluare",
     manualInputsHeading: "Date introduse manual",
     manualInputsDescription:
-      "Greutatea sarcinii, forța de împingere/tragere sau unealta folosită pentru această sarcină — nelegate de o anumită captură de postură.",
+      "Greutatea sarcinii, forța de împingere/tragere sau unealta folosită pentru această sarcină — nelegate de o anumită mostră de postură.",
     typeLabel: "Tip",
     toolLabel: "Unealtă",
     valueLabel: (unit: string | null) => `Valoare (${unit})`,
@@ -199,12 +288,12 @@ export const ro: typeof en = {
     overActionValue: "peste valoarea de declanșare",
     ergonomicHeading: "Evaluare ergonomică",
     ergonomicDescription:
-      "Cea mai recentă captură de postură pentru fiecare activitate a acestui loc de muncă — detalierea completă pe regiuni se află pe pagina fiecărei activități.",
+      "Cea mai recentă mostră de postură pentru fiecare activitate a acestui loc de muncă — detalierea completă pe regiuni se află pe pagina fiecărei activități.",
     ergonomicEmpty:
-      "Nu există încă nicio captură de postură pentru activitățile acestui loc de muncă.",
+      "Nu există încă nicio mostră de postură pentru activitățile acestui loc de muncă.",
     colTask: "Activitate",
-    colCapturedAt: "Capturat",
-    noSamples: "Nicio captură încă",
+    colCapturedAt: "Înregistrat",
+    noSamples: "Nicio mostră încă",
     concerningRegions: (count: number) =>
       `${count} regiune(i) ridicate sau înalte`,
     noConcerningRegions: "Nicio regiune ridicată/înaltă",

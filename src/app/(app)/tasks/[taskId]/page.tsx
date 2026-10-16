@@ -216,7 +216,7 @@ export default async function TaskHistoryPage({
             {dict.downloadReport}
           </a>
           <Link
-            href={`/tasks/${task.id}/capture`}
+            href={`/tasks/${task.id}/assess`}
             className="rounded-md bg-accent px-4 py-2 font-heading font-bold text-teal transition-opacity hover:opacity-90"
           >
             {dict.captureSample}

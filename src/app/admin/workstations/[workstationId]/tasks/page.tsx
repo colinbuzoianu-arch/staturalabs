@@ -108,7 +108,7 @@ export default async function TasksPage({
                   {dict.viewCaptures}
                 </Link>{" "}
                 ·{" "}
-                <Link href={`/tasks/${task.id}/capture`} className="underline">
+                <Link href={`/tasks/${task.id}/assess`} className="underline">
                   {dict.captureLink}
                 </Link>
               </td>

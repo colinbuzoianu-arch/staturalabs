@@ -76,11 +76,101 @@ export const de: typeof en = {
     empty: "Für diesen Arbeitsplatz sind noch keine Aufgaben definiert.",
     riskAssessmentLink: "Gefährdungsbeurteilung →",
   },
+  workstationHub: {
+    breadcrumbSites: "Standorte",
+    eyebrow: "Arbeitsplatz //",
+    description:
+      "Alle Gefährdungskategorien für diesen Arbeitsplatz durcharbeiten und die Evaluierung anschließend zur Prüfung einreichen.",
+    noDraftHeading: "Keine offene Evaluierung",
+    noDraftDescription:
+      "Für diesen Arbeitsplatz gibt es noch keine offene (Entwurfs-)Evaluierung. Starten Sie eine, um alle 13 Gefährdungskategorien durchzugehen.",
+    startEvaluation: "Evaluierung starten",
+    draftHeading: "Aktuelle Evaluierung (Entwurf)",
+    assessedAtLabel: "Begonnen:",
+    openDetailLink: "Vollständige Evaluierung öffnen (Messungen, Freigabe) →",
+    riskAnalysisLink: "Risikoanalyse →",
+    progress: (done: number, total: number) =>
+      `${done} von ${total} Kategorien beurteilt`,
+    progressComplete: "Alle Kategorien beurteilt — bereit zur Prüfung.",
+    submitForReview: "Zur Prüfung einreichen",
+    reviewBlocked: (categories: string) =>
+      `Noch nicht einreichbar — jede Gefährdungskategorie muss beurteilt sein. Noch offen: ${categories}`,
+    illegalTransition:
+      "Diese Evaluierung kann aus ihrem aktuellen Status nicht mehr eingereicht werden.",
+    submittedHeading: "Zur Prüfung eingereicht",
+    submittedDescription:
+      "Diese Evaluierung ist in Prüfung. Öffnen Sie die vollständige Evaluierung, um sie freizugeben.",
+    categoryStatusLabels: {
+      OPEN: "Noch nicht beurteilt",
+      NOT_APPLICABLE: "Nicht zutreffend",
+      CHECKED_NO_HAZARD: "Geprüft — keine Gefährdung",
+      HAZARD_PRESENT: "Gefährdung vorhanden",
+    },
+    findingsHeading: "Erfasste Gefährdungen",
+    findingsCount: (n: number) => (n === 1 ? "1 Befund" : `${n} Befunde`),
+    riskLabel: "Risiko:",
+    raiseAction: "Maßnahme aus diesem Befund anlegen →",
+    setStatusHeading: "Keine Gefährdung hier?",
+    statusChoiceLabel: "Status",
+    markNotApplicable: "Nicht zutreffend",
+    markCheckedNoHazard: "Geprüft — keine Gefährdung",
+    rationaleLabel: "Begründung (erforderlich)",
+    rationaleRequired: "Für diesen Status ist eine Begründung erforderlich.",
+    statusConflict:
+      "Diese Kategorie hat bereits einen Befund und kann nicht als nicht zutreffend oder ohne Gefährdung markiert werden.",
+    saveStatus: "Status speichern",
+    addFindingHeading: "Gefährdung erfassen (Befund)",
+    hazardLabel: "Gefährdung",
+    probabilityLabel: "Wahrscheinlichkeit (1-5)",
+    severityLabel: "Schweregrad (1-5)",
+    existingControlsLabel: "Bestehende Maßnahmen (optional)",
+    notesLabel: "Notizen (optional)",
+    addFinding: "Befund hinzufügen",
+    hazardRequired: "Bitte eine Gefährdung auswählen",
+    notesRequiredForOther:
+      "Bei einer „Sonstigen“ Gefährdung (-99) ist eine Notiz erforderlich — bitte die beobachtete Gefährdung beschreiben.",
+    probabilityRangeError:
+      "Die Wahrscheinlichkeit muss eine ganze Zahl von 1 bis 5 sein",
+    severityRangeError: "Der Schweregrad muss eine ganze Zahl von 1 bis 5 sein",
+    noMatrixCellError:
+      "Für diese Kombination aus Wahrscheinlichkeit/Schweregrad ist in der aktiven Matrixversion keine Zelle definiert.",
+    psychosocialDimensionRequired:
+      "Bitte eine psychosoziale Dimension auswählen",
+    psychosocialMethodRequired: "Bitte eine Beurteilungsmethode auswählen",
+    psychosocialGroupSizeRequired:
+      "Die Gruppengröße ist erforderlich und muss eine ganze Zahl sein",
+    psychosocialDimensionLabel: "Dimension (ÖNORM EN ISO 10075)",
+    psychosocialDimensionLabels: {
+      TASK_AND_ACTIVITY: "Arbeitsaufgabe und Tätigkeit",
+      WORK_ORGANIZATION: "Arbeitsorganisation und Arbeitsabläufe",
+      WORK_ENVIRONMENT: "Arbeitsumgebung",
+      SOCIAL_CLIMATE: "Sozial- und Organisationsklima",
+    },
+    psychosocialMethodLabel: "Beurteilungsmethode",
+    psychosocialMethodLabels: {
+      QUESTIONNAIRE: "Fragebogen",
+      GROUP_DISCUSSION: "Gruppendiskussion",
+      OBSERVATION: "Beobachtung",
+      INTERVIEW: "Interview",
+    },
+    psychosocialGroupSizeLabel: "Gruppengröße",
+    psychosocialGroupSizeQuestionnaireHint:
+      "Fragebögen setzen mindestens 15 Personen voraus (darunter ist Anonymität nicht gewährleistet) — für kleinere Gruppen Gruppendiskussion, Beobachtung oder Interview verwenden.",
+    psychosocialExternalProcedureNameLabel:
+      "Name des externen Verfahrens (optional)",
+    tasksHeading: "Tätigkeiten — ergonomische Detailbeurteilung",
+    tasksDescription:
+      "Öffnen Sie eine Tätigkeit, um Körperhaltung, Last und Wiederholung im Detail zu erfassen.",
+    tasksEmpty:
+      "Für diesen Arbeitsplatz sind noch keine Tätigkeiten definiert.",
+    unexpectedError: (message: string) =>
+      `Etwas ist schiefgelaufen: ${message}`,
+  },
   taskPage: {
     breadcrumbSites: "Standorte",
     eyebrow: "Aufgabe //",
     downloadReport: "Bericht herunterladen",
-    captureSample: "Aufnahme starten",
+    captureSample: "Belastung erfassen",
     assessmentSessions: "Bewertungssitzungen",
     ongoing: "(laufend)",
     manualInputsHeading: "Manuelle Eingaben",
@@ -99,11 +189,12 @@ export const de: typeof en = {
     repetitionDescription:
       "SLD wendet eigene Schwellenwerte auf die Wiederholungszahl pro Arbeitszyklus an, orientiert an ISO 11228-3/EN 1005-5, im generierten SGD zitiert.",
     postureSamplesHeading: "Haltungsaufnahmen",
-    postureSamplesEmpty: "Für diese Aufgabe liegen noch keine Aufnahmen vor.",
+    postureSamplesEmpty:
+      "Für diese Aufgabe liegen noch keine Beurteilungen vor.",
     cannotRecompute: (error: string) =>
       `Regionale Auswertung kann nicht neu berechnet werden: ${error}`,
     recomputeError: (error: string) =>
-      `Fehler bei der Neuberechnung dieser Aufnahme: ${error}`,
+      `Fehler bei der Neuberechnung dieser Erfassung: ${error}`,
     cameraAngleField: "cameraAngle:",
     tableRegion: "Region",
     tableStatus: "Status",
@@ -111,13 +202,13 @@ export const de: typeof en = {
   },
   capturePage: {
     backToTask: "← Zurück zur Aufgabe",
-    heading: "Haltungsaufnahme erfassen",
+    heading: "Körperhaltung beurteilen",
     sampleMeta: (id: string, version: string) =>
-      `Aufnahme ${id} — Methodik ${version}`,
+      `Erfassung ${id} — Methodik ${version}`,
     tableRegion: "Region",
     tableStatus: "Status",
     tableDetail: "Detail",
-    captureAnother: "Weitere Aufnahme erfassen",
+    captureAnother: "Weitere Beurteilung erfassen",
     manualInputsHeading: "Manuelle Eingaben",
     manualInputsDescription:
       "Lastgewicht, Schub-/Zugkraft oder verwendetes Werkzeug für diese Aufgabe — nicht an eine bestimmte Haltungsaufnahme gebunden.",
@@ -174,7 +265,7 @@ export const de: typeof en = {
     manualEntryNotScored: "noch nicht bewertet",
     manualEntrySubmit: "Haltungsaufnahme absenden",
     manualEntrySubmitting: "Wird gesendet…",
-    manualEntryAnother: "Weitere Aufnahme eingeben",
+    manualEntryAnother: "Weitere Erfassung eingeben",
     manualEntryRulesLoading: "Bewertungsregeln werden geladen…",
     manualEntryRulesFailed: (message: string) =>
       `Bewertungsregeln für die Live-Vorschau konnten nicht geladen werden: ${message}`,
@@ -213,8 +304,8 @@ export const de: typeof en = {
     ergonomicEmpty:
       "Für die Aufgaben dieses Arbeitsplatzes liegen noch keine Haltungsaufnahmen vor.",
     colTask: "Aufgabe",
-    colCapturedAt: "Aufgenommen",
-    noSamples: "Noch keine Aufnahmen",
+    colCapturedAt: "Erfasst",
+    noSamples: "Noch keine Erfassungen",
     concerningRegions: (count: number) =>
       `${count} Region(en) erhöht oder hoch`,
     noConcerningRegions: "Keine erhöhten/hohen Regionen",
