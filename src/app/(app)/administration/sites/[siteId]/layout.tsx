@@ -34,6 +34,10 @@ export default async function SiteAdministrationLayout({
     },
     { href: `/administration/sites/${siteId}/actions`, label: dict.actions },
     {
+      href: `/administration/sites/${siteId}/environment`,
+      label: dict.environment,
+    },
+    {
       href: `/administration/sites/${siteId}/floor-plans`,
       label: dict.floorPlans,
     },
