@@ -275,6 +275,62 @@ export const de: typeof en = {
       `${seconds}s gehalten bei Haltung ${postureBand}.`,
     holdTimeEscalated: (overallBand: string) =>
       `Überschreitet die sichere Haltedauer für diese Haltung — gesamt ${overallBand}.`,
+    zoneModeLabel: "Körperzonen (Standard)",
+    detailModeLabel: "Detailbeurteilung (Gelenke)",
+    zonePanelHeading: "Körperhaltung nach Körperzonen einstufen",
+    zonePanelDescription:
+      'Wählen Sie für jede Zone die Belastungsstufe, die am besten zum Beobachteten passt, und den Anteil der Tätigkeit, für den sie gilt. Zonen, die Sie nicht beurteilt haben, als „Nicht beurteilt" belassen.',
+    zoneShareFieldLabel: "Anteil der Tätigkeit",
+    zoneTableZone: "Zone",
+    zoneTableLevel: "Stufe",
+    zoneTableShare: "Anteil",
+    zoneTableBand: "Stufe",
+    zoneMethodNote:
+      "Einstufung der beobachteten Körperhaltung nach Körperzonen (ISO 11226 / EN 1005-4 orientiert), keine Winkelmessung.",
+    zoneLabels: {
+      HEAD_NECK: "Kopf / Nacken",
+      TRUNK: "Rumpf",
+      SHOULDERS_ARMS: "Schultern / Arme",
+      HANDS_WRISTS: "Hände / Handgelenke",
+      LEGS_KNEES: "Beine / Knie",
+    },
+    zoneLevelLabels: {
+      LOW: "Gering",
+      MEDIUM: "Mittel",
+      HIGH: "Hoch",
+    },
+    zoneShareLabels: {
+      RARE: "Selten (<10%)",
+      OCCASIONAL: "Gelegentlich (10–50%)",
+      PREDOMINANT: "Überwiegend (>50%)",
+    },
+    zoneLevelDescriptions: {
+      HEAD_NECK: {
+        LOW: "Kopf aufrecht, Blick geradeaus",
+        MEDIUM: "Kopf deutlich geneigt oder gedreht",
+        HIGH: "Kopf stark vorgeneigt, überstreckt oder verdreht",
+      },
+      TRUNK: {
+        LOW: "Aufrecht",
+        MEDIUM: "Deutlich gebeugt oder verdreht",
+        HIGH: "Stark gebeugt (Hände unter Kniehöhe) oder gebeugt + verdreht",
+      },
+      SHOULDERS_ARMS: {
+        LOW: "Arme körpernah, unter Schulterhöhe",
+        MEDIUM: "Arme vom Körper weg, ausgestreckt",
+        HIGH: "Hände auf/über Schulterhöhe",
+      },
+      HANDS_WRISTS: {
+        LOW: "Handgelenk gerade",
+        MEDIUM: "Deutlich abgeknickt",
+        HIGH: "Stark abgeknickt, oft mit Kraft oder Greifen",
+      },
+      LEGS_KNEES: {
+        LOW: "Gehen, Stehen auf beiden Beinen",
+        MEDIUM: "Langes Stehen, einbeinig, Hocken kurz",
+        HIGH: "Knien, Hocken, Kriechen",
+      },
+    },
   },
   workstationRiskPage: {
     breadcrumbSites: "Standorte",

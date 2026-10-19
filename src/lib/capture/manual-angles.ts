@@ -1,4 +1,9 @@
-import { BodyRegion } from "@/generated/prisma/enums";
+import {
+  BodyRegion,
+  BodyZone,
+  ExposureShare,
+  ZoneLoadLevel,
+} from "@/generated/prisma/enums";
 import {
   COMPUTED_BODY_REGIONS,
   type ComputedBodyRegion,
@@ -38,12 +43,21 @@ export const MANUAL_ENTRY_BODY_REGIONS: readonly ManualEntryBodyRegion[] = [
 // treats that absence as "degrees" (resolveEntryMode below), the shape
 // the JSON always had before this milestone, per the plan's explicit
 // "existing degree shape remaining valid" instruction.
-export type EntryMode = "category" | "degrees";
+// H2 (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §4) adds "zone" —
+// a coarse per-body-zone rating (gering/mittel/hoch × share), now the
+// DEFAULT input. "category" (B11) and "degrees" (expert) stay reachable
+// behind the "Detailbeurteilung" toggle. A zone sample's manualAngles JSON
+// carries `{ entryMode: "zone", zones: {...} }` instead of per-region
+// degrees — same single `PostureSample.manualAngles Json?` column, a
+// different JSON shape discriminated by entryMode.
+export type EntryMode = "category" | "degrees" | "zone";
 
 export function resolveEntryMode(
   manualAngles: { entryMode?: unknown } | null | undefined,
 ): EntryMode {
-  return manualAngles?.entryMode === "category" ? "category" : "degrees";
+  const mode = manualAngles?.entryMode;
+  if (mode === "category" || mode === "zone") return mode;
+  return "degrees";
 }
 
 // The raw angles an assessor enters for a MANUAL_ENTRY PostureSample —
@@ -61,9 +75,26 @@ export function resolveEntryMode(
 // the same JSON object — no column change (this is still the existing
 // `PostureSample.manualAngles Json?` field), the JSON shape just gained a
 // discriminator.
-export type ManualAngles = Partial<Record<ManualEntryBodyRegion, number>> & {
-  entryMode: EntryMode;
+export type RegionManualAngles = Partial<
+  Record<ManualEntryBodyRegion, number>
+> & {
+  entryMode: "category" | "degrees";
 };
+
+// One zone's rating: the three-way load level and how much of the task it
+// applies for. Share replaces hold time in zone mode (§4.2).
+export type ZoneRating = { level: ZoneLoadLevel; share: ExposureShare };
+
+export type ZoneManualAngles = {
+  entryMode: "zone";
+  zones: Partial<Record<BodyZone, ZoneRating>>;
+};
+
+export type ManualAngles = RegionManualAngles | ZoneManualAngles;
+
+const ALL_BODY_ZONES = Object.values(BodyZone);
+const ALL_ZONE_LEVELS = Object.values(ZoneLoadLevel);
+const ALL_EXPOSURE_SHARES = Object.values(ExposureShare);
 
 // Pure validator, unit-tested directly — no DB, no Prisma — mirroring the
 // matchScoringRule/lookupScoringRule split (src/lib/scoring/match.ts):
@@ -86,10 +117,16 @@ export function validateManualAngles(value: unknown): ManualAngles | string {
   }
   const input = value as Record<string, unknown>;
 
-  let entryMode: EntryMode = "degrees";
+  // Zone mode (H2) has a different JSON shape — a `zones` map, no per-region
+  // degrees — so it validates on its own path before the region logic.
+  if (input.entryMode === "zone") {
+    return validateZoneManualAngles(input);
+  }
+
+  let entryMode: "category" | "degrees" = "degrees";
   if ("entryMode" in input && input.entryMode !== undefined) {
     if (input.entryMode !== "category" && input.entryMode !== "degrees") {
-      return 'entryMode must be "category" or "degrees"';
+      return 'entryMode must be "category", "degrees", or "zone"';
     }
     entryMode = input.entryMode;
   }
@@ -109,4 +146,47 @@ export function validateManualAngles(value: unknown): ManualAngles | string {
   }
 
   return { ...angles, entryMode };
+}
+
+// Zone-mode validator (H2). At least one zone must be rated; each rating
+// needs a valid level and share. Same "never throws, returns a message"
+// contract as the region path.
+function validateZoneManualAngles(
+  input: Record<string, unknown>,
+): ZoneManualAngles | string {
+  const rawZones = input.zones;
+  if (
+    typeof rawZones !== "object" ||
+    rawZones === null ||
+    Array.isArray(rawZones)
+  ) {
+    return "zones must be an object";
+  }
+  const zonesInput = rawZones as Record<string, unknown>;
+  const zones: Partial<Record<BodyZone, ZoneRating>> = {};
+
+  for (const zone of ALL_BODY_ZONES) {
+    const rating = zonesInput[zone];
+    if (rating === undefined) continue;
+    if (typeof rating !== "object" || rating === null) {
+      return `zones.${zone} must be an object with level and share`;
+    }
+    const { level, share } = rating as Record<string, unknown>;
+    if (!ALL_ZONE_LEVELS.includes(level as ZoneLoadLevel)) {
+      return `zones.${zone}.level must be one of ${ALL_ZONE_LEVELS.join(", ")}`;
+    }
+    if (!ALL_EXPOSURE_SHARES.includes(share as ExposureShare)) {
+      return `zones.${zone}.share must be one of ${ALL_EXPOSURE_SHARES.join(", ")}`;
+    }
+    zones[zone] = {
+      level: level as ZoneLoadLevel,
+      share: share as ExposureShare,
+    };
+  }
+
+  if (Object.keys(zones).length === 0) {
+    return "at least one zone must be rated";
+  }
+
+  return { entryMode: "zone", zones };
 }

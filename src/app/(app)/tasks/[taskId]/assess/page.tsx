@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { type FormEvent, use, useEffect, useMemo, useState } from "react";
-import { ManualInputType } from "@/generated/prisma/enums";
+import {
+  BodyZone,
+  ExposureShare,
+  ManualInputType,
+  ZoneLoadLevel,
+} from "@/generated/prisma/enums";
 import { describeRegionResult } from "@/lib/capture/describe-region-result";
 import { MANUAL_ENTRY_BODY_REGIONS } from "@/lib/capture/manual-angles";
 import {
@@ -12,7 +17,11 @@ import {
   MANUAL_INPUT_UNITS,
   validateManualInputShape,
 } from "@/lib/capture/manual-input";
-import type { PostureSampleResponse, RegionResult } from "@/lib/capture/types";
+import type {
+  PostureSampleResponse,
+  RegionResult,
+  ZoneResult,
+} from "@/lib/capture/types";
 import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
 import { getDashboardDictionary } from "@/lib/i18n/dictionaries/dashboard";
 import type { Locale } from "@/lib/i18n/locale";
@@ -33,6 +42,9 @@ export default function CapturePage({
   const { taskId } = use(params);
   const { locale } = useLocale();
   const dict = getDashboardDictionary(locale).capturePage;
+  // H2: zone rating is the default; "Detailbeurteilung" switches to the B11
+  // joint-level picker (which itself holds the expert degree toggle).
+  const [mode, setMode] = useState<"zone" | "detail">("zone");
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 p-8">
@@ -59,8 +71,33 @@ export default function CapturePage({
           angles.ts/buildRegionResults, which stay. B11
           (SLD_IMPLEMENTATION_PLAN_posture-input.md) made this panel's own
           entry a category pick, not a typed degree — see
-          PostureCategoryPanel's own comment. */}
-      <PostureCategoryPanel taskId={taskId} />
+          PostureCategoryPanel's own comment. H2 added the zone rating as
+          the default surface; this joint-level panel now lives behind the
+          "Detailbeurteilung" switch. */}
+      <div className="flex gap-2 text-sm">
+        <button
+          type="button"
+          aria-pressed={mode === "zone"}
+          onClick={() => setMode("zone")}
+          className={`rounded-full border px-3 py-1 ${mode === "zone" ? "border-accent bg-accent text-background" : "border-border"}`}
+        >
+          {dict.zoneModeLabel}
+        </button>
+        <button
+          type="button"
+          aria-pressed={mode === "detail"}
+          onClick={() => setMode("detail")}
+          className={`rounded-full border px-3 py-1 ${mode === "detail" ? "border-accent bg-accent text-background" : "border-border"}`}
+        >
+          {dict.detailModeLabel}
+        </button>
+      </div>
+
+      {mode === "zone" ? (
+        <PostureZonePanel taskId={taskId} />
+      ) : (
+        <PostureCategoryPanel taskId={taskId} />
+      )}
 
       {/*
         Independent of the manual-entry submission above — the operator
@@ -86,12 +123,75 @@ function ResultView({
   dict: CaptureDict;
   locale: Locale;
 }) {
+  const commonDict = getCommonDictionary(locale);
+
+  // H2: a zone-mode sample carries its real result in `zones` (every region
+  // is "not-assessed"), so it renders a zone table and the method note
+  // instead of the per-region table + hold time.
+  if (response.zones) {
+    const zoneEntries = Object.entries(response.zones) as [
+      BodyZone,
+      ZoneResult,
+    ][];
+    return (
+      <div className="flex flex-col gap-4">
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          {dict.sampleMeta(
+            response.postureSampleId,
+            response.methodologyVersion,
+          )}
+        </p>
+        <p className="text-xs text-zinc-600 dark:text-zinc-400">
+          {dict.zoneMethodNote}
+        </p>
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b">
+              <th className="py-1 pr-4">{dict.zoneTableZone}</th>
+              <th className="py-1 pr-4">{dict.zoneTableLevel}</th>
+              <th className="py-1 pr-4">{dict.zoneTableShare}</th>
+              <th className="py-1">{dict.zoneTableBand}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {zoneEntries.map(([zone, result]) => (
+              <tr key={zone} className="border-b last:border-0">
+                <td className="py-1 pr-4">{dict.zoneLabels[zone]}</td>
+                <td className="py-1 pr-4">
+                  {result.status === "not-assessed"
+                    ? dict.notAssessedOption
+                    : dict.zoneLevelLabels[result.level]}
+                </td>
+                <td className="py-1 pr-4">
+                  {result.status === "not-assessed"
+                    ? "—"
+                    : dict.zoneShareLabels[result.share]}
+                </td>
+                <td className="py-1">
+                  {result.status === "scored"
+                    ? `${commonDict.riskBandLabels[result.riskBand]} (${result.riskScore})`
+                    : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <button
+          type="button"
+          onClick={onCaptureAnother}
+          className="self-start rounded bg-black px-4 py-2 text-white dark:bg-white dark:text-black"
+        >
+          {dict.captureAnother}
+        </button>
+      </div>
+    );
+  }
+
   const regions = Object.entries(response.regions) as [
     keyof typeof response.regions,
     RegionResult,
   ][];
   const holdTime = response.holdTime;
-  const commonDict = getCommonDictionary(locale);
 
   return (
     <div className="flex flex-col gap-4">
@@ -143,6 +243,185 @@ function ResultView({
         {dict.captureAnother}
       </button>
     </div>
+  );
+}
+
+// H2 (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §4): the default
+// posture entry surface — a coarse per-zone load rating (gering/mittel/hoch
+// × share), the founder's "low/medium/high for trunk, head, arms, legs."
+// No live band preview (unlike the B11 category panel): the band rule lives
+// only in the seeded PostureZoneRule table and is applied server-side on
+// submit, so the client never carries a copy of it to drift. A zone left as
+// "Not assessed" is simply omitted (never guessed). Submits through the same
+// POST /api/posture-samples/manual, discriminated by entryMode: "zone".
+function PostureZonePanel({ taskId }: { taskId: string }) {
+  const { locale } = useLocale();
+  const dict = getDashboardDictionary(locale).capturePage;
+
+  const zones = Object.values(BodyZone);
+  const levels = Object.values(ZoneLoadLevel);
+  const shares = Object.values(ExposureShare);
+
+  const [picks, setPicks] = useState<
+    Record<string, { level: ZoneLoadLevel | null; share: ExposureShare }>
+  >(() =>
+    Object.fromEntries(
+      zones.map((zone) => [
+        zone,
+        { level: null, share: ExposureShare.OCCASIONAL },
+      ]),
+    ),
+  );
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [response, setResponse] = useState<PostureSampleResponse | null>(null);
+
+  const atLeastOneRated = zones.some((zone) => picks[zone].level !== null);
+
+  function setLevel(zone: string, level: ZoneLoadLevel | null) {
+    setPicks((prev) => ({ ...prev, [zone]: { ...prev[zone], level } }));
+  }
+  function setShare(zone: string, share: ExposureShare) {
+    setPicks((prev) => ({ ...prev, [zone]: { ...prev[zone], share } }));
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      const zonesPayload: Record<
+        string,
+        { level: ZoneLoadLevel; share: ExposureShare }
+      > = {};
+      for (const zone of zones) {
+        const pick = picks[zone];
+        if (pick.level !== null) {
+          zonesPayload[zone] = { level: pick.level, share: pick.share };
+        }
+      }
+      const res = await fetch("/api/posture-samples/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          angles: { entryMode: "zone", zones: zonesPayload },
+          taskId,
+        }),
+      });
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => null);
+        throw new Error(errorBody?.error ?? dict.requestFailed(res.status));
+      }
+      setResponse((await res.json()) as PostureSampleResponse);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : dict.submitFailed);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function reset() {
+    setResponse(null);
+    setPicks(
+      Object.fromEntries(
+        zones.map((zone) => [
+          zone,
+          { level: null, share: ExposureShare.OCCASIONAL },
+        ]),
+      ),
+    );
+  }
+
+  if (response) {
+    return (
+      <ResultView
+        response={response}
+        onCaptureAnother={reset}
+        dict={{ ...dict, captureAnother: dict.manualEntryAnother }}
+        locale={locale}
+      />
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-lg font-semibold">{dict.zonePanelHeading}</h2>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          {dict.zonePanelDescription}
+        </p>
+      </div>
+
+      {error && (
+        <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+      )}
+
+      <div className="flex flex-col gap-3">
+        {zones.map((zone) => {
+          const pick = picks[zone];
+          return (
+            <div
+              key={zone}
+              className="flex flex-col gap-2 rounded border border-border p-3"
+            >
+              <span className="font-semibold">{dict.zoneLabels[zone]}</span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  aria-pressed={pick.level === null}
+                  onClick={() => setLevel(zone, null)}
+                  className={`rounded border px-3 py-1 text-sm ${pick.level === null ? "border-accent bg-accent text-background" : "border-border"}`}
+                >
+                  {dict.notAssessedOption}
+                </button>
+                {levels.map((level) => (
+                  <button
+                    key={level}
+                    type="button"
+                    aria-pressed={pick.level === level}
+                    onClick={() => setLevel(zone, level)}
+                    title={dict.zoneLevelDescriptions[zone][level]}
+                    className={`rounded border px-3 py-1 text-sm ${pick.level === level ? "border-accent bg-accent text-background" : "border-border"}`}
+                  >
+                    {dict.zoneLevelLabels[level]}
+                  </button>
+                ))}
+              </div>
+              {pick.level !== null && (
+                <span className="text-xs text-zinc-600 dark:text-zinc-400">
+                  {dict.zoneLevelDescriptions[zone][pick.level]}
+                </span>
+              )}
+              <label className="flex max-w-xs flex-col gap-1 text-sm">
+                {dict.zoneShareFieldLabel}
+                <select
+                  value={pick.share}
+                  onChange={(e) =>
+                    setShare(zone, e.target.value as ExposureShare)
+                  }
+                  disabled={pick.level === null}
+                  className="rounded border px-2 py-1 disabled:opacity-50"
+                >
+                  {shares.map((share) => (
+                    <option key={share} value={share}>
+                      {dict.zoneShareLabels[share]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          );
+        })}
+      </div>
+
+      <button
+        type="submit"
+        disabled={!atLeastOneRated || submitting}
+        className="self-start rounded bg-black px-4 py-2 text-white disabled:opacity-50 dark:bg-white dark:text-black"
+      >
+        {submitting ? dict.manualEntrySubmitting : dict.manualEntrySubmit}
+      </button>
+    </form>
   );
 }
 

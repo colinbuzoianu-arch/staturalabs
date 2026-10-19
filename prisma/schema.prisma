@@ -377,9 +377,10 @@ model PostureSample {
   validatedByUserId   String?             @db.Uuid
   createdAt           DateTime            @default(now())
 
-  task             Task                           @relation(fields: [taskId], references: [id], onDelete: Restrict)
-  bodyRegionScores BodyRegionScore[]
-  validationEvents PostureSampleValidationEvent[]
+  task              Task                           @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  bodyRegionScores  BodyRegionScore[]
+  postureZoneScores PostureZoneScore[]
+  validationEvents  PostureSampleValidationEvent[]
 
   @@index([taskId])
 }
@@ -518,6 +519,86 @@ model MethodologyVersion {
   holdTimeRules       HoldTimeRule[]
   manualHandlingRules ManualHandlingRule[]
   repetitionRules     RepetitionRule[]
+  postureZoneRules    PostureZoneRule[]
+}
+
+/// Body zones for the coarse posture rating (H2,
+/// SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §4.1) — the founder's
+/// "low / medium / high for trunk, head, arms, legs." Each zone groups the
+/// fine-grained BodyRegions it covers (HEAD_NECK←NECK; TRUNK←TRUNK/HIP;
+/// SHOULDERS_ARMS←SHOULDER_*/UPPER_ARM_*/ELBOW_*/FOREARM_*;
+/// HANDS_WRISTS←WRIST_*; LEGS_KNEES←KNEE_*/ANKLE_*), but a zone rating is
+/// its own observation, never derived from or turned into per-joint degrees
+/// (§3.16 — zones never become fake angles).
+enum BodyZone {
+  HEAD_NECK
+  TRUNK
+  SHOULDERS_ARMS
+  HANDS_WRISTS
+  LEGS_KNEES
+}
+
+/// The three-way load level an assessor picks per zone (gering/mittel/hoch).
+enum ZoneLoadLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+/// How much of the task the zone's load level applies for
+/// (selten/gelegentlich/überwiegend) — replaces hold time in zone mode
+/// (§4.2: "Hold time doesn't apply in zone mode. It is replaced by share.").
+enum ExposureShare {
+  RARE
+  OCCASIONAL
+  PREDOMINANT
+}
+
+/// Versioned 5×3×3 zone-posture band table (H2, §4.2) — a parallel scoring
+/// axis to ScoringRule, keyed by zone × level × share rather than a raw
+/// angle. SLD's own thresholds, authored by the founder (not invented by
+/// CC, and not LMM/KIM — §3.7), inspired by ISO 11226 / EN 1005-4's
+/// observational screening logic. One row per (methodologyVersion, zone,
+/// level, share). Lives under the same MethodologyVersion as every other
+/// rule table so a session's scoring vintage stays a single audit anchor.
+model PostureZoneRule {
+  id                 String        @id @default(cuid())
+  methodologyVersion String
+  zone               BodyZone
+  level              ZoneLoadLevel
+  share              ExposureShare
+  riskBand           RiskBand
+  riskScore          Int
+  createdAt          DateTime      @default(now())
+
+  // Restrict: same reasoning as ScoringRule.methodology.
+  methodology MethodologyVersion @relation(fields: [methodologyVersion], references: [version], onDelete: Restrict)
+
+  @@unique([methodologyVersion, zone, level, share])
+  @@index([methodologyVersion])
+}
+
+/// A zone-mode PostureSample's per-zone sub-score — the parallel of
+/// BodyRegionScore for zone entry (§4.2). A zone-mode sample writes these
+/// rows and NO BodyRegionScore rows; a region/degree sample writes
+/// BodyRegionScore and no PostureZoneScore. The two never mix on one
+/// sample. `methodologyVersion` pins the vintage that produced the band,
+/// same provenance discipline BodyRegionScore.scoringRuleVersion follows.
+model PostureZoneScore {
+  id                 String        @id @default(cuid())
+  postureSampleId    String
+  zone               BodyZone
+  level              ZoneLoadLevel
+  share              ExposureShare
+  riskBand           RiskBand
+  riskScore          Int
+  methodologyVersion String
+  createdAt          DateTime      @default(now())
+
+  postureSample PostureSample @relation(fields: [postureSampleId], references: [id], onDelete: Restrict)
+
+  @@unique([postureSampleId, zone])
+  @@index([postureSampleId])
 }
 
 /// Versioned scoring thresholds (§3.8): the "rule content" that

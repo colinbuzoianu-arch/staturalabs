@@ -107,5 +107,34 @@ export const en = {
       `Held ${seconds}s — posture ${postureBand}`,
     holdTimeEscalated: (overallBand: string) =>
       `hold time exceeds safe duration — ${overallBand}`,
+    // H2 (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §4): zone-mode
+    // samples render a zone table here instead of the per-region one. These
+    // labels live in the shared common dictionary (not capturePage) because
+    // this switcher is shared across the dashboard and the /admin tool, same
+    // as bodyRegionLabels/riskBandLabels.
+    zoneTableZone: "Zone",
+    zoneTableLevel: "Level",
+    zoneTableShare: "Share",
+    zoneTableBand: "Band",
+    zoneNotAssessed: "Not assessed",
+    zoneMethodNote:
+      "Rated by observed body zone (ISO 11226 / EN 1005-4 oriented), not angle measurement.",
+    zoneLabels: {
+      HEAD_NECK: "Head / neck",
+      TRUNK: "Trunk",
+      SHOULDERS_ARMS: "Shoulders / arms",
+      HANDS_WRISTS: "Hands / wrists",
+      LEGS_KNEES: "Legs / knees",
+    },
+    zoneLevelLabels: {
+      LOW: "Low",
+      MEDIUM: "Medium",
+      HIGH: "High",
+    },
+    zoneShareLabels: {
+      RARE: "Rarely",
+      OCCASIONAL: "Occasionally",
+      PREDOMINANT: "Predominantly",
+    },
   },
 };

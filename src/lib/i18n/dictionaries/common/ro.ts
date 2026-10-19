@@ -75,5 +75,29 @@ export const ro: typeof en = {
       `Menținut ${seconds}s — postură ${postureBand}`,
     holdTimeEscalated: (overallBand: string) =>
       `depășește durata sigură de menținere — ${overallBand}`,
+    zoneTableZone: "Zonă",
+    zoneTableLevel: "Nivel",
+    zoneTableShare: "Proporție",
+    zoneTableBand: "Nivel",
+    zoneNotAssessed: "Neevaluată",
+    zoneMethodNote:
+      "Evaluat pe zona corporală observată (orientat după ISO 11226 / EN 1005-4), fără măsurare de unghiuri.",
+    zoneLabels: {
+      HEAD_NECK: "Cap / gât",
+      TRUNK: "Trunchi",
+      SHOULDERS_ARMS: "Umeri / brațe",
+      HANDS_WRISTS: "Mâini / încheieturi",
+      LEGS_KNEES: "Picioare / genunchi",
+    },
+    zoneLevelLabels: {
+      LOW: "Scăzut",
+      MEDIUM: "Mediu",
+      HIGH: "Ridicat",
+    },
+    zoneShareLabels: {
+      RARE: "Rar",
+      OCCASIONAL: "Ocazional",
+      PREDOMINANT: "Predominant",
+    },
   },
 };

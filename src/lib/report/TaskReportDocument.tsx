@@ -1,5 +1,5 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
-import { BodyRegion } from "@/generated/prisma/enums";
+import { BodyRegion, BodyZone } from "@/generated/prisma/enums";
 import { describeRegionResult } from "@/lib/capture/describe-region-result";
 import { describeManualInput } from "@/lib/capture/manual-input";
 import type { RegionResult } from "@/lib/capture/types";
@@ -10,6 +10,7 @@ import type { TaskReportData } from "./get-task-report-data";
 import type { ReportLang } from "./report-lang";
 
 const ALL_BODY_REGIONS = Object.values(BodyRegion);
+const ALL_BODY_ZONES = Object.values(BodyZone);
 
 // Country-driven (B8c, SLD_NEXT_STEPS_B8b-B8f.md §6, mirroring
 // SgdDocument.tsx's country-driven-not-locale-driven philosophy), not
@@ -52,6 +53,7 @@ const REPORT_STRINGS: Record<
     repetitionSuffix: string;
     footerDisclaimer: (methodologyVersion: string) => string;
     postureCategoryMethodSentence: string;
+    zoneMethodSentence: string;
   }
 > = {
   en: {
@@ -89,6 +91,8 @@ const REPORT_STRINGS: Record<
     // "real" degree measurement.
     postureCategoryMethodSentence:
       "Assessed by classifying the observed posture (ISO 11226 / EN 1005-4 oriented), not by angle measurement.",
+    zoneMethodSentence:
+      "Posture rated by observed body zone (ISO 11226 / EN 1005-4 oriented), not by angle measurement.",
   },
   de: {
     documentTitle: (workstationName) =>
@@ -123,6 +127,8 @@ const REPORT_STRINGS: Record<
       `Dies ist ein automatisiert erstelltes ergonomisches Screening-Dokument nach Bewertungsmethodik ${methodologyVersion}. Es ersetzt nicht die Beurteilung durch eine zertifizierte Ergonomie-Fachkraft und stellt keine professionelle ergonomische Bewertung dar.`,
     postureCategoryMethodSentence:
       "Beurteilung durch Einstufung der beobachteten Körperhaltung (ISO 11226 / EN 1005-4 orientiert), nicht durch Winkelmessung.",
+    zoneMethodSentence:
+      "Einstufung der beobachteten Körperhaltung nach Körperzonen (ISO 11226 / EN 1005-4 orientiert), nicht durch Winkelmessung.",
   },
 };
 
@@ -447,49 +453,108 @@ export function TaskReportDocument({
               </Text>
             )}
 
-            {sample.regions && (
-              <View style={styles.table}>
-                <View style={styles.tableHeaderRow}>
-                  <Text style={[styles.colRegion, styles.tableHeaderText]}>
-                    {commonDict.postureSampleSwitcher.tableRegion}
-                  </Text>
-                  <Text style={[styles.colStatus, styles.tableHeaderText]}>
-                    {commonDict.postureSampleSwitcher.tableStatus}
-                  </Text>
-                  <Text style={[styles.colDetail, styles.tableHeaderText]}>
-                    {commonDict.postureSampleSwitcher.tableDetail}
-                  </Text>
+            {/* H2: a zone-mode sample renders a zone table + the zone
+                method sentence; every other sample renders the per-region
+                table (+ the category method note for category-mode). */}
+            {sample.zones ? (
+              <>
+                <View style={styles.table}>
+                  <View style={styles.tableHeaderRow}>
+                    <Text style={[styles.colRegion, styles.tableHeaderText]}>
+                      {commonDict.postureSampleSwitcher.zoneTableZone}
+                    </Text>
+                    <Text style={[styles.colStatus, styles.tableHeaderText]}>
+                      {commonDict.postureSampleSwitcher.zoneTableLevel}
+                    </Text>
+                    <Text style={[styles.colStatus, styles.tableHeaderText]}>
+                      {commonDict.postureSampleSwitcher.zoneTableShare}
+                    </Text>
+                    <Text style={[styles.colStatus, styles.tableHeaderText]}>
+                      {commonDict.postureSampleSwitcher.zoneTableBand}
+                    </Text>
+                  </View>
+                  {ALL_BODY_ZONES.map((zone) => {
+                    const result = sample.zones?.[zone];
+                    if (!result || result.status === "not-assessed") {
+                      return null;
+                    }
+                    return (
+                      <View key={zone} style={styles.tableRow}>
+                        <Text style={styles.colRegion}>
+                          {commonDict.postureSampleSwitcher.zoneLabels[zone]}
+                        </Text>
+                        <Text style={styles.colStatus}>
+                          {
+                            commonDict.postureSampleSwitcher.zoneLevelLabels[
+                              result.level
+                            ]
+                          }
+                        </Text>
+                        <Text style={styles.colStatus}>
+                          {
+                            commonDict.postureSampleSwitcher.zoneShareLabels[
+                              result.share
+                            ]
+                          }
+                        </Text>
+                        <Text style={styles.colStatus}>
+                          {result.status === "scored"
+                            ? `${commonDict.riskBandLabels[result.riskBand]} (${result.riskScore})`
+                            : "—"}
+                        </Text>
+                      </View>
+                    );
+                  })}
                 </View>
-                {ALL_BODY_REGIONS.map((region) => {
-                  const result: RegionResult | undefined =
-                    sample.regions?.[region];
-                  if (!result) return null;
-                  return (
-                    <View key={region} style={styles.tableRow}>
-                      <Text style={styles.colRegion}>
-                        {commonDict.bodyRegionLabels[region]}
+                <Text style={styles.sampleMethodNote}>
+                  {s.zoneMethodSentence}
+                </Text>
+              </>
+            ) : (
+              <>
+                {sample.regions && (
+                  <View style={styles.table}>
+                    <View style={styles.tableHeaderRow}>
+                      <Text style={[styles.colRegion, styles.tableHeaderText]}>
+                        {commonDict.postureSampleSwitcher.tableRegion}
                       </Text>
-                      <Text style={styles.colStatus}>
-                        {commonDict.regionResultStatusLabels[result.status]}
+                      <Text style={[styles.colStatus, styles.tableHeaderText]}>
+                        {commonDict.postureSampleSwitcher.tableStatus}
                       </Text>
-                      <Text style={styles.colDetail}>
-                        {sample.categoryDetail?.[region] ??
-                          describeRegionResult(result, lang)}
+                      <Text style={[styles.colDetail, styles.tableHeaderText]}>
+                        {commonDict.postureSampleSwitcher.tableDetail}
                       </Text>
                     </View>
-                  );
-                })}
-              </View>
-            )}
+                    {ALL_BODY_REGIONS.map((region) => {
+                      const result: RegionResult | undefined =
+                        sample.regions?.[region];
+                      if (!result) return null;
+                      return (
+                        <View key={region} style={styles.tableRow}>
+                          <Text style={styles.colRegion}>
+                            {commonDict.bodyRegionLabels[region]}
+                          </Text>
+                          <Text style={styles.colStatus}>
+                            {commonDict.regionResultStatusLabels[result.status]}
+                          </Text>
+                          <Text style={styles.colDetail}>
+                            {sample.categoryDetail?.[region] ??
+                              describeRegionResult(result, lang)}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
 
-            {/* B11 (SLD_IMPLEMENTATION_PLAN_posture-input.md §3.4): stated
-                once per category-mode sample, not as a hedge — the
-                per-region classifications above are the primary evidence,
-                and this names the method plainly. */}
-            {sample.categoryDetail && (
-              <Text style={styles.sampleMethodNote}>
-                {s.postureCategoryMethodSentence}
-              </Text>
+                {/* B11 (SLD_IMPLEMENTATION_PLAN_posture-input.md §3.4):
+                    stated once per category-mode sample, not as a hedge. */}
+                {sample.categoryDetail && (
+                  <Text style={styles.sampleMethodNote}>
+                    {s.postureCategoryMethodSentence}
+                  </Text>
+                )}
+              </>
             )}
           </View>
         ))}

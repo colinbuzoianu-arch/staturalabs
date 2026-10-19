@@ -2,19 +2,31 @@ import "server-only";
 
 import {
   BodyRegion,
+  type BodyZone,
   type CameraAngle,
+  type ExposureShare,
   type RiskBand,
+  type ZoneLoadLevel,
 } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 import { matchScoringRule } from "@/lib/scoring/match";
-import { isManuallyScorableRegion } from "./build-region-results";
+import {
+  ALL_BODY_ZONES,
+  lookupPostureZoneRules,
+  matchPostureZoneRule,
+} from "@/lib/scoring/posture-zones";
+import {
+  allRegionsUnentered,
+  isManuallyScorableRegion,
+} from "./build-region-results";
 import { computeHoldTimeResult } from "./hold-time-result";
 import {
   MANUAL_ENTRY_BODY_REGIONS,
   type ManualEntryBodyRegion,
   validateManualAngles,
+  type ZoneManualAngles,
 } from "./manual-angles";
-import type { PostureSampleResponse, RegionResult } from "./types";
+import type { PostureSampleResponse, RegionResult, ZoneResult } from "./types";
 
 // PostureSample.cameraAngle is a NOT NULL column with no "not applicable"
 // value (SLD_IMPLEMENTATION_PLAN_austria-first.md §5 scopes B2's schema
@@ -91,6 +103,17 @@ async function createManualPostureSample(params: {
   if (typeof validated === "string") {
     throw new Error(validated);
   }
+
+  // H2: a zone-mode sample takes a different write path — PostureZoneScore
+  // rows, no BodyRegionScore rows, every region reported "not-assessed".
+  if (validated.entryMode === "zone") {
+    return createZonePostureSample({
+      taskId: params.taskId,
+      zones: validated,
+      methodologyVersion: params.methodologyVersion,
+    });
+  }
+
   // B11 (SLD_IMPLEMENTATION_PLAN_posture-input.md §3.3): only the regions
   // actually entered — partial entry is valid now, so this is no longer
   // every MANUAL_ENTRY_BODY_REGIONS value unconditionally. `validated`
@@ -207,5 +230,97 @@ async function createManualPostureSample(params: {
     methodologyVersion: params.methodologyVersion,
     regions: regionResults,
     holdTime,
+    zones: null,
+  };
+}
+
+// H2 zone write path (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md
+// §4.2): resolve each rated zone against the active PostureZoneRule set and
+// persist one PostureZoneScore row per zone that matched. No BodyRegionScore
+// rows (there are no per-joint degrees), and hold time does not apply in
+// zone mode (it's replaced by `share`), so holdTime is always null here.
+async function createZonePostureSample(params: {
+  taskId: string;
+  zones: ZoneManualAngles;
+  methodologyVersion: string;
+}): Promise<PostureSampleResponse> {
+  const rules = await lookupPostureZoneRules(params.methodologyVersion);
+
+  const zoneResults = {} as Record<BodyZone, ZoneResult>;
+  const scoredRows: Array<{
+    zone: BodyZone;
+    level: ZoneLoadLevel;
+    share: ExposureShare;
+    riskBand: RiskBand;
+    riskScore: number;
+  }> = [];
+
+  for (const zone of ALL_BODY_ZONES) {
+    const rating = params.zones.zones[zone];
+    if (!rating) {
+      zoneResults[zone] = { status: "not-assessed" };
+      continue;
+    }
+    const match = matchPostureZoneRule(rules, zone, rating.level, rating.share);
+    if (match) {
+      zoneResults[zone] = {
+        status: "scored",
+        level: rating.level,
+        share: rating.share,
+        riskBand: match.riskBand,
+        riskScore: match.riskScore,
+        methodologyVersion: match.methodologyVersion,
+      };
+      scoredRows.push({
+        zone,
+        level: rating.level,
+        share: rating.share,
+        riskBand: match.riskBand,
+        riskScore: match.riskScore,
+      });
+    } else {
+      zoneResults[zone] = {
+        status: "no-matching-rule",
+        level: rating.level,
+        share: rating.share,
+      };
+    }
+  }
+
+  const sample = await prisma.$transaction(async (tx) => {
+    const created = await tx.postureSample.create({
+      data: {
+        taskId: params.taskId,
+        capturedAt: new Date(),
+        cameraAngle: MANUAL_ENTRY_CAMERA_ANGLE_PLACEHOLDER,
+        source: "MANUAL_ENTRY",
+        manualAngles: params.zones,
+        validationStatus: "PENDING_REVIEW",
+      },
+    });
+
+    if (scoredRows.length > 0) {
+      await tx.postureZoneScore.createMany({
+        data: scoredRows.map((row) => ({
+          postureSampleId: created.id,
+          zone: row.zone,
+          level: row.level,
+          share: row.share,
+          riskBand: row.riskBand,
+          riskScore: row.riskScore,
+          methodologyVersion: params.methodologyVersion,
+        })),
+      });
+    }
+
+    return created;
+  });
+
+  return {
+    postureSampleId: sample.id,
+    methodologyVersion: params.methodologyVersion,
+    regions: allRegionsUnentered(),
+    holdTime: null,
+    zones: zoneResults,
   };
 }

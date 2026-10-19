@@ -3,13 +3,18 @@
 import { useState } from "react";
 import {
   BodyRegion,
+  BodyZone,
   type CameraAngle,
   type PostureSampleSource,
   type RiskBand,
   type ValidationStatus,
 } from "@/generated/prisma/enums";
 import { describeRegionResult } from "@/lib/capture/describe-region-result";
-import type { HoldTimeResult, RegionResult } from "@/lib/capture/types";
+import type {
+  HoldTimeResult,
+  RegionResult,
+  ZoneResult,
+} from "@/lib/capture/types";
 import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
 import { useLocale } from "@/lib/i18n/locale-context";
 import { NOT_ASSESSED_COLOR, riskBandColors } from "@/lib/risk/band-severity";
@@ -50,6 +55,8 @@ export type PostureSampleSwitcherItem = {
   holdTime: HoldTimeResult;
   /** B11 (SLD_IMPLEMENTATION_PLAN_posture-input.md §3.4): pre-formatted category classification per region ("Bent (20–60°) — Moderate"), computed server-side via buildCategoryDetail — null for degrees-mode/camera samples or when nothing scored. When a region has an entry here, ManualRegionTable shows it instead of describeRegionResult's degree-based text, so a category pick never masquerades as a measurement (ERGO_COMPLIANCE_BY_DESIGN.md §3.16). */
   categoryDetail: Partial<Record<BodyRegion, string>> | null;
+  /** H2 (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §4): a zone-mode sample's per-zone results. Non-null only for a zone sample; when present, the detail view shows a zone table instead of the per-region one (every region is "not-assessed" for a zone sample — the real information lives here). */
+  zoneResults: Record<BodyZone, ZoneResult> | null;
 };
 
 // Every label in this file (badges, table headers, hold-time phrasing)
@@ -249,6 +256,67 @@ function ManualRegionTable({
   );
 }
 
+// H2: zone-mode sample table — zone / level / share / band. Replaces the
+// per-region table for a zone sample (whose regions are all "not-assessed").
+function ZoneTable({
+  zoneResults,
+  commonDict,
+}: {
+  zoneResults: Record<BodyZone, ZoneResult>;
+  commonDict: CommonDict;
+}) {
+  const dict = commonDict.postureSampleSwitcher;
+  return (
+    <>
+      <p className="mb-2 font-technical text-xs text-border">
+        {dict.zoneMethodNote}
+      </p>
+      <table className="w-full text-left text-sm">
+        <thead>
+          <tr className="border-b border-border">
+            <th className="py-1 pr-4 font-technical text-xs text-border">
+              {dict.zoneTableZone}
+            </th>
+            <th className="py-1 pr-4 font-technical text-xs text-border">
+              {dict.zoneTableLevel}
+            </th>
+            <th className="py-1 pr-4 font-technical text-xs text-border">
+              {dict.zoneTableShare}
+            </th>
+            <th className="py-1 font-technical text-xs text-border">
+              {dict.zoneTableBand}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {Object.values(BodyZone).map((zone) => {
+            const result = zoneResults[zone];
+            if (!result || result.status === "not-assessed") return null;
+            return (
+              <tr key={zone} className="border-b border-border last:border-0">
+                <td className="py-1 pr-4 font-technical text-xs">
+                  {dict.zoneLabels[zone]}
+                </td>
+                <td className="py-1 pr-4 font-technical text-xs">
+                  {dict.zoneLevelLabels[result.level]}
+                </td>
+                <td className="py-1 pr-4 font-technical text-xs">
+                  {dict.zoneShareLabels[result.share]}
+                </td>
+                <td className="py-1 font-technical text-xs">
+                  {result.status === "scored"
+                    ? `${commonDict.riskBandLabels[result.riskBand]} (${result.riskScore})`
+                    : "—"}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </>
+  );
+}
+
 // Switcher for one task/workstation's PostureSample history — a compact
 // selector strip (one chip per sample) above exactly ONE region table, so
 // clicking a different chip is unambiguously "show me that measurement's
@@ -356,13 +424,20 @@ export function PostureSampleSwitcher({
             holdTime={selectedItem.holdTime}
             commonDict={commonDict}
           />
-          {selectedItem.regionResults && (
-            <ManualRegionTable
-              regionResults={selectedItem.regionResults}
-              categoryDetail={selectedItem.categoryDetail}
-              locale={locale}
+          {selectedItem.zoneResults ? (
+            <ZoneTable
+              zoneResults={selectedItem.zoneResults}
               commonDict={commonDict}
             />
+          ) : (
+            selectedItem.regionResults && (
+              <ManualRegionTable
+                regionResults={selectedItem.regionResults}
+                categoryDetail={selectedItem.categoryDetail}
+                locale={locale}
+                commonDict={commonDict}
+              />
+            )
           )}
         </div>
       )}

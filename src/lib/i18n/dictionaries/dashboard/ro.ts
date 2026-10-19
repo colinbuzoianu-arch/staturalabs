@@ -263,6 +263,62 @@ export const ro: typeof en = {
       `Menținut ${seconds}s la postura ${postureBand}.`,
     holdTimeEscalated: (overallBand: string) =>
       `Depășește durata sigură de menținere pentru această postură — general ${overallBand}.`,
+    zoneModeLabel: "Zone corporale (implicit)",
+    detailModeLabel: "Evaluare detaliată (articulații)",
+    zonePanelHeading: "Evaluează postura pe zone corporale",
+    zonePanelDescription:
+      'Pentru fiecare zonă, alegeți nivelul de solicitare care corespunde cel mai bine celor observate și proporția sarcinii pentru care se aplică. Lăsați o zonă ca „Neevaluată" dacă nu ați observat-o.',
+    zoneShareFieldLabel: "Proporția sarcinii",
+    zoneTableZone: "Zonă",
+    zoneTableLevel: "Nivel",
+    zoneTableShare: "Proporție",
+    zoneTableBand: "Nivel",
+    zoneMethodNote:
+      "Postură evaluată pe zone corporale observate (orientată după ISO 11226 / EN 1005-4), fără măsurare de unghiuri.",
+    zoneLabels: {
+      HEAD_NECK: "Cap / gât",
+      TRUNK: "Trunchi",
+      SHOULDERS_ARMS: "Umeri / brațe",
+      HANDS_WRISTS: "Mâini / încheieturi",
+      LEGS_KNEES: "Picioare / genunchi",
+    },
+    zoneLevelLabels: {
+      LOW: "Scăzut",
+      MEDIUM: "Mediu",
+      HIGH: "Ridicat",
+    },
+    zoneShareLabels: {
+      RARE: "Rar (<10%)",
+      OCCASIONAL: "Ocazional (10–50%)",
+      PREDOMINANT: "Predominant (>50%)",
+    },
+    zoneLevelDescriptions: {
+      HEAD_NECK: {
+        LOW: "Cap drept, privirea înainte",
+        MEDIUM: "Cap clar înclinat sau rotit",
+        HIGH: "Cap puternic aplecat înainte, extins sau răsucit",
+      },
+      TRUNK: {
+        LOW: "Drept",
+        MEDIUM: "Clar aplecat sau răsucit",
+        HIGH: "Puternic aplecat (mâinile sub nivelul genunchilor) sau aplecat + răsucit",
+      },
+      SHOULDERS_ARMS: {
+        LOW: "Brațe aproape de corp, sub nivelul umerilor",
+        MEDIUM: "Brațe depărtate de corp, întinse",
+        HIGH: "Mâini la sau peste nivelul umerilor",
+      },
+      HANDS_WRISTS: {
+        LOW: "Încheietura dreaptă",
+        MEDIUM: "Clar îndoită",
+        HIGH: "Puternic îndoită, adesea cu forță sau prindere",
+      },
+      LEGS_KNEES: {
+        LOW: "Mers, stat pe ambele picioare",
+        MEDIUM: "Stat prelungit, într-un picior, ghemuit scurt",
+        HIGH: "Îngenuncheat, ghemuit, târât",
+      },
+    },
   },
   workstationRiskPage: {
     breadcrumbSites: "Locații",

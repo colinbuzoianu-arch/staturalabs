@@ -336,6 +336,68 @@ export const en = {
       `Held ${seconds}s at posture ${postureBand}.`,
     holdTimeEscalated: (overallBand: string) =>
       `Exceeds the safe hold duration for this posture — overall ${overallBand}.`,
+    // H2 (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §4): the zone
+    // rating is now the DEFAULT posture entry; the B11 joint-level picker
+    // (and the expert degree mode behind it) move under "Detailbeurteilung".
+    // Zone names / level descriptions are hand-authored presentation copy
+    // over SLD's own zone table — same class as postureCategoryLabels, kept
+    // here rather than in the shared common dictionary per the plan.
+    zoneModeLabel: "Body zones (default)",
+    detailModeLabel: "Joint detail assessment",
+    zonePanelHeading: "Rate posture by body zone",
+    zonePanelDescription:
+      'For each zone, pick the load level that best matches what you observe and how much of the task it applies for. Leave a zone as "Not assessed" if you did not observe it.',
+    zoneShareFieldLabel: "Share of task",
+    zoneTableZone: "Zone",
+    zoneTableLevel: "Level",
+    zoneTableShare: "Share",
+    zoneTableBand: "Band",
+    zoneMethodNote:
+      "Posture rated by observed body zone (ISO 11226 / EN 1005-4 oriented), not angle measurement.",
+    zoneLabels: {
+      HEAD_NECK: "Head / neck",
+      TRUNK: "Trunk",
+      SHOULDERS_ARMS: "Shoulders / arms",
+      HANDS_WRISTS: "Hands / wrists",
+      LEGS_KNEES: "Legs / knees",
+    },
+    zoneLevelLabels: {
+      LOW: "Low",
+      MEDIUM: "Medium",
+      HIGH: "High",
+    },
+    zoneShareLabels: {
+      RARE: "Rarely (<10%)",
+      OCCASIONAL: "Occasionally (10–50%)",
+      PREDOMINANT: "Predominantly (>50%)",
+    },
+    zoneLevelDescriptions: {
+      HEAD_NECK: {
+        LOW: "Head upright, looking straight ahead",
+        MEDIUM: "Head clearly tilted or turned",
+        HIGH: "Head strongly bent forward, over-extended, or twisted",
+      },
+      TRUNK: {
+        LOW: "Upright",
+        MEDIUM: "Clearly bent or twisted",
+        HIGH: "Strongly bent (hands below knee height), or bent and twisted",
+      },
+      SHOULDERS_ARMS: {
+        LOW: "Arms close to the body, below shoulder height",
+        MEDIUM: "Arms away from the body, outstretched",
+        HIGH: "Hands at or above shoulder height",
+      },
+      HANDS_WRISTS: {
+        LOW: "Wrist straight",
+        MEDIUM: "Clearly bent",
+        HIGH: "Strongly bent, often with force or gripping",
+      },
+      LEGS_KNEES: {
+        LOW: "Walking, standing on both legs",
+        MEDIUM: "Prolonged standing, on one leg, brief squatting",
+        HIGH: "Kneeling, squatting, crawling",
+      },
+    },
   },
   workstationRiskPage: {
     breadcrumbSites: "Sites",

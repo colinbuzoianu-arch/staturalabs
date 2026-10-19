@@ -1,7 +1,10 @@
 import type {
   BodyRegion,
+  BodyZone,
   CameraAngle,
+  ExposureShare,
   RiskBand,
+  ZoneLoadLevel,
 } from "@/generated/prisma/enums";
 import type { FailedLandmark, PoseLandmark } from "@/lib/pose/angles";
 
@@ -61,9 +64,33 @@ export type HoldTimeResult = {
   overallBand: RiskBand;
 } | null;
 
+// H2 (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §4.2): the
+// zone-rating sub-score, the parallel of RegionResult for a zone-mode
+// sample. A zone-mode sample reports every BodyRegion as "not-assessed"
+// (there are no per-joint angles — zones never become fake degrees, §3.16)
+// and carries its real information here instead. "no-matching-rule" exists
+// for symmetry with RegionResult but can't occur with the seeded 45 rules
+// (every zone x level x share is covered); the read path only ever produces
+// "scored" (a persisted PostureZoneScore row) or "not-assessed" (no row).
+export type ZoneResult =
+  | {
+      status: "scored";
+      level: ZoneLoadLevel;
+      share: ExposureShare;
+      riskBand: RiskBand;
+      riskScore: number;
+      methodologyVersion: string;
+    }
+  | { status: "no-matching-rule"; level: ZoneLoadLevel; share: ExposureShare }
+  | { status: "not-assessed" };
+
 export type PostureSampleResponse = {
   postureSampleId: string;
   methodologyVersion: string;
   regions: Record<BodyRegion, RegionResult>;
   holdTime: HoldTimeResult;
+  // Additive, never a breaking change to `regions` (CLAUDE.md dashboard-
+  // stability note). null for camera and category/degree samples; populated
+  // only for a zone-mode MANUAL_ENTRY sample.
+  zones: Record<BodyZone, ZoneResult> | null;
 };

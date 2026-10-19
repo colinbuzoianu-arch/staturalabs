@@ -59,7 +59,28 @@ describe("validateManualAngles", () => {
 
   it("rejects an invalid entryMode value", () => {
     expect(validateManualAngles({ TRUNK: 10, entryMode: "precise" })).toBe(
-      'entryMode must be "category" or "degrees"',
+      'entryMode must be "category", "degrees", or "zone"',
+    );
+  });
+
+  it("validates a zone-mode entry and rejects a bad level/share", () => {
+    expect(
+      validateManualAngles({
+        entryMode: "zone",
+        zones: { TRUNK: { level: "HIGH", share: "OCCASIONAL" } },
+      }),
+    ).toEqual({
+      entryMode: "zone",
+      zones: { TRUNK: { level: "HIGH", share: "OCCASIONAL" } },
+    });
+    expect(
+      validateManualAngles({
+        entryMode: "zone",
+        zones: { TRUNK: { level: "EXTREME", share: "OCCASIONAL" } },
+      }),
+    ).toMatch(/level must be one of/);
+    expect(validateManualAngles({ entryMode: "zone", zones: {} })).toBe(
+      "at least one zone must be rated",
     );
   });
 

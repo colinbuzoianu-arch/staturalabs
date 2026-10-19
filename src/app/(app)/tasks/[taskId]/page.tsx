@@ -124,15 +124,21 @@ export default async function TaskHistoryPage({
               : null,
           };
           try {
-            const { regions } = await buildRegionResultsForSample(
+            const { regions, zones } = await buildRegionResultsForSample(
               sample,
               methodologyVersion,
             );
-            const worstBand = worstRiskBand(
-              Object.values(regions).flatMap((r) =>
-                r.status === "scored" ? [r.riskBand] : [],
-              ),
+            const scoredBands = Object.values(regions).flatMap((r) =>
+              r.status === "scored" ? [r.riskBand] : [],
             );
+            if (zones) {
+              scoredBands.push(
+                ...Object.values(zones).flatMap((z) =>
+                  z.status === "scored" ? [z.riskBand] : [],
+                ),
+              );
+            }
+            const worstBand = worstRiskBand(scoredBands);
             const holdTime = await computeHoldTimeResult({
               regions,
               holdDurationSeconds: sample.holdDurationSeconds,
@@ -150,6 +156,7 @@ export default async function TaskHistoryPage({
               worstBand,
               holdTime,
               categoryDetail,
+              zoneResults: zones,
             };
           } catch (err) {
             return {
@@ -162,6 +169,7 @@ export default async function TaskHistoryPage({
               worstBand: null,
               holdTime: null,
               categoryDetail: null,
+              zoneResults: null,
             };
           }
         }),
@@ -183,6 +191,7 @@ export default async function TaskHistoryPage({
         worstBand: null,
         holdTime: null,
         categoryDetail: null,
+        zoneResults: null,
       }));
 
   return (

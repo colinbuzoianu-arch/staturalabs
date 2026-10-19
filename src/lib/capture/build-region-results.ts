@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   BodyRegion,
+  BodyZone,
   type CameraAngle,
   type PostureSampleSource,
   type RiskBand,
@@ -20,7 +21,7 @@ import {
   type ManualAngles,
   type ManualEntryBodyRegion,
 } from "./manual-angles";
-import type { RegionResult } from "./types";
+import type { RegionResult, ZoneResult } from "./types";
 
 // Exported so createPostureSample's manual-entry write path (which needs
 // the exact same "which BodyRegion values the CAMERA source computes"
@@ -43,9 +44,28 @@ export function isManuallyScorableRegion(
   return (MANUAL_ENTRY_BODY_REGIONS as readonly BodyRegion[]).includes(region);
 }
 
+// Every BodyRegion as "not-assessed" (or "not-yet-supported" for the ones
+// no manual path ever scores) — the region picture for a zone-mode sample
+// (H2), which holds all its real information in `zones`, never as per-joint
+// degrees (§3.16). Exported so createPostureSample's zone write path and
+// this read path agree on exactly one definition.
+export function allRegionsUnentered(): Record<BodyRegion, RegionResult> {
+  const regions = {} as Record<BodyRegion, RegionResult>;
+  for (const region of Object.values(BodyRegion)) {
+    regions[region] = isManuallyScorableRegion(region)
+      ? { status: "not-assessed" }
+      : { status: "not-yet-supported" };
+  }
+  return regions;
+}
+
 export type BuildRegionResultsOutput = {
   regions: Record<BodyRegion, RegionResult>;
   validationStatus: ValidationStatus;
+  // H2: populated only for a zone-mode sample; null for every other source
+  // and entry mode. Additive — existing consumers that read only `regions`
+  // are unaffected.
+  zones: Record<BodyZone, ZoneResult> | null;
 };
 
 type BuildRegionResultsParams =
@@ -158,7 +178,11 @@ export async function buildRegionResults(
         { status: "no-matching-rule", degrees: reading.degrees };
   }
 
-  return { regions: regionResults, validationStatus: params.validationStatus };
+  return {
+    regions: regionResults,
+    validationStatus: params.validationStatus,
+    zones: null,
+  };
 }
 
 async function buildManualRegionResults(params: {
@@ -166,6 +190,34 @@ async function buildManualRegionResults(params: {
   manualAngles: ManualAngles;
   methodologyVersion: string;
 }): Promise<BuildRegionResultsOutput> {
+  // H2: a zone-mode sample reads its PostureZoneScore rows; every region is
+  // "not-assessed" (no per-joint data), the real picture lives in `zones`.
+  if (params.manualAngles.entryMode === "zone") {
+    const zoneScores = await prisma.postureZoneScore.findMany({
+      where: { postureSampleId: params.postureSampleId },
+    });
+    const scoreByZone = new Map(zoneScores.map((s) => [s.zone, s]));
+    const zones = {} as Record<BodyZone, ZoneResult>;
+    for (const zone of Object.values(BodyZone)) {
+      const row = scoreByZone.get(zone);
+      zones[zone] = row
+        ? {
+            status: "scored",
+            level: row.level,
+            share: row.share,
+            riskBand: row.riskBand,
+            riskScore: row.riskScore,
+            methodologyVersion: row.methodologyVersion,
+          }
+        : { status: "not-assessed" };
+    }
+    return {
+      regions: allRegionsUnentered(),
+      validationStatus: "PENDING_REVIEW",
+      zones,
+    };
+  }
+
   const scores = await prisma.bodyRegionScore.findMany({
     where: { postureSampleId: params.postureSampleId },
   });
@@ -209,7 +261,11 @@ async function buildManualRegionResults(params: {
   // A MANUAL_ENTRY sample has no keypoints to review/adjust, so it stays
   // PENDING_REVIEW permanently — see PostureSample's schema comment and
   // the source guard in validatePostureSample/reopenPostureSampleForEdit.
-  return { regions: regionResults, validationStatus: "PENDING_REVIEW" };
+  return {
+    regions: regionResults,
+    validationStatus: "PENDING_REVIEW",
+    zones: null,
+  };
 }
 
 // Convenience wrapper over buildRegionResults for the read views (the

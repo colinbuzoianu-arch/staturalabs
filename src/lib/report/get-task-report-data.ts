@@ -2,6 +2,7 @@ import "server-only";
 
 import type {
   BodyRegion,
+  BodyZone,
   CameraAngle,
   ManualInputType,
   PostureSampleSource,
@@ -12,7 +13,11 @@ import { buildRegionResultsForSample } from "@/lib/capture/build-region-results"
 import { buildCategoryDetail } from "@/lib/capture/category-detail";
 import { computeHoldTimeResult } from "@/lib/capture/hold-time-result";
 import { MANUAL_INPUT_TYPES } from "@/lib/capture/manual-input";
-import type { HoldTimeResult, RegionResult } from "@/lib/capture/types";
+import type {
+  HoldTimeResult,
+  RegionResult,
+  ZoneResult,
+} from "@/lib/capture/types";
 import { prisma } from "@/lib/prisma";
 import {
   computeManualHandlingResult,
@@ -42,6 +47,8 @@ export type TaskReportSample = {
   holdTime: HoldTimeResult;
   /** B11 (SLD_IMPLEMENTATION_PLAN_posture-input.md §3.4): non-null only for a category-mode MANUAL_ENTRY sample with at least one scored region — see buildCategoryDetail. Drives both the classification text in the per-region table and whether the report prints the "assessed by classification, not measurement" method sentence for this sample. */
   categoryDetail: Partial<Record<BodyRegion, string>> | null;
+  /** H2 (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §4): non-null only for a zone-mode sample — the report renders a zone table and the zone method sentence instead of the per-region table. */
+  zones: Record<BodyZone, ZoneResult> | null;
 };
 
 export type ManualInputGroup = {
@@ -97,7 +104,7 @@ export async function getTaskReportData(
     ? await Promise.all(
         rawSamples.map(async (sample) => {
           try {
-            const { regions } = await buildRegionResultsForSample(
+            const { regions, zones } = await buildRegionResultsForSample(
               sample,
               methodologyVersion,
             );
@@ -120,6 +127,7 @@ export async function getTaskReportData(
               error: null,
               holdTime,
               categoryDetail,
+              zones,
             };
           } catch (err) {
             return {
@@ -134,6 +142,7 @@ export async function getTaskReportData(
                   : "Could not compute body angles",
               holdTime: null,
               categoryDetail: null,
+              zones: null,
             };
           }
         }),
@@ -147,6 +156,7 @@ export async function getTaskReportData(
         error: null,
         holdTime: null,
         categoryDetail: null,
+        zones: null,
       }));
 
   // Grouped in MANUAL_INPUT_TYPES order (not creation order) so the report

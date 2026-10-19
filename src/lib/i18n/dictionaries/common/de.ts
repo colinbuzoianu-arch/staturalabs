@@ -75,5 +75,29 @@ export const de: typeof en = {
       `${seconds}s gehalten — Haltung ${postureBand}`,
     holdTimeEscalated: (overallBand: string) =>
       `überschreitet die sichere Haltedauer — ${overallBand}`,
+    zoneTableZone: "Zone",
+    zoneTableLevel: "Stufe",
+    zoneTableShare: "Anteil",
+    zoneTableBand: "Stufe",
+    zoneNotAssessed: "Nicht beurteilt",
+    zoneMethodNote:
+      "Einstufung nach beobachteter Körperzone (ISO 11226 / EN 1005-4 orientiert), keine Winkelmessung.",
+    zoneLabels: {
+      HEAD_NECK: "Kopf / Nacken",
+      TRUNK: "Rumpf",
+      SHOULDERS_ARMS: "Schultern / Arme",
+      HANDS_WRISTS: "Hände / Handgelenke",
+      LEGS_KNEES: "Beine / Knie",
+    },
+    zoneLevelLabels: {
+      LOW: "Gering",
+      MEDIUM: "Mittel",
+      HIGH: "Hoch",
+    },
+    zoneShareLabels: {
+      RARE: "Selten",
+      OCCASIONAL: "Gelegentlich",
+      PREDOMINANT: "Überwiegend",
+    },
   },
 };
