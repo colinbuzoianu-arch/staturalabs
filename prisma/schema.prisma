@@ -61,6 +61,7 @@ model Site {
   actions                  Action[]
   floorPlans               FloorPlan[]
   environmentalAssessments EnvironmentalAssessment[]
+  wasteStreams             WasteStream[]
 
   @@index([companyId])
 }
@@ -167,6 +168,7 @@ model Workstation {
   riskAssessments          RiskAssessment[]
   planPositions            WorkstationPlanPosition[]
   environmentalAssessments EnvironmentalAssessment[]
+  wasteStreamOrigins       WasteStream[]
 
   @@index([siteId])
   @@index([orgUnitId])
@@ -818,10 +820,11 @@ model Process {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  site            Site             @relation(fields: [siteId], references: [id], onDelete: Restrict)
-  orgUnit         OrgUnit?         @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
-  tasks           ProcessTask[]
-  riskAssessments RiskAssessment[]
+  site               Site             @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  orgUnit            OrgUnit?         @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
+  tasks              ProcessTask[]
+  riskAssessments    RiskAssessment[]
+  wasteStreamOrigins WasteStream[]
 
   @@index([siteId])
 }
@@ -1524,6 +1527,8 @@ model EnvironmentalFinding {
   environmentalAssessment EnvironmentalAssessment @relation(fields: [environmentalAssessmentId], references: [id], onDelete: Restrict)
   aspect                  EnvironmentalAspect     @relation(fields: [environmentalAspectId], references: [id], onDelete: Restrict)
   actions                 Action[]
+  quantities              EnvironmentalQuantity[]
+  wasteStreams            WasteStream[]
 
   @@index([environmentalAssessmentId])
 }
@@ -1548,4 +1553,63 @@ model EnvironmentalCategoryCheck {
 
   @@unique([environmentalAssessmentId, category])
   @@index([environmentalAssessmentId])
+}
+
+/// A measured or estimated quantity supporting an environmental finding (E2,
+/// SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §5.3) — the
+/// environmental counterpart of ExposureMeasurement, over a period. `source`
+/// ("Zählerstand"/"Rechnung"/"Schätzung") and `isEstimate` are the
+/// provenance discipline (§3.16 analogue): an estimate must always be
+/// labelled as such in the UI and in the AWK, never shown as a measured
+/// value. No CO₂ conversion here (§5.3: that needs a versioned, sourced
+/// emission-factor catalogue — E4/E5, not this).
+model EnvironmentalQuantity {
+  id                     String   @id @default(cuid())
+  environmentalFindingId String
+  value                  Float
+  unit                   String
+  periodStart            DateTime
+  periodEnd              DateTime
+  source                 String
+  isEstimate             Boolean  @default(false)
+  notes                  String?
+  createdAt              DateTime @default(now())
+
+  environmentalFinding EnvironmentalFinding @relation(fields: [environmentalFindingId], references: [id], onDelete: Restrict)
+
+  @@index([environmentalFindingId])
+}
+
+/// A waste stream at a site (E2, §5.3) — the raw material for the Austrian
+/// Abfallwirtschaftskonzept (E4). `wasteCode` is free text (AT:
+/// Schlüsselnummer per Abfallverzeichnisverordnung / ÖNORM S 2100) — entered
+/// by the assessor, never a seeded legal value (§3.17 — no unverified legal
+/// content baked in). `collectorCompany` (Entsorger) is a company name, never
+/// a person (§3.17). Optionally linked to its originating workstation/process
+/// and to the WASTE_* environmental finding it supports; all nullable, since
+/// a waste register can be kept at site level before any finding exists.
+model WasteStream {
+  id                     String   @id @default(cuid())
+  siteId                 String
+  wasteCode              String
+  name                   String
+  hazardous              Boolean  @default(false)
+  originWorkstationId    String?
+  originProcessId        String?
+  environmentalFindingId String?
+  annualQuantity         Float?
+  unit                   String?
+  collectorCompany       String?
+  treatment              String?
+  notes                  String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  site                 Site                  @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  originWorkstation    Workstation?          @relation(fields: [originWorkstationId], references: [id], onDelete: Restrict)
+  originProcess        Process?              @relation(fields: [originProcessId], references: [id], onDelete: Restrict)
+  environmentalFinding EnvironmentalFinding? @relation(fields: [environmentalFindingId], references: [id], onDelete: Restrict)
+
+  @@index([siteId])
+  @@index([environmentalFindingId])
 }
