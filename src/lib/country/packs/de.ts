@@ -23,6 +23,7 @@ export const de: CountryPack = {
     dataProtectionFramework: "DSGVO (GDPR)",
   },
   sgdTemplateVariant: null,
+  environmental: null,
   // Not shown until `verified` is true — see CountryContextSection.
   positioningLine: { en: "", de: "", ro: "" },
 };

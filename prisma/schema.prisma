@@ -47,6 +47,12 @@ model Site {
   // existing row was backfilled explicitly in the migration that added this
   // column, same discipline as AssessmentSession.mode.
   country   CountryCode
+  // E4 (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §6): a site with
+  // a valid EMAS environmental statement is exempt from the separate AWK —
+  // the statement counts in lieu (§10 Abs. 1 AWG 2002). Default false (a
+  // site is not EMAS-registered unless explicitly marked — a safe, correct
+  // default, unlike the semantically-required country/mode fields).
+  emasRegistered Boolean  @default(false)
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
@@ -1488,6 +1494,9 @@ model EnvironmentalAssessment {
   approvedAt       DateTime?
   pilotContext     String?
   notes            String?
+  // E4 (§6): AWG 2002 §10 Abs. 3 Z5 — "estimate of future development." Free
+  // text the assessor maintains; rendered as the AWK's item-5 section.
+  futureDevelopment String?
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
 

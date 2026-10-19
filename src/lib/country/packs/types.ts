@@ -27,6 +27,23 @@ export interface CountryPackLegalReferences {
   dataProtectionFramework: string;
 }
 
+// E4 (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §6): the
+// waste-management-concept (AWK) config for a market. Null until a market's
+// environmental legal frame is RIS-verified and a generator template built —
+// today AT only. The legal references here are rendered verbatim in the
+// generated AWK, so they must be RIS-checked (no fabricated numbers, §3.17).
+export interface CountryPackEnvironmental {
+  /**
+   * The waste-management-concept template variant the generated document
+   * uses (src/lib/report/AwkDocument.tsx). null gates the AWK routes/links
+   * off for this market the same way sgdTemplateVariant does for the SGD.
+   */
+  awkTemplateVariant: string | null;
+  /** RIS-verified reference to the statute requiring the concept. */
+  wasteConceptReference: string;
+  wasteConceptReferenceUrl: string;
+}
+
 export interface CountryPack {
   code: MarketingCountry;
   /** The Site.country enum value this pack corresponds to. */
@@ -57,6 +74,11 @@ export interface CountryPack {
    * null until B5 actually builds the generator — no market has one yet.
    */
   sgdTemplateVariant: string | null;
+  /**
+   * The environment/waste-management-concept (AWK) config for this market,
+   * or null where it isn't built/verified yet (E4, §6). AT only today.
+   */
+  environmental: CountryPackEnvironmental | null;
   /**
    * One honest, terminology-forward sentence per UI locale, shown on this
    * country's homepage when verified. Only rendered when `verified` is

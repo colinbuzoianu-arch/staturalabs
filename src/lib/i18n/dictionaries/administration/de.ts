@@ -412,6 +412,13 @@ export const de: typeof en = {
     colFindings: "Befunde",
     viewLink: "Ansehen →",
     assessedAtRequired: "Datum/Uhrzeit der Beurteilung ist erforderlich",
+    futureDevelopmentLabel: "Einschätzung der künftigen Entwicklung (optional)",
+    futureDevelopmentHeading: "Künftige Entwicklung",
+    awkLink: "Abfallwirtschaftskonzept (AWK, PDF) erstellen →",
+    emasExemptNote:
+      "Dieser Standort ist EMAS-registriert — eine gültige Umwelterklärung gilt anstelle eines eigenen Abfallwirtschaftskonzepts (§10 Abs. 1 AWG).",
+    emasMarkButton: "Als EMAS-registriert markieren",
+    emasUnmarkButton: "EMAS-Registrierung entfernen",
     detailEyebrow: "Umweltbewertung //",
     breadcrumb: "Umweltbewertungen",
     statusLabel: "Status:",

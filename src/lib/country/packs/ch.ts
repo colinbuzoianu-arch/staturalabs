@@ -25,5 +25,6 @@ export const ch: CountryPack = {
     dataProtectionFramework: "revDSG — not yet verified",
   },
   sgdTemplateVariant: null,
+  environmental: null,
   positioningLine: { en: "", de: "", ro: "" },
 };

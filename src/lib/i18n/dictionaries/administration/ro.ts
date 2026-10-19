@@ -410,6 +410,13 @@ export const ro: typeof en = {
     colFindings: "Constatări",
     viewLink: "Vezi →",
     assessedAtRequired: "Data/ora evaluării este obligatorie",
+    futureDevelopmentLabel: "Estimarea dezvoltării viitoare (opțional)",
+    futureDevelopmentHeading: "Dezvoltare viitoare",
+    awkLink: "Generează conceptul de gestionare a deșeurilor (AWK, PDF) →",
+    emasExemptNote:
+      "Această locație este înregistrată EMAS — o declarație de mediu validă contează în locul unui concept separat de gestionare a deșeurilor (§10 Abs. 1 AWG).",
+    emasMarkButton: "Marchează ca înregistrat EMAS",
+    emasUnmarkButton: "Elimină înregistrarea EMAS",
     detailEyebrow: "Evaluare de mediu //",
     breadcrumb: "Evaluări de mediu",
     statusLabel: "Stare:",

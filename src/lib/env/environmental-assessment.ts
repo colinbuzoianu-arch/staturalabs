@@ -20,6 +20,9 @@ export type CreateEnvironmentalAssessmentInput = {
   assessedAt: Date;
   pilotContext?: string | null;
   notes?: string | null;
+  // AWG 2002 §10 Abs. 3 Z5 ("estimate of future development"), rendered as
+  // the AWK's item-5 section (E4).
+  futureDevelopment?: string | null;
 };
 
 export async function createEnvironmentalAssessment(
@@ -41,6 +44,7 @@ export async function createEnvironmentalAssessment(
         assessedAt: input.assessedAt,
         pilotContext: input.pilotContext ?? null,
         notes: input.notes ?? null,
+        futureDevelopment: input.futureDevelopment ?? null,
       },
     });
 

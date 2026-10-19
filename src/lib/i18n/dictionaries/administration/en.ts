@@ -448,6 +448,15 @@ export const en = {
     colFindings: "Findings",
     viewLink: "View →",
     assessedAtRequired: "Assessed-at date/time is required",
+    futureDevelopmentLabel: "Estimate of future development (optional)",
+    futureDevelopmentHeading: "Future development",
+    // E4 (§6): the AWK generator + EMAS exemption, on the site environment
+    // page. The link is shown only for AT sites (resolveAwkCountryPack).
+    awkLink: "Generate waste management concept (AWK, PDF) →",
+    emasExemptNote:
+      "This site is EMAS-registered — a valid environmental statement counts in lieu of a separate Abfallwirtschaftskonzept (§10 Abs. 1 AWG).",
+    emasMarkButton: "Mark as EMAS-registered",
+    emasUnmarkButton: "Remove EMAS registration",
     // detail page
     detailEyebrow: "Environmental assessment //",
     breadcrumb: "Environmental assessments",

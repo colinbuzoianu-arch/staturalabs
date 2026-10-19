@@ -409,6 +409,14 @@ export default async function EnvironmentalAssessmentDetailPage({
             <dd>{initial.matrixVersion}</dd>
           </div>
         </dl>
+        {initial.futureDevelopment && (
+          <p className="pt-1 text-sm text-border">
+            <span className="font-semibold">
+              {dict.futureDevelopmentHeading}:
+            </span>{" "}
+            {initial.futureDevelopment}
+          </p>
+        )}
       </div>
 
       <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-5">

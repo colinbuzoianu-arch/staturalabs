@@ -5,6 +5,7 @@ import { createEnvironmentalAssessment } from "@/lib/env/environmental-assessmen
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { prisma } from "@/lib/prisma";
+import { resolveAwkCountryPack } from "@/lib/report/awk-availability";
 
 // E3 (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §5.4): the
 // site-level "Standort-Umweltbewertung" surface — list existing
@@ -18,11 +19,25 @@ export default async function EnvironmentAssessmentsPage({
   params: Promise<{ siteId: string }>;
 }) {
   const { siteId } = await params;
-  await requireSiteAdministrationAccess(siteId);
+  const { site } = await requireSiteAdministrationAccess(siteId);
   const locale = await getLocale();
   const administrationDict = getAdministrationDictionary(locale);
   const dict = administrationDict.environment;
   const statusLabels = administrationDict.riskAssessmentStatusLabels;
+  // E4 (§6): the AWK generator is AT-only, fail-closed for DE/CH/RO — same
+  // gate as the SGD. The link only renders when a verified environmental
+  // country pack exists for this site's country.
+  const awkPack = resolveAwkCountryPack(site.country);
+
+  async function toggleEmasAction() {
+    "use server";
+    const { site: current } = await requireSiteAdministrationAccess(siteId);
+    await prisma.site.update({
+      where: { id: siteId },
+      data: { emasRegistered: !current.emasRegistered },
+    });
+    revalidatePath(`/administration/sites/${siteId}/environment`);
+  }
 
   async function createAction(formData: FormData) {
     "use server";
@@ -55,6 +70,12 @@ export default async function EnvironmentAssessmentsPage({
       typeof notesRaw === "string" && notesRaw.trim().length > 0
         ? notesRaw.trim()
         : null;
+    const futureDevelopmentRaw = formData.get("futureDevelopment");
+    const futureDevelopment =
+      typeof futureDevelopmentRaw === "string" &&
+      futureDevelopmentRaw.trim().length > 0
+        ? futureDevelopmentRaw.trim()
+        : null;
 
     try {
       await createEnvironmentalAssessment({
@@ -64,6 +85,7 @@ export default async function EnvironmentAssessmentsPage({
         assessedAt,
         pilotContext,
         notes,
+        futureDevelopment,
       });
     } catch (error) {
       throw new Error(
@@ -145,11 +167,43 @@ export default async function EnvironmentAssessmentsPage({
               className="rounded border border-border bg-background px-2 py-1"
             />
           </label>
+          <label className="flex flex-col gap-1 text-sm">
+            {dict.futureDevelopmentLabel}
+            <input
+              name="futureDevelopment"
+              className="rounded border border-border bg-background px-2 py-1"
+            />
+          </label>
           <button
             type="submit"
             className="self-start rounded bg-accent px-3 py-1.5 text-sm font-semibold text-background"
           >
             {dict.createButton}
+          </button>
+        </form>
+      </section>
+
+      {/* E4 (§6): the Abfallwirtschaftskonzept generator + EMAS exemption.
+          Link shown only for AT sites; the EMAS note explains the §10 Abs. 1
+          exemption. */}
+      <section className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4">
+        {site.emasRegistered && (
+          <p className="text-sm text-border">{dict.emasExemptNote}</p>
+        )}
+        {awkPack && (
+          <a
+            href={`/api/sites/${siteId}/awk`}
+            className="self-start text-sm text-accent hover:underline"
+          >
+            {dict.awkLink}
+          </a>
+        )}
+        <form action={toggleEmasAction}>
+          <button
+            type="submit"
+            className="self-start rounded border border-border px-3 py-1.5 text-sm hover:border-accent"
+          >
+            {site.emasRegistered ? dict.emasUnmarkButton : dict.emasMarkButton}
           </button>
         </form>
       </section>
