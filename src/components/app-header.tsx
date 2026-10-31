@@ -49,7 +49,7 @@ export function AppHeader({
 
   return (
     <header className="flex items-center justify-between gap-4 px-6 py-4">
-      <Link href="/sites" className="flex items-center gap-3">
+      <Link href="/app/sites" className="flex items-center gap-3">
         <Image
           src={badgeSrc}
           alt="Statura Labs Dynamics"
@@ -73,10 +73,10 @@ export function AppHeader({
                 this makes switching between the two explicit in both
                 directions, not just administration -> workplace via the
                 logo. */}
-            <Link href="/sites" className="text-sm hover:text-accent">
+            <Link href="/app/sites" className="text-sm hover:text-accent">
               {dict.nav.workplaceOverview}
             </Link>
-            <Link href="/administration" className="text-sm hover:text-accent">
+            <Link href="/app/administration" className="text-sm hover:text-accent">
               {dict.nav.administration}
             </Link>
           </>
