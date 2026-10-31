@@ -76,7 +76,10 @@ export function AppHeader({
             <Link href="/app/sites" className="text-sm hover:text-accent">
               {dict.nav.workplaceOverview}
             </Link>
-            <Link href="/app/administration" className="text-sm hover:text-accent">
+            <Link
+              href="/app/administration"
+              className="text-sm hover:text-accent"
+            >
               {dict.nav.administration}
             </Link>
           </>

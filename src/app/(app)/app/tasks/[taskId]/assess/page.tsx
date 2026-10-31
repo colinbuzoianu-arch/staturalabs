@@ -54,7 +54,10 @@ export default function CapturePage({
           home for a task, reachable by every role that can reach this
           capture page in the first place (canAccessSite covers
           super_admin too). */}
-      <Link href={`/app/tasks/${taskId}`} className="self-start text-sm underline">
+      <Link
+        href={`/app/tasks/${taskId}`}
+        className="self-start text-sm underline"
+      >
         {dict.backToTask}
       </Link>
       <h1 className="text-xl font-semibold">{dict.heading}</h1>

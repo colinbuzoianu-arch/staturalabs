@@ -22,17 +22,26 @@ export default async function SiteAdministrationLayout({
   const dict = getAdministrationDictionary(locale).siteAdminNav;
 
   const sections = [
-    { href: `/app/administration/sites/${siteId}/org-units`, label: dict.orgUnits },
+    {
+      href: `/app/administration/sites/${siteId}/org-units`,
+      label: dict.orgUnits,
+    },
     {
       href: `/app/administration/sites/${siteId}/processes`,
       label: dict.processes,
     },
-    { href: `/app/administration/sites/${siteId}/hazards`, label: dict.hazards },
+    {
+      href: `/app/administration/sites/${siteId}/hazards`,
+      label: dict.hazards,
+    },
     {
       href: `/app/administration/sites/${siteId}/risk-assessments`,
       label: dict.riskAssessments,
     },
-    { href: `/app/administration/sites/${siteId}/actions`, label: dict.actions },
+    {
+      href: `/app/administration/sites/${siteId}/actions`,
+      label: dict.actions,
+    },
     {
       href: `/app/administration/sites/${siteId}/environment`,
       label: dict.environment,

@@ -32,7 +32,9 @@ async function requireFloorPlanSite(floorPlanId: string) {
 }
 
 function revalidateFloorPlanPage(siteId: string, floorPlanId: string) {
-  revalidatePath(`/app/administration/sites/${siteId}/floor-plans/${floorPlanId}`);
+  revalidatePath(
+    `/app/administration/sites/${siteId}/floor-plans/${floorPlanId}`,
+  );
 }
 
 export async function placeWorkstation(

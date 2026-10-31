@@ -1,0 +1,61 @@
+// German labels for the sidebar labelKeys, used ONLY by the P2 design
+// proposal (/app/_design). The real shell resolves these through the locale
+// dictionary and the site's CountryPack (e.g. AT "Evaluierung" overriding
+// "Gefährdungsbeurteilung"); this flat map stands in for that so the proposal
+// renders real words for review. Keyed exactly by the registry's labelKeys.
+export const DEMO_LABELS_DE: Record<string, string> = {
+  "modules.cockpit.label": "Cockpit",
+  "modules.my-tasks.label": "Meine Aufgaben",
+  "modules.risk.label": "Gefährdungsbeurteilung",
+  "modules.risk.children.workstations": "Arbeitsplätze",
+  "modules.risk.children.processes": "Prozesse",
+  "modules.risk.children.assessments": "Beurteilungen",
+  "modules.risk.children.ergonomics": "Ergonomie",
+  "modules.risk.children.floor-plan": "Lageplan",
+  "modules.inspections.label": "Begehungen & Audits",
+  "modules.inspections.children.planned": "Geplant",
+  "modules.inspections.children.performed": "Durchgeführt",
+  "modules.inspections.children.templates": "Vorlagen",
+  "modules.incidents.label": "Ereignisse",
+  "modules.incidents.children.reports": "Meldungen",
+  "modules.incidents.children.investigations": "Untersuchungen",
+  "modules.incidents.children.notifications": "Behördenmeldungen",
+  "modules.environment.label": "Umwelt",
+  "modules.environment.children.aspects": "Umweltaspekte",
+  "modules.environment.children.quantities": "Mengen & Abfall",
+  "modules.environment.children.documents": "Konzepte",
+  "modules.actions.label": "Maßnahmen",
+  "modules.actions.children.list": "Liste",
+  "modules.actions.children.calendar": "Kalender",
+  "modules.actions.children.effectiveness": "Wirksamkeit",
+  "modules.chemicals.label": "Gefahrstoffe",
+  "modules.chemicals.children.register": "Verzeichnis",
+  "modules.chemicals.children.safety-data-sheets": "Sicherheitsdatenblätter",
+  "modules.chemicals.children.operating-instructions": "Betriebsanweisungen",
+  "modules.training.label": "Unterweisungen",
+  "modules.training.children.matrix": "Matrix",
+  "modules.training.children.sessions": "Termine",
+  "modules.training.children.records": "Nachweise",
+  "modules.training.children.requirements": "Anforderungen",
+  "modules.people.label": "Personen",
+  "modules.legal.label": "Rechtskataster",
+  "modules.documents.label": "Dokumente",
+  "modules.documents.children.library": "Bibliothek",
+  "modules.documents.children.generated": "Erzeugte Dokumente",
+  "modules.reports.label": "Auswertungen",
+  "modules.reports.children.kpis": "Kennzahlen",
+  "modules.reports.children.reports": "Berichte",
+  "modules.reports.children.export": "Export",
+  "modules.settings.label": "Stammdaten & Einstellungen",
+  "modules.settings.children.organisation": "Organisation",
+  "modules.settings.children.users-roles": "Benutzer & Rollen",
+  "modules.settings.children.catalogues": "Kataloge",
+  "modules.settings.children.templates": "Vorlagen",
+  "modules.settings.children.notifications": "Benachrichtigungen",
+  "modules.settings.children.modules": "Module",
+  "modules.settings.children.integrations": "Integrationen",
+};
+
+export function demoLabel(labelKey: string): string {
+  return DEMO_LABELS_DE[labelKey] ?? labelKey;
+}

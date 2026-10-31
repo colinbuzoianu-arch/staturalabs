@@ -165,7 +165,8 @@ export default async function WorkstationRiskPage({
   // own), the "verify" revisit goes to the SGD instead of looping back.
   const currentHref = `/app/workstations/${workstationId}/risk?present=1${isVerifyStep ? "&step=verify" : ""}`;
   const presentPrevHref =
-    from ?? (isVerifyStep ? null : `/app/sites/${workstation.siteId}?present=1`);
+    from ??
+    (isVerifyStep ? null : `/app/sites/${workstation.siteId}?present=1`);
   const presentNextHref = isVerifyStep
     ? resolveSgdCountryPack(workstation.site.country)
       ? `/api/workstations/${workstation.id}/sgd`

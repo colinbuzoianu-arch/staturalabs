@@ -120,7 +120,9 @@ export default async function RiskAssessmentDetailPage({
       data: { status: RiskAssessmentStatus.IN_REVIEW },
     });
     revalidatePath(`/app/administration/risk-assessments/${riskAssessmentId}`);
-    revalidatePath(`/app/administration/sites/${currentSite.id}/risk-assessments`);
+    revalidatePath(
+      `/app/administration/sites/${currentSite.id}/risk-assessments`,
+    );
   }
 
   async function approveAction() {
@@ -145,7 +147,9 @@ export default async function RiskAssessmentDetailPage({
       },
     });
     revalidatePath(`/app/administration/risk-assessments/${riskAssessmentId}`);
-    revalidatePath(`/app/administration/sites/${currentSite.id}/risk-assessments`);
+    revalidatePath(
+      `/app/administration/sites/${currentSite.id}/risk-assessments`,
+    );
   }
 
   async function addFindingAction(formData: FormData) {

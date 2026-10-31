@@ -29,6 +29,39 @@
   --surface: var(--color-surface-on-dark);
   --border: var(--color-sage-dark);
   --accent: var(--color-coral);
+
+  /* --- P2 design-system extension (SLD_RESTRUCTURE_PLAN_platform-modules.md
+     §5.2). Surface/text/border LEVELS layer on the base semantic tokens so a
+     data-dense work app has lift and hierarchy without leaving the brand.
+     Defaults here are the dark theme; the light block overrides them. --- */
+  --surface-raised: #1c524d; /* cards/menus lifted above --surface */
+  --surface-sunken: #11403c; /* table headers, wells, inset areas */
+  --foreground-muted: #c3d0cc; /* secondary text, labels */
+  --foreground-subtle: #8fa49f; /* hints, disabled, metadata */
+  --border-strong: #6f9188; /* emphasised dividers, focused inputs */
+  --focus-ring: var(--color-coral);
+
+  /* Spacing/type/radii/elevation scale tokens. Spacing & type mostly ride
+     Tailwind's defaults; these name the few app-wide constants components
+     reference directly. */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+  --elevation-1: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --elevation-2: 0 6px 20px rgba(0, 0, 0, 0.35);
+
+  /* Status palette (risk bands, check states, severity, overdue). These are
+     SOLID-FILL chip colours with white text, so their contrast is chip-bg vs
+     text and is therefore theme-independent — the same token passes WCAG AA
+     whether the page behind it is ivory or teal. Hand-picked dark enough for
+     AA against white (~4.5:1+); founder to confirm final hues on review. */
+  --status-low: #1f6b43; /* RiskBand LOW / success / CHECKED_NO_HAZARD */
+  --status-moderate: #8a5a00; /* RiskBand MODERATE / warning */
+  --status-elevated: #b4531d; /* RiskBand ELEVATED */
+  --status-high: #a12020; /* RiskBand HIGH / danger / overdue */
+  --status-info: #1d4e6b; /* informational / in-progress */
+  --status-neutral: #4a5f5a; /* OPEN / not-yet-assessed / n.a. (dark theme) */
+  --status-fg: #ffffff; /* text on any solid status fill */
 }
 
 :root[data-theme="light"] {
@@ -36,6 +69,15 @@
   --foreground: var(--color-teal);
   --surface: var(--color-surface-on-light);
   --border: var(--color-sage-light);
+
+  /* Light-theme level overrides — surfaces lift toward white, text/borders
+     darken toward teal. Status tokens are theme-independent (see :root). */
+  --surface-raised: #ffffff;
+  --surface-sunken: #e7e3d6;
+  --foreground-muted: #3c5a54;
+  --foreground-subtle: #6b807a;
+  --border-strong: #46655d;
+  --status-neutral: #6b807a; /* readable neutral chip on an ivory page */
 }
 
 :root[data-theme="dark"] {
@@ -43,6 +85,13 @@
   --foreground: var(--color-ivory);
   --surface: var(--color-surface-on-dark);
   --border: var(--color-sage-dark);
+
+  --surface-raised: #1c524d;
+  --surface-sunken: #11403c;
+  --foreground-muted: #c3d0cc;
+  --foreground-subtle: #8fa49f;
+  --border-strong: #6f9188;
+  --status-neutral: #4a5f5a;
 }
 
 @theme inline {
@@ -51,6 +100,27 @@
   --color-surface: var(--surface);
   --color-border: var(--border);
   --color-accent: var(--accent);
+
+  /* Expose the P2 level + status tokens as Tailwind colour utilities
+     (bg-surface-raised, text-foreground-muted, border-border-strong,
+     bg-status-high, text-status-fg, …). */
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-foreground-subtle: var(--foreground-subtle);
+  --color-border-strong: var(--border-strong);
+  --color-focus-ring: var(--focus-ring);
+  --color-status-low: var(--status-low);
+  --color-status-moderate: var(--status-moderate);
+  --color-status-elevated: var(--status-elevated);
+  --color-status-high: var(--status-high);
+  --color-status-info: var(--status-info);
+  --color-status-neutral: var(--status-neutral);
+  --color-status-fg: var(--status-fg);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
 
   --color-teal: var(--color-teal);
   --color-ivory: var(--color-ivory);
