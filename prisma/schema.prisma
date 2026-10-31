@@ -29,6 +29,7 @@ model Company {
   platformUsers        PlatformUser[]
   hazards              Hazard[]
   environmentalAspects EnvironmentalAspect[]
+  companyModules       CompanyModule[]
 }
 
 /// A physical location/department within a company (conversationally
@@ -1621,4 +1622,91 @@ model WasteStream {
 
   @@index([siteId])
   @@index([environmentalFindingId])
+}
+
+// ---------------------------------------------------------------------------
+// Platform foundation (SLD_RESTRUCTURE_PLAN_platform-modules.md P1, §2.4).
+// The module registry (src/lib/modules/registry.ts) is the single code source
+// for the sidebar, route guards and entitlement; CompanyModule is the data
+// side of entitlement. AuditEvent is the one global audit log every regulated
+// module writes through (ERGO_COMPLIANCE_BY_DESIGN.md §3.18, plan §2.2 rule 9).
+// Neither table touches the assessment chain or holds person data; actor is a
+// PlatformUser account id only (§3.1/§3.13), never a shop-floor worker.
+// ---------------------------------------------------------------------------
+
+/// Stable module keys — the code, route and entitlement identity for each
+/// platform module (SLD_RESTRUCTURE_PLAN_platform-modules.md §2.1). Labels
+/// are i18n/country-pack, never stored here. Adding a module is an enum
+/// value here plus a registry entry; cockpit/my-tasks/actions/documents/
+/// reports/settings are the baseline modules that never require an
+/// entitlement (see ModuleDefinition.requiresEntitlement).
+enum ModuleKey {
+  COCKPIT
+  MY_TASKS
+  RISK
+  INSPECTIONS
+  INCIDENTS
+  ENVIRONMENT
+  ACTIONS
+  CHEMICALS
+  TRAINING
+  PEOPLE
+  LEGAL
+  DOCUMENTS
+  REPORTS
+  SETTINGS
+}
+
+/// Per-company module entitlement (SLD_RESTRUCTURE_PLAN_platform-modules.md
+/// §2.4): a row means "this company has this module turned on." Written only
+/// by super_admin (enforced at the app layer — isModuleEnabled/enableModule
+/// in src/lib/modules/entitlement.ts; RLS enabled with no policy, same
+/// owner-bypass posture as every other table until the non-owner runtime
+/// role lands). A module whose `requiresEntitlement` is false in the registry
+/// never needs a row here. `enabledByUserId` references PlatformUser only, a
+/// plain @db.Uuid column not a DB-level FK — same pattern as
+/// RiskAssessment.assessorUserId (§3.13).
+model CompanyModule {
+  id             String    @id @default(cuid())
+  companyId      String
+  moduleKey      ModuleKey
+  enabledAt      DateTime  @default(now())
+  enabledByUserId String?  @db.Uuid
+
+  // Restrict: entitlement rows can't be wiped out from under a company by an
+  // accidental cascade — offboarding is a deliberate, logged action (§3.9).
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, moduleKey])
+  @@index([companyId])
+}
+
+/// Global append-only audit log (ERGO_COMPLIANCE_BY_DESIGN.md §3.18(d), plan
+/// §2.2 rule 9). One helper (recordAuditEvent, src/lib/audit/audit-event.ts)
+/// writes a row from every mutation in the regulated modules (incidents,
+/// people, training proof, approvals) and from every health-compartment read.
+/// Append-only by design: there is no update/delete helper, and the audit log
+/// deliberately OUTLIVES the entity it describes — `siteId`/`companyId`/
+/// `entityId` are plain columns, NOT foreign keys, so the record of a
+/// deletion survives the deletion. `actorUserId` references a PlatformUser
+/// account only (§3.1/§3.13), nullable for system/anonymous actions; it is
+/// never a shop-floor worker. `diff` holds a before/after of regulated fields
+/// only, never raw health free-text (that stays in the encrypted health
+/// sub-compartment). `ipHash` is a hash, never a raw IP.
+model AuditEvent {
+  id          String   @id @default(cuid())
+  actorUserId String?  @db.Uuid
+  action      String
+  entityType  String
+  entityId    String?
+  companyId   String?
+  siteId      String?
+  diff        Json?
+  ipHash      String?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([companyId])
+  @@index([siteId])
+  @@index([actorUserId])
 }
