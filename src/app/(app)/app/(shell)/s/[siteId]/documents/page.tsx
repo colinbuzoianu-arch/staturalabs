@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
 
-// Dokumente module landing → the generated-documents archive (the only
-// documents surface built so far; the uploads/library half is a later pass).
+// Dokumente module landing → the uploads library (its primary surface; the
+// generated-document archive is the second tab).
 export default async function DocumentsIndexPage({
   params,
 }: {
   params: Promise<{ siteId: string }>;
 }) {
   const { siteId } = await params;
-  redirect(`/app/s/${siteId}/documents/generated`);
+  redirect(`/app/s/${siteId}/documents/library`);
 }

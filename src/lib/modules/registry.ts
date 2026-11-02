@@ -311,9 +311,8 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     permission: "documents.read",
     basePath: siteModulePath("documents"),
     icon: "folder",
-    // Only the generated-document archive is built so far; the uploads/library
-    // half is a later pass (§7.2).
     children: [
+      { labelKey: "modules.documents.children.library", slug: "library" },
       { labelKey: "modules.documents.children.generated", slug: "generated" },
     ],
   },

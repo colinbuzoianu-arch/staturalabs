@@ -70,6 +70,7 @@ model Site {
   environmentalAssessments EnvironmentalAssessment[]
   wasteStreams             WasteStream[]
   generatedDocuments       GeneratedDocument[]
+  documents                Document[]
 
   @@index([companyId])
 }
@@ -1815,4 +1816,67 @@ model GeneratedDocument {
   @@unique([siteId, type, sha256])
   @@index([siteId, type])
   @@index([companyId])
+}
+
+/// Document layer, part 2 (SLD_RESTRUCTURE_PLAN_platform-modules.md §2.2 rule
+/// 3, §7.2): the uploads library. A Document is site-scoped (§2.2 rule 1 — it
+/// hangs off a Site) and categorised; its content lives in versioned
+/// DocumentVersion rows (new upload = new version, old versions kept). Bytes
+/// go to the private "documents" Supabase bucket after passing the upload
+/// safety gate (src/lib/storage/malware-scan.ts: allowlist + EICAR + optional
+/// engine). `createdByUserId`/`uploadedByUserId` reference PlatformUser
+/// accounts only (§3.13), nullable so a row survives the user's removal.
+///
+/// Deferred to their own passes (not stringly-typed when they land): per-record
+/// DocumentLink (one nullable FK per linkable type + exactly-one CHECK, §2.2
+/// rule 3) and read-confirmation campaigns (need the Person register, P7).
+enum DocumentCategory {
+  PROCEDURE
+  PERMIT
+  CERTIFICATE
+  SDS
+  INSPECTION_EVIDENCE
+  TRAINING_MATERIAL
+  EXTERNAL_REPORT
+  AUTHORITY_CORRESPONDENCE
+  OTHER
+}
+
+model Document {
+  id              String           @id @default(cuid())
+  companyId       String
+  siteId          String
+  category        DocumentCategory
+  title           String
+  reviewDueDate   DateTime?
+  createdByUserId String?          @db.Uuid
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  // Restrict: a document library can't be wiped out by deleting its site —
+  // offboarding is deliberate (§3.9).
+  site     Site              @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  versions DocumentVersion[]
+
+  @@index([siteId, category])
+  @@index([companyId])
+}
+
+model DocumentVersion {
+  id               String   @id @default(cuid())
+  documentId       String
+  version          Int
+  fileName         String
+  mimeType         String
+  fileSize         Int
+  sha256           String
+  storagePath      String
+  uploadedByUserId String?  @db.Uuid
+  uploadedAt       DateTime @default(now())
+  notes            String?
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Restrict)
+
+  @@unique([documentId, version])
+  @@index([documentId])
 }

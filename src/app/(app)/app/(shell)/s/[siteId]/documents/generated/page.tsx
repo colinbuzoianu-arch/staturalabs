@@ -50,6 +50,18 @@ export default async function GeneratedDocumentsPage({
         </h1>
       </div>
 
+      <nav className="flex gap-2 border-b border-border pb-3 text-sm">
+        <a
+          href={`/app/s/${siteId}/documents/library`}
+          className="rounded-[var(--radius-md)] px-3 py-1 text-foreground-muted hover:bg-surface-raised"
+        >
+          {dict.libraryTab}
+        </a>
+        <span className="rounded-[var(--radius-md)] bg-surface-raised px-3 py-1 font-medium text-foreground">
+          {dict.generatedTab}
+        </span>
+      </nav>
+
       <Card>
         <CardHeader
           title={dict.generatedHeading}

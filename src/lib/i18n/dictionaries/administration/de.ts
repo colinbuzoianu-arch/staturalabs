@@ -344,6 +344,43 @@ export const de: typeof en = {
     download: "Herunterladen",
     unknownUser: "Unbekannt",
     systemUser: "System",
+    libraryTab: "Bibliothek",
+    generatedTab: "Erzeugt",
+    libraryHeading: "Dokumentenbibliothek",
+    libraryIntro:
+      "Verfahren, Genehmigungen, Sicherheitsdatenblätter, Zertifikate und weitere Dokumente hochladen. Jeder Upload wird vor dem Speichern geprüft.",
+    libraryEmpty:
+      "Für diesen Standort wurden noch keine Dokumente hochgeladen.",
+    uploadHeading: "Dokument hochladen",
+    titleLabel: "Titel",
+    categoryLabel: "Kategorie",
+    fileLabel: "Datei (PDF, Bild oder Office-Dokument)",
+    reviewDueLabel: "Überprüfung fällig (optional)",
+    uploadButton: "Hochladen",
+    titleRequired: "Ein Titel ist erforderlich",
+    fileRequired: "Bitte eine Datei auswählen",
+    noVersion: "Keine Datei",
+    scanReasons: {
+      "empty-file": "Die Datei ist leer.",
+      "too-large": "Die Datei überschreitet das Limit von 20 MB.",
+      "file-type-not-allowed":
+        "Dieser Dateityp ist nicht zulässig — bitte PDF, Bild oder Office-Dokument hochladen.",
+      "malware-detected": "Die Datei wurde von der Malware-Prüfung abgewiesen.",
+      "scan-unavailable":
+        "Die Malware-Prüfung ist derzeit nicht verfügbar — bitte später erneut versuchen.",
+      other: "Der Upload konnte nicht angenommen werden.",
+    },
+    categoryLabels: {
+      PROCEDURE: "Verfahren",
+      PERMIT: "Genehmigung",
+      CERTIFICATE: "Zertifikat",
+      SDS: "Sicherheitsdatenblatt",
+      INSPECTION_EVIDENCE: "Begehungsnachweis",
+      TRAINING_MATERIAL: "Schulungsunterlage",
+      EXTERNAL_REPORT: "Externer Bericht",
+      AUTHORITY_CORRESPONDENCE: "Behördenkorrespondenz",
+      OTHER: "Sonstiges",
+    },
     typeLabels: {
       TASK_REPORT: "Aufgabenbericht",
       RISK_ASSESSMENT_REPORT: "Beurteilungsbericht",
