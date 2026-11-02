@@ -85,7 +85,7 @@ export default async function RiskAssessmentsPage({
       );
     }
 
-    revalidatePath(`/app/administration/sites/${siteId}/risk-assessments`);
+    revalidatePath(`/app/s/${siteId}/risk/assessments`);
   }
 
   const [riskAssessments, workstations, processes] = await Promise.all([
@@ -227,7 +227,7 @@ export default async function RiskAssessmentsPage({
                 <td className="py-1 pr-4">{riskAssessment._count.findings}</td>
                 <td className="py-1">
                   <Link
-                    href={`/app/administration/risk-assessments/${riskAssessment.id}`}
+                    href={`/app/s/${siteId}/risk/assessments/${riskAssessment.id}`}
                     className="underline hover:text-accent"
                   >
                     {dict.viewLink}

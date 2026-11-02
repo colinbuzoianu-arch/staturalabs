@@ -145,10 +145,14 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     basePath: siteModulePath("risk"),
     icon: "clipboard-check",
     // Children are added as each risk page migrates into the shell. Migrated:
-    // workstations (hub + tasks + assess). To come: processes, assessments
-    // (list + detail), floor-plan, ergonomics.
+    // workstations (hub + tasks + assess), processes, assessments (list +
+    // detail), floor-plan. Still to come: ergonomics (needs its own overview
+    // page — no route yet).
     children: [
       { labelKey: "modules.risk.children.workstations", slug: "workstations" },
+      { labelKey: "modules.risk.children.processes", slug: "processes" },
+      { labelKey: "modules.risk.children.assessments", slug: "assessments" },
+      { labelKey: "modules.risk.children.floor-plan", slug: "floor-plan" },
     ],
   },
   {

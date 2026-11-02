@@ -73,7 +73,7 @@ export default async function ProcessesPage({
       );
     }
 
-    revalidatePath(`/app/administration/sites/${siteId}/processes`);
+    revalidatePath(`/app/s/${siteId}/risk/processes`);
   }
 
   async function addTaskToProcessAction(formData: FormData) {
@@ -109,7 +109,7 @@ export default async function ProcessesPage({
       );
     }
 
-    revalidatePath(`/app/administration/sites/${siteId}/processes`);
+    revalidatePath(`/app/s/${siteId}/risk/processes`);
   }
 
   const [processes, orgUnits, tasks] = await Promise.all([

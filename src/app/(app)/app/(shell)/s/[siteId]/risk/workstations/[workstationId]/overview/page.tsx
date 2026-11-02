@@ -171,7 +171,7 @@ export default async function WorkstationRiskPage({
       ? `/api/workstations/${workstation.id}/sgd`
       : null
     : latestApproved
-      ? `/app/administration/risk-assessments/${latestApproved.id}?present=1&workstationId=${workstation.id}${actions[0] ? `&actionId=${actions[0].id}` : ""}&from=${encodeURIComponent(currentHref)}`
+      ? `/app/s/${siteId}/risk/assessments/${latestApproved.id}?present=1&workstationId=${workstation.id}${actions[0] ? `&actionId=${actions[0].id}` : ""}&from=${encodeURIComponent(currentHref)}`
       : null;
 
   return (
@@ -243,7 +243,7 @@ export default async function WorkstationRiskPage({
           </h2>
           {latestApproved && (
             <Link
-              href={`/app/administration/risk-assessments/${latestApproved.id}`}
+              href={`/app/s/${siteId}/risk/assessments/${latestApproved.id}`}
               className="text-sm underline hover:text-accent"
             >
               {dict.viewLink}

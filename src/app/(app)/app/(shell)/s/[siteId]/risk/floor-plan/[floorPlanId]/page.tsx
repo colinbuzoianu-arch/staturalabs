@@ -40,7 +40,7 @@ export default async function FloorPlanPlacementPage({
       <div className="flex flex-col gap-1">
         <p className="text-sm text-border">
           <Link
-            href={`/app/administration/sites/${siteId}/floor-plans`}
+            href={`/app/s/${siteId}/risk/floor-plan`}
             className="hover:text-accent"
           >
             {dict.breadcrumbFloorPlans}

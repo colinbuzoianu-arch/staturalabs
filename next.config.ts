@@ -1,13 +1,15 @@
 import type { NextConfig } from "next";
 import { LEGACY_REDIRECTS } from "./src/lib/routes/legacy-redirects";
+import { MODULE_MIGRATION_REDIRECTS } from "./src/lib/routes/module-redirects";
 
 const nextConfig: NextConfig = {
-  // Permanent redirects from the pre-/app URL structure to the new /app tree
-  // (SLD_RESTRUCTURE_PLAN_platform-modules.md §2.3). The map is shared data in
-  // src/lib/routes/legacy-redirects.ts so it stays the single source and is
-  // unit-tested (legacy-redirects.test.ts).
+  // Permanent redirects: the pre-/app URL structure (legacy-redirects.ts) and
+  // intra-/app module re-homings from the P2 migration (module-redirects.ts).
+  // Both are shared data so they stay the single source and are unit-tested.
   async redirects() {
-    return LEGACY_REDIRECTS.map((r) => ({ ...r }));
+    return [...LEGACY_REDIRECTS, ...MODULE_MIGRATION_REDIRECTS].map((r) => ({
+      ...r,
+    }));
   },
 };
 

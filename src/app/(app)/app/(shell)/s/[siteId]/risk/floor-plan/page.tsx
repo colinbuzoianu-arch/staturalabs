@@ -72,7 +72,7 @@ export default async function FloorPlansPage({
       );
     }
 
-    revalidatePath(`/app/administration/sites/${siteId}/floor-plans`);
+    revalidatePath(`/app/s/${siteId}/risk/floor-plan`);
   }
 
   async function deleteFloorPlanAction(formData: FormData) {
@@ -107,7 +107,7 @@ export default async function FloorPlansPage({
       );
     }
 
-    revalidatePath(`/app/administration/sites/${siteId}/floor-plans`);
+    revalidatePath(`/app/s/${siteId}/risk/floor-plan`);
   }
 
   const floorPlans = await prisma.floorPlan.findMany({
@@ -201,7 +201,7 @@ export default async function FloorPlansPage({
                 </td>
                 <td className="py-1 pr-4">
                   <Link
-                    href={`/app/administration/sites/${siteId}/floor-plans/${floorPlan.id}`}
+                    href={`/app/s/${siteId}/risk/floor-plan/${floorPlan.id}`}
                     className="underline hover:text-accent"
                   >
                     {dict.manage}

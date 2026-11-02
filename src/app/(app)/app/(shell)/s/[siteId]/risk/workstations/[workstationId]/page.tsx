@@ -397,7 +397,7 @@ export default async function WorkstationHubPage({
           </Link>
           {draft && (
             <Link
-              href={`/app/administration/risk-assessments/${draft.id}`}
+              href={`/app/s/${siteId}/risk/assessments/${draft.id}`}
               className="text-accent hover:underline"
             >
               {dict.openDetailLink}
