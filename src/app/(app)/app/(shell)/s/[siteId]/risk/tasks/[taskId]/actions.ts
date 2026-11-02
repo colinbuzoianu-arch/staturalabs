@@ -80,7 +80,7 @@ export async function validatePostureSample(
     throw new Error("Posture sample not found");
   }
 
-  const { user } = await requireTaskAccess(sample.taskId);
+  const { user, task } = await requireTaskAccess(sample.taskId);
 
   // This whole flow is about reviewing/adjusting camera-derived keypoints
   // — a MANUAL_ENTRY sample has none (ERGO_COMPLIANCE_BY_DESIGN.md §3.16),
@@ -194,7 +194,9 @@ export async function validatePostureSample(
     });
   });
 
-  revalidatePath(`/app/tasks/${sample.taskId}`);
+  revalidatePath(
+    `/app/s/${task.workstation.siteId}/risk/tasks/${sample.taskId}`,
+  );
   revalidatePath(`/admin/tasks/${sample.taskId}`);
 
   return { regionResults, validatedAt };
@@ -238,7 +240,7 @@ export async function reopenPostureSampleForEdit(
     throw new Error("Posture sample not found");
   }
 
-  const { user } = await requireTaskAccess(sample.taskId);
+  const { user, task } = await requireTaskAccess(sample.taskId);
 
   // Same reasoning as validatePostureSample's guard above: a MANUAL_ENTRY
   // sample has no keypoints, so it can never actually reach VALIDATED (see
@@ -281,7 +283,9 @@ export async function reopenPostureSampleForEdit(
     });
   });
 
-  revalidatePath(`/app/tasks/${sample.taskId}`);
+  revalidatePath(
+    `/app/s/${task.workstation.siteId}/risk/tasks/${sample.taskId}`,
+  );
   revalidatePath(`/admin/tasks/${sample.taskId}`);
 
   return { regionResults };

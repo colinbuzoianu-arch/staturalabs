@@ -1,16 +1,18 @@
-import { permanentRedirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 
-// The posture/manual assessment page moved from /capture to /assess as part
-// of dropping the camera-era "capture" framing
-// (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §3.3). This permanent
-// redirect keeps old links and bookmarks working. No auth gate here on
-// purpose: it resolves no data, it only forwards to /assess, which runs the
-// real requireTaskAccess gate in its own layout.
-export default async function CaptureRedirectPage({
+// Capture was already retired to the assess flow; the old URL now lands on the
+// assess page in the shell.
+export default async function LegacyCaptureRedirect({
   params,
 }: {
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
-  permanentRedirect(`/app/tasks/${taskId}/assess`);
+  const t = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: { workstation: { select: { siteId: true } } },
+  });
+  if (!t) notFound();
+  redirect(`/app/s/${t.workstation.siteId}/risk/tasks/${taskId}/assess`);
 }

@@ -17,7 +17,7 @@ import { MODULE_REGISTRY, type ModuleKey } from "@/lib/modules/registry";
 // module's pages live under this shell, its sidebar entry renders disabled so
 // nothing links to a page that doesn't exist yet. When the last module moves,
 // drop this and the (legacy) group.
-const MIGRATED_MODULES: readonly ModuleKey[] = ["COCKPIT"];
+const MIGRATED_MODULES: readonly ModuleKey[] = ["COCKPIT", "RISK"];
 
 export default async function SiteShellLayout({
   children,

@@ -77,7 +77,7 @@ export default async function CockpitPage({
               {workstations.map((w) => (
                 <li key={w.id}>
                   <Link
-                    href={`/app/workstations/${w.id}`}
+                    href={`/app/s/${siteId}/risk/workstations/${w.id}`}
                     className="flex items-center justify-between gap-3 px-1 py-2.5 text-sm hover:text-accent"
                   >
                     <span className="font-medium text-foreground">
