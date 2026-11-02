@@ -401,7 +401,7 @@ export default async function WorkstationRiskPage({
                 >
                   <td className="py-1 pr-4">
                     <Link
-                      href={`/app/administration/actions/${action.id}`}
+                      href={`/app/s/${siteId}/actions/${action.id}`}
                       className="underline hover:text-accent"
                     >
                       {action.title}
@@ -446,7 +446,7 @@ export default async function WorkstationRiskPage({
                       <span aria-hidden="true">↓</span>
                       {verifyingAction ? (
                         <Link
-                          href={`/app/administration/actions/${verifyingAction.id}`}
+                          href={`/app/s/${siteId}/actions/${verifyingAction.id}`}
                           className="text-accent underline hover:no-underline"
                         >
                           {dict.verifiedByPrefix} {verifyingAction.title}

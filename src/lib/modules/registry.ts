@@ -223,14 +223,10 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     permission: "actions.read",
     basePath: siteModulePath("actions"),
     icon: "target",
-    children: [
-      { labelKey: "modules.actions.children.list", slug: "list" },
-      { labelKey: "modules.actions.children.calendar", slug: "calendar" },
-      {
-        labelKey: "modules.actions.children.effectiveness",
-        slug: "effectiveness",
-      },
-    ],
+    // The register (list) is the module landing; calendar and effectiveness
+    // views are later additions (§7.1), so no sidebar children until they
+    // get their own routes.
+    children: [],
     badge: "overdue-actions",
   },
   {

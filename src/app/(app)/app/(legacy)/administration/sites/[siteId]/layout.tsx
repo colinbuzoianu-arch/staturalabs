@@ -21,9 +21,9 @@ export default async function SiteAdministrationLayout({
   const locale = await getLocale();
   const dict = getAdministrationDictionary(locale).siteAdminNav;
 
-  // The risk and environment modules have migrated into the sidebar shell
-  // (P2); the tabs that remain here are the modules still awaiting migration
-  // (org-units and hazards → Stammdaten; actions → Maßnahmen).
+  // The risk, environment and actions modules have migrated into the sidebar
+  // shell (P2); only the Stammdaten pages (org-units, hazards) remain here,
+  // pending the settings-module migration.
   const sections = [
     {
       href: `/app/administration/sites/${siteId}/org-units`,
@@ -32,10 +32,6 @@ export default async function SiteAdministrationLayout({
     {
       href: `/app/administration/sites/${siteId}/hazards`,
       label: dict.hazards,
-    },
-    {
-      href: `/app/administration/sites/${siteId}/actions`,
-      label: dict.actions,
     },
   ];
 

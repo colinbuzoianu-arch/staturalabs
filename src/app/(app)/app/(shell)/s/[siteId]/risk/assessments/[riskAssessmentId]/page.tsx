@@ -442,7 +442,7 @@ export default async function RiskAssessmentDetailPage({
       : null);
   const presentNextHref =
     actionId && effectiveWorkstationId
-      ? `/app/administration/actions/${actionId}?present=1&workstationId=${effectiveWorkstationId}&from=${encodeURIComponent(currentHref)}`
+      ? `/app/s/${siteId}/actions/${actionId}?present=1&workstationId=${effectiveWorkstationId}&from=${encodeURIComponent(currentHref)}`
       : null;
 
   return (
@@ -764,7 +764,7 @@ export default async function RiskAssessmentDetailPage({
                 </div>
 
                 <Link
-                  href={`/app/administration/sites/${site.id}/actions?fromFindingId=${finding.id}`}
+                  href={`/app/s/${siteId}/actions?fromFindingId=${finding.id}`}
                   className="self-start text-sm underline hover:text-accent"
                 >
                   {dict.raiseAction}

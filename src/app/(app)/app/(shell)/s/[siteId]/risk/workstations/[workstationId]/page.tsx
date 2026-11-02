@@ -529,7 +529,7 @@ export default async function WorkstationHubPage({
                                 <p className="text-border">{finding.notes}</p>
                               )}
                               <Link
-                                href={`/app/administration/sites/${workstation.site.id}/actions?fromFindingId=${finding.id}`}
+                                href={`/app/s/${siteId}/actions?fromFindingId=${finding.id}`}
                                 className="text-accent hover:underline"
                               >
                                 {dict.raiseAction}

@@ -36,4 +36,10 @@ export const MODULE_MIGRATION_REDIRECTS: readonly RedirectSpec[] = [
     destination: "/app/s/:siteId/environment",
     permanent: true,
   },
+  // Actions module.
+  {
+    source: "/app/administration/sites/:siteId/actions",
+    destination: "/app/s/:siteId/actions",
+    permanent: true,
+  },
 ];

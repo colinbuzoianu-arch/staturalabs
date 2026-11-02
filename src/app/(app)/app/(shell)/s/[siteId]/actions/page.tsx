@@ -29,7 +29,7 @@ export default async function ActionsPage({
 
   async function createActionAction(formData: FormData) {
     "use server";
-    const { site } = await requireSiteAdministrationAccess(siteId);
+    await requireSiteAdministrationAccess(siteId);
     const dict = getAdministrationDictionary(await getLocale()).actionsPage;
     const commonDict = getAdministrationDictionary(await getLocale()).common;
 
@@ -113,7 +113,7 @@ export default async function ActionsPage({
       );
     }
 
-    revalidatePath(`/app/administration/sites/${site.id}/actions`);
+    revalidatePath(`/app/s/${siteId}/actions`);
   }
 
   const [actions, findings, sessions, platformUsers] = await Promise.all([
@@ -314,7 +314,7 @@ export default async function ActionsPage({
                   </td>
                   <td className="py-1">
                     <Link
-                      href={`/app/administration/actions/${action.id}`}
+                      href={`/app/s/${siteId}/actions/${action.id}`}
                       className="underline hover:text-accent"
                     >
                       {dict.viewLink}

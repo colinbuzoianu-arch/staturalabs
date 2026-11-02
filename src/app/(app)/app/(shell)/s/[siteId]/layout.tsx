@@ -21,6 +21,7 @@ const MIGRATED_MODULES: readonly ModuleKey[] = [
   "COCKPIT",
   "RISK",
   "ENVIRONMENT",
+  "ACTIONS",
 ];
 
 export default async function SiteShellLayout({
