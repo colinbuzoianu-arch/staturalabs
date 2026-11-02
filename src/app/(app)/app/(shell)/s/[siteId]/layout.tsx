@@ -10,19 +10,19 @@ import { MODULE_REGISTRY, type ModuleKey } from "@/lib/modules/registry";
 // Site-scoped sidebar shell (SLD_RESTRUCTURE_PLAN_platform-modules.md §5.1).
 // requireSiteAccess does auth + per-site scoping (404 on an inaccessible
 // site — same fail-closed behaviour as the rest of the app). The sidebar's
-// module list is the registry filtered by entitlement (CompanyModule) AND
-// permission (the role's bundle), exactly the §2.4 contract.
-//
-// MIGRATED_MODULES grows one entry per module-migration commit; until a
-// module's pages live under this shell, its sidebar entry renders disabled so
-// nothing links to a page that doesn't exist yet. When the last module moves,
-// drop this and the (legacy) group.
-const MIGRATED_MODULES: readonly ModuleKey[] = [
+// module list is the registry filtered by entitlement (CompanyModule),
+// permission (the role's bundle) AND whether the module is actually built
+// yet — the §2.4 contract. The not-yet-built modules (my-tasks, inspections,
+// incidents, chemicals, training, people, legal, documents) are hidden until
+// their own phases (P5–P12) build them; add each to BUILT_MODULES then.
+const BUILT_MODULES: ReadonlySet<ModuleKey> = new Set<ModuleKey>([
   "COCKPIT",
   "RISK",
   "ENVIRONMENT",
   "ACTIONS",
-];
+  "REPORTS",
+  "SETTINGS",
+]);
 
 export default async function SiteShellLayout({
   children,
@@ -36,7 +36,10 @@ export default async function SiteShellLayout({
 
   const entitled = await getEnabledModuleKeys(site.companyId);
   const enabledKeys = MODULE_REGISTRY.filter(
-    (m) => entitled.has(m.key) && hasPermission(user, m.permission),
+    (m) =>
+      BUILT_MODULES.has(m.key) &&
+      entitled.has(m.key) &&
+      hasPermission(user, m.permission),
   ).map((m) => m.key);
 
   const locale = await getLocale();
@@ -46,7 +49,6 @@ export default async function SiteShellLayout({
     <AppShell
       siteId={siteId}
       enabledKeys={enabledKeys}
-      migratedKeys={MIGRATED_MODULES}
       badges={{}}
       exitLabel={exitLabel}
     >

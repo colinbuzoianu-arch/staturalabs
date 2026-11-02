@@ -68,7 +68,7 @@ export default async function OrgUnitsPage({
       );
     }
 
-    revalidatePath(`/app/administration/sites/${siteId}/org-units`);
+    revalidatePath(`/app/s/${siteId}/settings/org-units`);
   }
 
   async function assignWorkstationOrgUnitAction(formData: FormData) {
@@ -110,7 +110,7 @@ export default async function OrgUnitsPage({
       data: { orgUnitId },
     });
 
-    revalidatePath(`/app/administration/sites/${siteId}/org-units`);
+    revalidatePath(`/app/s/${siteId}/settings/org-units`);
   }
 
   const [orgUnits, workstations] = await Promise.all([

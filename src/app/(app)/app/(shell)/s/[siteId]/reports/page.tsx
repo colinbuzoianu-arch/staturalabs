@@ -110,7 +110,7 @@ export default async function SiteRiskOverviewPage({
           {dict.breadcrumbSites}
         </Link>{" "}
         /{" "}
-        <Link href={`/app/sites/${site.id}`} className="hover:text-accent">
+        <Link href={`/app/s/${siteId}`} className="hover:text-accent">
           {site.name}
         </Link>{" "}
         / {dict.heading}
@@ -122,7 +122,7 @@ export default async function SiteRiskOverviewPage({
         </p>
         <h1 className="font-heading text-2xl font-bold">{dict.heading}</h1>
         <Link
-          href={`/app/sites/${site.id}`}
+          href={`/app/s/${siteId}`}
           className="text-sm text-border hover:text-accent"
         >
           {dict.backToSite}
@@ -152,7 +152,7 @@ export default async function SiteRiskOverviewPage({
                 >
                   <td className="py-1 pr-4">
                     <Link
-                      href={`/app/workstations/${workstation.id}/risk`}
+                      href={`/app/s/${siteId}/risk/workstations/${workstation.id}/overview`}
                       className="underline hover:text-accent"
                     >
                       {workstation.name}
@@ -207,18 +207,21 @@ export default async function SiteRiskOverviewPage({
         actions={actionRows}
         dict={dict}
         actionStatusLabels={actionStatusLabels}
+        siteId={siteId}
       />
       <ActionTable
         heading={dict.overdueActionsHeading}
         actions={overdueActionRows}
         dict={dict}
         actionStatusLabels={actionStatusLabels}
+        siteId={siteId}
       />
       <ActionTable
         heading={dict.awaitingVerificationHeading}
         actions={awaitingVerificationRows}
         dict={dict}
         actionStatusLabels={actionStatusLabels}
+        siteId={siteId}
       />
     </div>
   );
@@ -229,8 +232,10 @@ function ActionTable({
   actions,
   dict,
   actionStatusLabels,
+  siteId,
 }: {
   heading: string;
+  siteId: string;
   actions: Array<{
     id: string;
     title: string;
@@ -285,7 +290,7 @@ function ActionTable({
                 </td>
                 <td className="py-1">
                   <Link
-                    href={`/app/administration/actions/${action.id}`}
+                    href={`/app/s/${siteId}/actions/${action.id}`}
                     className="underline hover:text-accent"
                   >
                     {dict.viewLink}

@@ -73,7 +73,7 @@ export default async function HazardsPage({
       },
     });
 
-    revalidatePath(`/app/administration/sites/${siteId}/hazards`);
+    revalidatePath(`/app/s/${siteId}/settings/hazards`);
   }
 
   const [systemHazards, companyHazards] = await Promise.all([

@@ -35,15 +35,17 @@ describe("module registry", () => {
     );
   });
 
-  it("builds site-scoped base paths, with my-tasks and settings cross-cutting", () => {
+  it("builds site-scoped base paths, with my-tasks cross-cutting", () => {
     expect(getModuleDefinition(ModuleKey.RISK).basePath("site1")).toBe(
       "/app/s/site1/risk",
     );
     expect(getModuleDefinition(ModuleKey.MY_TASKS).basePath("site1")).toBe(
       "/app/me",
     );
+    // Settings is site-scoped (its master data — org tree, catalogues — is
+    // per-site), a deliberate deviation from the §2.3 /app/settings sketch.
     expect(getModuleDefinition(ModuleKey.SETTINGS).basePath("site1")).toBe(
-      "/app/settings",
+      "/app/s/site1/settings",
     );
   });
 

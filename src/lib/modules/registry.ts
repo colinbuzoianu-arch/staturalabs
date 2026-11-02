@@ -321,11 +321,9 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     permission: "reports.read",
     basePath: siteModulePath("reports"),
     icon: "bar-chart",
-    children: [
-      { labelKey: "modules.reports.children.kpis", slug: "kpis" },
-      { labelKey: "modules.reports.children.reports", slug: "reports" },
-      { labelKey: "modules.reports.children.export", slug: "export" },
-    ],
+    // The site risk overview is the reports landing today; KPIs/exports are
+    // later additions (§7.10), so no sidebar children yet.
+    children: [],
   },
   {
     key: ModuleKey.SETTINGS,
@@ -335,28 +333,19 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     order: 900,
     requiresEntitlement: false,
     permission: "settings.read",
-    basePath: () => "/app/settings",
+    // Site-scoped: the master data here (org tree, hazard catalogue) is
+    // per-site, so settings lives under /app/s/[siteId]/settings alongside the
+    // other modules rather than the cross-site /app/settings the §2.3 sketch
+    // imagined — a deliberate, recorded deviation. Users & roles / company
+    // config land later (§7.11).
+    basePath: siteModulePath("settings"),
     icon: "settings",
     children: [
       {
         labelKey: "modules.settings.children.organisation",
-        slug: "organisation",
+        slug: "org-units",
       },
-      {
-        labelKey: "modules.settings.children.users-roles",
-        slug: "users-roles",
-      },
-      { labelKey: "modules.settings.children.catalogues", slug: "catalogues" },
-      { labelKey: "modules.settings.children.templates", slug: "templates" },
-      {
-        labelKey: "modules.settings.children.notifications",
-        slug: "notifications",
-      },
-      { labelKey: "modules.settings.children.modules", slug: "modules" },
-      {
-        labelKey: "modules.settings.children.integrations",
-        slug: "integrations",
-      },
+      { labelKey: "modules.settings.children.catalogues", slug: "hazards" },
     ],
   },
 ];

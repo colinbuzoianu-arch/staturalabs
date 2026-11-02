@@ -24,14 +24,12 @@ const COLLAPSE_KEY = "sld-sidebar-collapsed";
 export function AppShell({
   siteId,
   enabledKeys,
-  migratedKeys,
   badges,
   exitLabel,
   children,
 }: {
   siteId: string;
   enabledKeys: readonly ModuleKey[];
-  migratedKeys: readonly ModuleKey[];
   badges: Partial<Record<BadgeSource, number>>;
   exitLabel: string;
   children: ReactNode;
@@ -77,7 +75,6 @@ export function AppShell({
       siteId={siteId}
       collapsed={collapsed}
       badges={badges}
-      migratedKeys={migratedKeys}
       t={resolveModuleLabel}
       onToggleCollapse={toggleCollapse}
     />

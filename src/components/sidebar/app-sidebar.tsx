@@ -48,11 +48,6 @@ export type SidebarProps = {
   siteId: string;
   collapsed?: boolean;
   badges?: Partial<Record<BadgeSource, number>>;
-  // Transitional (P2 incremental migration): the keys whose pages already
-  // exist under the /app/s/[siteId] shell. Modules not in this set render
-  // DISABLED (no link) so a sidebar entry never 404s mid-migration. Omit it
-  // once every module has migrated — then every enabled module is linkable.
-  migratedKeys?: readonly ModuleKey[];
   t: (labelKey: string) => string;
   onToggleCollapse?: () => void;
 };
@@ -63,15 +58,11 @@ export function AppSidebar({
   siteId,
   collapsed = false,
   badges = {},
-  migratedKeys,
   t,
   onToggleCollapse,
 }: SidebarProps) {
   const visible = new Set(modules.map((m) => m.key));
   const ordered = modulesInMenuOrder().filter((m) => visible.has(m.key));
-  const migrated = migratedKeys ? new Set(migratedKeys) : null;
-  const isDisabled = (key: ModuleKey) =>
-    migrated ? !migrated.has(key) : false;
 
   const groups = MENU_GROUP_ORDER.map((g) => ({
     group: g,
@@ -105,7 +96,6 @@ export function AppSidebar({
                 collapsed={collapsed}
                 badge={m.badge ? badges[m.badge] : undefined}
                 badgeClass={m.badge ? BADGE_CLASS[m.badge] : undefined}
-                disabled={isDisabled(m.key)}
                 t={t}
               />
             ))}
@@ -122,7 +112,6 @@ export function AppSidebar({
               active={m.key === activeKey}
               siteId={siteId}
               collapsed={collapsed}
-              disabled={isDisabled(m.key)}
               t={t}
             />
           ))}
@@ -217,7 +206,6 @@ function Item({
   collapsed,
   badge,
   badgeClass,
-  disabled = false,
   t,
 }: {
   def: ModuleDefinition;
@@ -226,30 +214,9 @@ function Item({
   collapsed: boolean;
   badge?: number;
   badgeClass?: string;
-  disabled?: boolean;
   t: (labelKey: string) => string;
 }) {
   const label = t(def.labelKey);
-
-  if (disabled) {
-    // Module not yet migrated into the shell — show it, greyed, non-clickable,
-    // so the menu is complete but nothing links to a page that doesn't exist.
-    return (
-      <li>
-        <span
-          title={collapsed ? label : "In Migration"}
-          aria-disabled="true"
-          className={cn(
-            "flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm text-foreground-subtle opacity-60",
-            collapsed && "justify-center px-0",
-          )}
-        >
-          <Icon name={def.icon} />
-          {!collapsed ? <span className="flex-1 truncate">{label}</span> : null}
-        </span>
-      </li>
-    );
-  }
 
   return (
     <li>

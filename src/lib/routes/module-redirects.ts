@@ -42,4 +42,38 @@ export const MODULE_MIGRATION_REDIRECTS: readonly RedirectSpec[] = [
     destination: "/app/s/:siteId/actions",
     permanent: true,
   },
+  // Reports module (the site risk overview).
+  {
+    source: "/app/sites/:siteId/risk-overview",
+    destination: "/app/s/:siteId/reports",
+    permanent: true,
+  },
+  // Settings module (master data: org tree, hazard catalogue).
+  {
+    source: "/app/administration/sites/:siteId/org-units",
+    destination: "/app/s/:siteId/settings/org-units",
+    permanent: true,
+  },
+  {
+    source: "/app/administration/sites/:siteId/hazards",
+    destination: "/app/s/:siteId/settings/hazards",
+    permanent: true,
+  },
+  // The old site landing and its map now live at the Cockpit.
+  {
+    source: "/app/sites/:siteId",
+    destination: "/app/s/:siteId",
+    permanent: true,
+  },
+  {
+    source: "/app/sites/:siteId/map",
+    destination: "/app/s/:siteId",
+    permanent: true,
+  },
+  // The admin site-picker home is superseded by the site chooser.
+  {
+    source: "/app/administration",
+    destination: "/app/sites",
+    permanent: true,
+  },
 ];
