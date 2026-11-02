@@ -378,6 +378,16 @@ export const en = {
       AWK: "AWK",
     },
   },
+  myTasks: {
+    eyebrow: "My tasks",
+    heading: "My tasks",
+    myActionsHeading: "My actions",
+    myActionsEmpty: "You have no open actions assigned to you.",
+    awaitingApprovalHeading: "Assessments awaiting approval",
+    awaitingApprovalEmpty: "No assessments are awaiting approval.",
+    overdueLabel: "Overdue —",
+    dueLabel: "Due",
+  },
   floorPlansPage: {
     eyebrow: "Floor plans //",
     heading: "Floor plans",

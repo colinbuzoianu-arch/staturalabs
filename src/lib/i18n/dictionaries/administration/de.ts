@@ -352,6 +352,16 @@ export const de: typeof en = {
       AWK: "AWK",
     },
   },
+  myTasks: {
+    eyebrow: "Meine Aufgaben",
+    heading: "Meine Aufgaben",
+    myActionsHeading: "Meine Maßnahmen",
+    myActionsEmpty: "Ihnen sind keine offenen Maßnahmen zugewiesen.",
+    awaitingApprovalHeading: "Beurteilungen zur Freigabe",
+    awaitingApprovalEmpty: "Keine Beurteilungen warten auf Freigabe.",
+    overdueLabel: "Überfällig —",
+    dueLabel: "Fällig",
+  },
   floorPlansPage: {
     eyebrow: "Lagepläne //",
     heading: "Lagepläne",

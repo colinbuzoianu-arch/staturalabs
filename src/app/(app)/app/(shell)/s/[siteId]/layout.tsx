@@ -17,6 +17,7 @@ import { MODULE_REGISTRY, type ModuleKey } from "@/lib/modules/registry";
 // their own phases (P5–P12) build them; add each to BUILT_MODULES then.
 const BUILT_MODULES: ReadonlySet<ModuleKey> = new Set<ModuleKey>([
   "COCKPIT",
+  "MY_TASKS",
   "RISK",
   "ENVIRONMENT",
   "ACTIONS",

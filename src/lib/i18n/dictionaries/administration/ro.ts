@@ -351,6 +351,16 @@ export const ro: typeof en = {
       AWK: "AWK",
     },
   },
+  myTasks: {
+    eyebrow: "Sarcinile mele",
+    heading: "Sarcinile mele",
+    myActionsHeading: "Măsurile mele",
+    myActionsEmpty: "Nu aveți măsuri deschise atribuite.",
+    awaitingApprovalHeading: "Evaluări în așteptarea aprobării",
+    awaitingApprovalEmpty: "Nicio evaluare nu așteaptă aprobare.",
+    overdueLabel: "Întârziat —",
+    dueLabel: "Scadent",
+  },
   floorPlansPage: {
     eyebrow: "Planuri de amplasare //",
     heading: "Planuri de amplasare",
