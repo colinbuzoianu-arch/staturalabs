@@ -1,0 +1,62 @@
+// Real module/sub-item label resolver for the sidebar shell
+// (SLD_RESTRUCTURE_PLAN_platform-modules.md §2.1, §5.1). German for now; P3
+// layers the locale dictionary and the site's CountryPack over this (AT
+// "Evaluierung" overriding "Gefährdungsbeurteilung", de-DE/de-CH spelling,
+// EN). Keyed exactly by the registry's labelKeys. No `server-only`: imported
+// by the client sidebar.
+export const MODULE_LABELS_DE: Record<string, string> = {
+  "modules.cockpit.label": "Cockpit",
+  "modules.my-tasks.label": "Meine Aufgaben",
+  "modules.risk.label": "Gefährdungsbeurteilung",
+  "modules.risk.children.workstations": "Arbeitsplätze",
+  "modules.risk.children.processes": "Prozesse",
+  "modules.risk.children.assessments": "Beurteilungen",
+  "modules.risk.children.ergonomics": "Ergonomie",
+  "modules.risk.children.floor-plan": "Lageplan",
+  "modules.inspections.label": "Begehungen & Audits",
+  "modules.inspections.children.planned": "Geplant",
+  "modules.inspections.children.performed": "Durchgeführt",
+  "modules.inspections.children.templates": "Vorlagen",
+  "modules.incidents.label": "Ereignisse",
+  "modules.incidents.children.reports": "Meldungen",
+  "modules.incidents.children.investigations": "Untersuchungen",
+  "modules.incidents.children.notifications": "Behördenmeldungen",
+  "modules.environment.label": "Umwelt",
+  "modules.environment.children.aspects": "Umweltaspekte",
+  "modules.environment.children.quantities": "Mengen & Abfall",
+  "modules.environment.children.documents": "Konzepte",
+  "modules.actions.label": "Maßnahmen",
+  "modules.actions.children.list": "Liste",
+  "modules.actions.children.calendar": "Kalender",
+  "modules.actions.children.effectiveness": "Wirksamkeit",
+  "modules.chemicals.label": "Gefahrstoffe",
+  "modules.chemicals.children.register": "Verzeichnis",
+  "modules.chemicals.children.safety-data-sheets": "Sicherheitsdatenblätter",
+  "modules.chemicals.children.operating-instructions": "Betriebsanweisungen",
+  "modules.training.label": "Unterweisungen",
+  "modules.training.children.matrix": "Matrix",
+  "modules.training.children.sessions": "Termine",
+  "modules.training.children.records": "Nachweise",
+  "modules.training.children.requirements": "Anforderungen",
+  "modules.people.label": "Personen",
+  "modules.legal.label": "Rechtskataster",
+  "modules.documents.label": "Dokumente",
+  "modules.documents.children.library": "Bibliothek",
+  "modules.documents.children.generated": "Erzeugte Dokumente",
+  "modules.reports.label": "Auswertungen",
+  "modules.reports.children.kpis": "Kennzahlen",
+  "modules.reports.children.reports": "Berichte",
+  "modules.reports.children.export": "Export",
+  "modules.settings.label": "Stammdaten & Einstellungen",
+  "modules.settings.children.organisation": "Organisation",
+  "modules.settings.children.users-roles": "Benutzer & Rollen",
+  "modules.settings.children.catalogues": "Kataloge",
+  "modules.settings.children.templates": "Vorlagen",
+  "modules.settings.children.notifications": "Benachrichtigungen",
+  "modules.settings.children.modules": "Module",
+  "modules.settings.children.integrations": "Integrationen",
+};
+
+export function resolveModuleLabel(labelKey: string): string {
+  return MODULE_LABELS_DE[labelKey] ?? labelKey;
+}

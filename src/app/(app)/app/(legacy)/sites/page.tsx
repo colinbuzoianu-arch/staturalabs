@@ -69,7 +69,7 @@ export default async function DashboardHome() {
           {sites.map((site) => (
             <Link
               key={site.id}
-              href={`/app/sites/${site.id}`}
+              href={`/app/s/${site.id}`}
               className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-5 transition-colors hover:border-accent"
             >
               <span className="font-heading text-lg font-bold">
