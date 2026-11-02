@@ -305,6 +305,55 @@ async function main() {
     );
     console.log(`Site: ${site.id}`);
 
+    // --- P3 (SLD_RESTRUCTURE_PLAN_platform-modules.md §4): a DE and a CH site
+    // so the DACH country layer is demonstrable in one company. DE is verified
+    // (Gefährdungsbeurteilung terminology, §§5–6 ArbSchG statutory document,
+    // seeded DE legal references) and gets a workstation + a seeded APPROVED
+    // assessment below. CH is deliberately positioning-only (pack verified:
+    // false): its hub shows the generic terminology and its SGD fails closed
+    // (400) — the honest gap, never a borrowed AT/DE document (§3.15). ---
+    const { row: deSite } = await selectOrInsert(
+      db,
+      "Site",
+      { companyId: company.id, name: "DEMO DE — Werk München" },
+      {
+        id: crypto.randomUUID(),
+        companyId: company.id,
+        name: "DEMO DE — Werk München",
+        address: "Landsberger Straße 110, 80339 München, Deutschland",
+        country: "DE",
+        updatedAt: new Date(),
+      },
+    );
+    const { row: deWorkstation } = await selectOrInsert(
+      db,
+      "Workstation",
+      { siteId: deSite.id, name: "Montagelinie DE" },
+      {
+        id: crypto.randomUUID(),
+        siteId: deSite.id,
+        name: "Montagelinie DE",
+        location: "Halle 2",
+        updatedAt: new Date(),
+      },
+    );
+    const { row: chSite } = await selectOrInsert(
+      db,
+      "Site",
+      { companyId: company.id, name: "DEMO CH — Werk Zürich" },
+      {
+        id: crypto.randomUUID(),
+        companyId: company.id,
+        name: "DEMO CH — Werk Zürich",
+        address: "Hardstrasse 201, 8005 Zürich, Schweiz",
+        country: "CH",
+        updatedAt: new Date(),
+      },
+    );
+    console.log(
+      `DE site: ${deSite.id} (ws ${deWorkstation.id}); CH site: ${chSite.id}`,
+    );
+
     // --- Org structure: plant -> 4 departments -> 8 workstations -> tasks ---
     const { row: plant } = await selectOrInsert(
       db,
@@ -812,6 +861,44 @@ async function main() {
       console.log(
         `Hero RiskAssessment (Montageplatz Paneele 1): ${heroAssessment.id}`,
       );
+
+      // P3: a seeded APPROVED Gefährdungsbeurteilung on the DE site, so the
+      // German statutory document (Dokumentation der Gefährdungsbeurteilung,
+      // §§5–6 ArbSchG) renders with real content and the DE hub shows a
+      // complete evaluation. Uses the DE site/workstation created above; the
+      // addCategoryChecks/getSystemHazard/getMatrixCell helpers are
+      // site-agnostic.
+      const deAssessment = await insertRow(db, "RiskAssessment", {
+        id: crypto.randomUUID(),
+        siteId: deSite.id,
+        workstationId: deWorkstation.id,
+        matrixVersion,
+        status: "APPROVED",
+        assessorUserId: demoUserId,
+        approvedByUserId: demoUserId,
+        assessedAt,
+        approvedAt: addDays(assessedAt, 3),
+        pilotContext: DEMO_PILOT_CONTEXT,
+        updatedAt: new Date(),
+      });
+      {
+        const hazardId = await getSystemHazard(db, "ERGO-01");
+        const cell = await getMatrixCell(db, matrixVersion, 3, 3);
+        await insertRow(db, "RiskFinding", {
+          id: crypto.randomUUID(),
+          riskAssessmentId: deAssessment.id,
+          hazardId,
+          probability: 3,
+          severity: 3,
+          riskScore: cell.riskScore,
+          riskBand: cell.riskBand,
+          existingControls:
+            "Höhenverstellbare Arbeitstische vorhanden; Hebehilfen für Lasten über 15 kg.",
+          updatedAt: new Date(),
+        });
+      }
+      await addCategoryChecks(deAssessment, { present: ["ERGONOMIC_MSD"] });
+      console.log(`DE RiskAssessment (Montagelinie DE): ${deAssessment.id}`);
 
       // 2. Abkantpresse — NOISE at HIGH, with a real over-limit
       // measurement already on file (contrasts with the hero finding's
