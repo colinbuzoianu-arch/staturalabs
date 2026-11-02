@@ -207,14 +207,11 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     permission: "environment.read",
     basePath: siteModulePath("environment"),
     icon: "leaf",
-    children: [
-      { labelKey: "modules.environment.children.aspects", slug: "aspects" },
-      {
-        labelKey: "modules.environment.children.quantities",
-        slug: "quantities",
-      },
-      { labelKey: "modules.environment.children.documents", slug: "documents" },
-    ],
+    // The environment module is a single landing today (the
+    // Umweltaspekte/assessment flow lives on one page); aspects, quantities
+    // and documents are sections within it, not separate routes yet, so no
+    // sidebar children until they get their own pages.
+    children: [],
   },
   {
     key: ModuleKey.ACTIONS,

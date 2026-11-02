@@ -36,7 +36,7 @@ export default async function EnvironmentAssessmentsPage({
       where: { id: siteId },
       data: { emasRegistered: !current.emasRegistered },
     });
-    revalidatePath(`/app/administration/sites/${siteId}/environment`);
+    revalidatePath(`/app/s/${siteId}/environment`);
   }
 
   async function createAction(formData: FormData) {
@@ -94,7 +94,7 @@ export default async function EnvironmentAssessmentsPage({
         ),
       );
     }
-    revalidatePath(`/app/administration/sites/${siteId}/environment`);
+    revalidatePath(`/app/s/${siteId}/environment`);
   }
 
   const [assessments, workstations] = await Promise.all([
@@ -237,7 +237,7 @@ export default async function EnvironmentAssessmentsPage({
                 <td className="py-1 pr-4">{assessment._count.findings}</td>
                 <td className="py-1">
                   <Link
-                    href={`/app/administration/environmental-assessments/${assessment.id}`}
+                    href={`/app/s/${siteId}/environment/assessments/${assessment.id}`}
                     className="underline hover:text-accent"
                   >
                     {dict.viewLink}

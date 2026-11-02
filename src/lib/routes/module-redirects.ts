@@ -30,4 +30,10 @@ export const MODULE_MIGRATION_REDIRECTS: readonly RedirectSpec[] = [
     destination: "/app/s/:siteId/risk/floor-plan",
     permanent: true,
   },
+  // Environment module.
+  {
+    source: "/app/administration/sites/:siteId/environment",
+    destination: "/app/s/:siteId/environment",
+    permanent: true,
+  },
 ];

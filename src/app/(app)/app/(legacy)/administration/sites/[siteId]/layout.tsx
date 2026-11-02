@@ -21,10 +21,9 @@ export default async function SiteAdministrationLayout({
   const locale = await getLocale();
   const dict = getAdministrationDictionary(locale).siteAdminNav;
 
-  // Processes, Beurteilungen (risk-assessments) and Lageplan (floor-plans)
-  // have migrated into the risk module under the sidebar shell (P2); the tabs
-  // that remain here are the modules still awaiting migration (org-units and
-  // hazards → Stammdaten; actions → Maßnahmen; environment → Umwelt).
+  // The risk and environment modules have migrated into the sidebar shell
+  // (P2); the tabs that remain here are the modules still awaiting migration
+  // (org-units and hazards → Stammdaten; actions → Maßnahmen).
   const sections = [
     {
       href: `/app/administration/sites/${siteId}/org-units`,
@@ -37,10 +36,6 @@ export default async function SiteAdministrationLayout({
     {
       href: `/app/administration/sites/${siteId}/actions`,
       label: dict.actions,
-    },
-    {
-      href: `/app/administration/sites/${siteId}/environment`,
-      label: dict.environment,
     },
   ];
 
