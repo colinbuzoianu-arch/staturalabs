@@ -335,6 +335,23 @@ export const de: typeof en = {
     verifiedAgainstLabel: "Verifiziert gegen",
     openDetailLink: "Öffnen",
   },
+  documentsPage: {
+    eyebrow: "Dokumente // erzeugt",
+    generatedHeading: "Erzeugte Dokumente",
+    generatedIntro:
+      "Jedes für diesen Standort erzeugte Dokument — ein unveränderliches, herunterladbares Archiv.",
+    generatedEmpty: "Für diesen Standort wurden noch keine Dokumente erzeugt.",
+    download: "Herunterladen",
+    unknownUser: "Unbekannt",
+    systemUser: "System",
+    typeLabels: {
+      TASK_REPORT: "Aufgabenbericht",
+      RISK_ASSESSMENT_REPORT: "Beurteilungsbericht",
+      WORKER_BRIEFING: "Betriebsrats-Information",
+      SGD: "SGD",
+      AWK: "AWK",
+    },
+  },
   floorPlansPage: {
     eyebrow: "Lagepläne //",
     heading: "Lagepläne",

@@ -334,6 +334,23 @@ export const ro: typeof en = {
     verifiedAgainstLabel: "Verificat față de",
     openDetailLink: "Deschide",
   },
+  documentsPage: {
+    eyebrow: "Documente // generate",
+    generatedHeading: "Documente generate",
+    generatedIntro:
+      "Fiecare document generat pentru acest amplasament — o arhivă imuabilă, descărcabilă.",
+    generatedEmpty: "Nu au fost generate documente pentru acest amplasament.",
+    download: "Descarcă",
+    unknownUser: "Necunoscut",
+    systemUser: "Sistem",
+    typeLabels: {
+      TASK_REPORT: "Raport sarcină",
+      RISK_ASSESSMENT_REPORT: "Raport de evaluare",
+      WORKER_BRIEFING: "Informare reprezentanți",
+      SGD: "SGD",
+      AWK: "AWK",
+    },
+  },
   floorPlansPage: {
     eyebrow: "Planuri de amplasare //",
     heading: "Planuri de amplasare",

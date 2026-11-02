@@ -2,6 +2,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { notFound } from "next/navigation";
 import { createElement } from "react";
 import { requireSiteAccess } from "@/lib/auth/require-access";
+import { archiveGeneratedDocument } from "@/lib/report/archive-generated-document";
 import { getWorkerBriefingData } from "@/lib/report/get-worker-briefing-data";
 import { resolveReportLang } from "@/lib/report/report-lang";
 import { WorkerBriefingDocument } from "@/lib/report/WorkerBriefingDocument";
@@ -18,7 +19,7 @@ export async function GET(
   const { siteId } = await params;
   const data = await getWorkerBriefingData(siteId);
   if (!data) notFound();
-  await requireSiteAccess(siteId);
+  const { user, site } = await requireSiteAccess(siteId);
 
   // Country-driven (B8c, SLD_NEXT_STEPS_B8b-B8f.md §6) — same
   // resolveReportLang the other two non-SGD reports use.
@@ -38,6 +39,21 @@ export async function GET(
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
   const filename = `statura-worker-briefing-${safeSiteName || "site"}.pdf`;
+
+  try {
+    await archiveGeneratedDocument({
+      type: "WORKER_BRIEFING",
+      companyId: site.companyId,
+      siteId: site.id,
+      title: data.site.name,
+      country: site.country,
+      generatedByUserId: user.id,
+      versions: { lang },
+      buffer,
+    });
+  } catch (error) {
+    console.error("Failed to archive WORKER_BRIEFING:", error);
+  }
 
   return new Response(new Uint8Array(buffer), {
     status: 200,

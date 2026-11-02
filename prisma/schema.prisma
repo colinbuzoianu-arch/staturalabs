@@ -69,6 +69,7 @@ model Site {
   floorPlans               FloorPlan[]
   environmentalAssessments EnvironmentalAssessment[]
   wasteStreams             WasteStream[]
+  generatedDocuments       GeneratedDocument[]
 
   @@index([companyId])
 }
@@ -1769,4 +1770,49 @@ model AuditEvent {
   @@index([companyId])
   @@index([siteId])
   @@index([actorUserId])
+}
+
+/// Document layer, part 1 (SLD_RESTRUCTURE_PLAN_platform-modules.md §2.2 rule
+/// 4, §7.2): every generated document is archived — a durable record of what
+/// was issued, when, by whom, from which methodology/matrix/catalogue
+/// versions, with its SHA-256 and storage path. Regeneration never overwrites:
+/// genuinely different output (new sha256) is a new row; identical content for
+/// the same (site, type) is deduplicated via the unique index. Bytes live in
+/// the private "generated-documents" Supabase bucket (src/lib/storage/
+/// generated-document.ts), read only via short-lived signed URLs.
+/// `generatedByUserId` references a PlatformUser account only (§3.13), never a
+/// worker; it is nullable so an archive row survives the user's removal.
+enum GeneratedDocumentType {
+  TASK_REPORT
+  RISK_ASSESSMENT_REPORT
+  WORKER_BRIEFING
+  SGD
+  AWK
+}
+
+model GeneratedDocument {
+  id                String                @id @default(cuid())
+  type              GeneratedDocumentType
+  companyId         String
+  siteId            String
+  /// Human display label for the document's scope (e.g. the workstation or
+  /// task name), presentation-agnostic — no per-subject FK zoo.
+  title             String
+  country           CountryCode
+  generatedByUserId String?               @db.Uuid
+  generatedAt       DateTime              @default(now())
+  /// The methodology/matrix/legal-catalogue versions in force at generation,
+  /// as a small JSON object — provenance, never recomputed later.
+  versions          Json?
+  sha256            String
+  storagePath       String
+  fileSize          Int
+
+  // Restrict: an archived document can't be orphaned by deleting its site out
+  // from under it — offboarding is deliberate (§3.9).
+  site Site @relation(fields: [siteId], references: [id], onDelete: Restrict)
+
+  @@unique([siteId, type, sha256])
+  @@index([siteId, type])
+  @@index([companyId])
 }

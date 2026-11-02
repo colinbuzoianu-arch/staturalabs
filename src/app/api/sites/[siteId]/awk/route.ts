@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createElement } from "react";
 import { requireSiteAccess } from "@/lib/auth/require-access";
 import { AwkDocument } from "@/lib/report/AwkDocument";
+import { archiveGeneratedDocument } from "@/lib/report/archive-generated-document";
 import { resolveAwkCountryPack } from "@/lib/report/awk-availability";
 import { getAwkReportData } from "@/lib/report/get-awk-report-data";
 
@@ -18,7 +19,7 @@ export async function GET(
   { params }: { params: Promise<{ siteId: string }> },
 ) {
   const { siteId } = await params;
-  const { site } = await requireSiteAccess(siteId);
+  const { user, site } = await requireSiteAccess(siteId);
 
   if (!resolveAwkCountryPack(site.country)) {
     return Response.json(
@@ -43,6 +44,21 @@ export async function GET(
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
   const filename = `statura-awk-${safeSiteName || "site"}.pdf`;
+
+  try {
+    await archiveGeneratedDocument({
+      type: "AWK",
+      companyId: site.companyId,
+      siteId: site.id,
+      title: data.site.name,
+      country: site.country,
+      generatedByUserId: user.id,
+      versions: null,
+      buffer,
+    });
+  } catch (error) {
+    console.error("Failed to archive AWK:", error);
+  }
 
   return new Response(new Uint8Array(buffer), {
     status: 200,

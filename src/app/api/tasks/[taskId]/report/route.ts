@@ -1,6 +1,7 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 import { createElement } from "react";
 import { requireTaskAccess } from "@/lib/auth/require-access";
+import { archiveGeneratedDocument } from "@/lib/report/archive-generated-document";
 import { getTaskReportData } from "@/lib/report/get-task-report-data";
 import { resolveReportLang } from "@/lib/report/report-lang";
 import { TaskReportDocument } from "@/lib/report/TaskReportDocument";
@@ -21,7 +22,7 @@ export async function GET(
   { params }: { params: Promise<{ taskId: string }> },
 ) {
   const { taskId } = await params;
-  const { task } = await requireTaskAccess(taskId);
+  const { user, task } = await requireTaskAccess(taskId);
 
   // Country-driven (B8c, SLD_NEXT_STEPS_B8b-B8f.md §6): defaults to German
   // for an AT-sited task, English everywhere else, overridable via
@@ -49,6 +50,23 @@ export async function GET(
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
   const filename = `statura-report-${safeWorkstationName || "workstation"}-${task.id}.pdf`;
+
+  // Archive the generated document (§2.2 rule 4). Best-effort: a storage/DB
+  // failure is logged but never blocks the download.
+  try {
+    await archiveGeneratedDocument({
+      type: "TASK_REPORT",
+      companyId: task.workstation.site.companyId,
+      siteId: task.workstation.siteId,
+      title: `${task.workstation.name} — ${task.name}`,
+      country: task.workstation.site.country,
+      generatedByUserId: user.id,
+      versions: { lang },
+      buffer,
+    });
+  } catch (error) {
+    console.error("Failed to archive TASK_REPORT:", error);
+  }
 
   return new Response(new Uint8Array(buffer), {
     status: 200,

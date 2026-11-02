@@ -2,6 +2,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { notFound } from "next/navigation";
 import { createElement } from "react";
 import { requireSiteAccess } from "@/lib/auth/require-access";
+import { archiveGeneratedDocument } from "@/lib/report/archive-generated-document";
 import { getRiskAssessmentReportData } from "@/lib/report/get-risk-assessment-report-data";
 import { RiskAssessmentReportDocument } from "@/lib/report/RiskAssessmentReportDocument";
 import { resolveReportLang } from "@/lib/report/report-lang";
@@ -19,7 +20,7 @@ export async function GET(
   const { riskAssessmentId } = await params;
   const data = await getRiskAssessmentReportData(riskAssessmentId);
   if (!data) notFound();
-  await requireSiteAccess(data.riskAssessment.siteId);
+  const { user } = await requireSiteAccess(data.riskAssessment.siteId);
 
   // Country-driven (B8c, SLD_NEXT_STEPS_B8b-B8f.md §6) — same
   // resolveReportLang the task report route uses.
@@ -42,6 +43,21 @@ export async function GET(
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
   const filename = `statura-risk-assessment-${safeSubjectName || "assessment"}-${data.riskAssessment.id}.pdf`;
+
+  try {
+    await archiveGeneratedDocument({
+      type: "RISK_ASSESSMENT_REPORT",
+      companyId: data.riskAssessment.site.companyId,
+      siteId: data.riskAssessment.siteId,
+      title: subjectName ?? data.riskAssessment.site.name,
+      country: data.riskAssessment.site.country,
+      generatedByUserId: user.id,
+      versions: { matrixVersion: data.riskAssessment.matrixVersion, lang },
+      buffer,
+    });
+  } catch (error) {
+    console.error("Failed to archive RISK_ASSESSMENT_REPORT:", error);
+  }
 
   return new Response(new Uint8Array(buffer), {
     status: 200,

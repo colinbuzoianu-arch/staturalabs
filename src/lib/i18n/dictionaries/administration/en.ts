@@ -361,6 +361,23 @@ export const en = {
     verifiedAgainstLabel: "Verified against",
     openDetailLink: "Open",
   },
+  documentsPage: {
+    eyebrow: "Documents // generated",
+    generatedHeading: "Generated documents",
+    generatedIntro:
+      "Every document generated for this site — an immutable, downloadable archive.",
+    generatedEmpty: "No documents have been generated for this site yet.",
+    download: "Download",
+    unknownUser: "Unknown",
+    systemUser: "System",
+    typeLabels: {
+      TASK_REPORT: "Task report",
+      RISK_ASSESSMENT_REPORT: "Risk assessment report",
+      WORKER_BRIEFING: "Worker briefing",
+      SGD: "SGD",
+      AWK: "AWK",
+    },
+  },
   floorPlansPage: {
     eyebrow: "Floor plans //",
     heading: "Floor plans",

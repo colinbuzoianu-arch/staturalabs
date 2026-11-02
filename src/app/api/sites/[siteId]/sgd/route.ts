@@ -2,6 +2,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { notFound } from "next/navigation";
 import { createElement } from "react";
 import { requireSiteAccess } from "@/lib/auth/require-access";
+import { archiveGeneratedDocument } from "@/lib/report/archive-generated-document";
 import { getSgdReportData } from "@/lib/report/get-sgd-report-data";
 import { SgdDocument } from "@/lib/report/SgdDocument";
 import { resolveSgdCountryPack } from "@/lib/report/sgd-availability";
@@ -15,7 +16,7 @@ export async function GET(
   { params }: { params: Promise<{ siteId: string }> },
 ) {
   const { siteId } = await params;
-  const { site } = await requireSiteAccess(siteId);
+  const { user, site } = await requireSiteAccess(siteId);
 
   // Fail closed, never a silent guess (ERGO_COMPLIANCE_BY_DESIGN.md §3.15):
   // no unverified or template-less country produces a document that reads
@@ -45,6 +46,21 @@ export async function GET(
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
   const filename = `statura-sgd-${safeSiteName || "site"}.pdf`;
+
+  try {
+    await archiveGeneratedDocument({
+      type: "SGD",
+      companyId: site.companyId,
+      siteId: site.id,
+      title: data.site.name,
+      country: site.country,
+      generatedByUserId: user.id,
+      versions: { methodologyVersion: data.methodologyVersion },
+      buffer,
+    });
+  } catch (error) {
+    console.error("Failed to archive SGD:", error);
+  }
 
   return new Response(new Uint8Array(buffer), {
     status: 200,

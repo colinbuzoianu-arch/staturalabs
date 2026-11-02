@@ -2,6 +2,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { notFound } from "next/navigation";
 import { createElement } from "react";
 import { requireWorkstationAccess } from "@/lib/auth/require-access";
+import { archiveGeneratedDocument } from "@/lib/report/archive-generated-document";
 import { getSgdReportData } from "@/lib/report/get-sgd-report-data";
 import { SgdDocument } from "@/lib/report/SgdDocument";
 import { resolveSgdCountryPack } from "@/lib/report/sgd-availability";
@@ -16,7 +17,7 @@ export async function GET(
   { params }: { params: Promise<{ workstationId: string }> },
 ) {
   const { workstationId } = await params;
-  const { workstation } = await requireWorkstationAccess(workstationId);
+  const { user, workstation } = await requireWorkstationAccess(workstationId);
 
   if (!resolveSgdCountryPack(workstation.site.country)) {
     return Response.json(
@@ -44,6 +45,21 @@ export async function GET(
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
   const filename = `statura-sgd-${safeName || "workstation"}.pdf`;
+
+  try {
+    await archiveGeneratedDocument({
+      type: "SGD",
+      companyId: workstation.site.companyId,
+      siteId: workstation.siteId,
+      title: data.workstation?.name ?? data.site.name,
+      country: workstation.site.country,
+      generatedByUserId: user.id,
+      versions: { methodologyVersion: data.methodologyVersion },
+      buffer,
+    });
+  } catch (error) {
+    console.error("Failed to archive SGD:", error);
+  }
 
   return new Response(new Uint8Array(buffer), {
     status: 200,
