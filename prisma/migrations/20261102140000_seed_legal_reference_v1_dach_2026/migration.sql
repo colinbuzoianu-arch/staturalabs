@@ -1,0 +1,34 @@
+-- P3 (SLD_P3_LEGAL_CATALOGUE_APPROVED.md): seed the founder-approved DACH
+-- legal-reference catalogue for the risk module. verifiedBy = "Colin Buzoianu",
+-- verifiedAt = 2026-11-02, per-row verificationMethod from the approved §2
+-- table. The four seed-check rows (AT-2, AT-6, AT-7, DE-7) were resolved to
+-- "official" by reading the Stand off the official page at build time (RIS +
+-- gesetze-im-internet.de, 2026-11-02); none were skipped. Deferred rows (AT-8
+-- PSA-V, DE-5/6 DGUV, all CH) are NOT seeded (§3) — a missing reference shows
+-- as an honest gap (§3.15), never a placeholder.
+--
+-- Only AT and DE rows here: CH stays positioning-only (CountryPack ch
+-- verified:false) until its limit values + revDSG framing are done.
+
+INSERT INTO "LegalReferenceCatalogVersion" ("version", "label", "isActive", "activatedAt")
+VALUES ('v1-dach-2026', 'DACH risk-module legal references v1 (AT+DE, 2026-11-02)', true, CURRENT_TIMESTAMP);
+
+INSERT INTO "LegalReference"
+  ("id", "catalogVersion", "country", "topic", "code", "obligation", "sourceUrl", "consolidatedVersion", "verifiedBy", "verifiedAt", "verificationMethod", "createdAt")
+VALUES
+  (gen_random_uuid()::text, 'v1-dach-2026', 'AT', 'risk-assessment', 'ASchG §4', 'Ermittlung und Beurteilung der Gefahren und Festlegung von Maßnahmen (Arbeitsplatzevaluierung), einschließlich arbeitsbedingter psychischer Belastungen', 'https://www.ris.bka.gv.at/NormDokument.wxe?Abfrage=Bundesnormen&Gesetzesnummer=10008910&Paragraf=4', '§4 idF BGBl. I Nr. 118/2012, in Kraft 01.01.2013', 'Colin Buzoianu', '2026-11-02', 'mirror', CURRENT_TIMESTAMP),
+  (gen_random_uuid()::text, 'v1-dach-2026', 'AT', 'documentation', 'ASchG §5', 'Dokumentation der Evaluierung in Sicherheits- und Gesundheitsschutzdokumenten', 'https://www.ris.bka.gv.at/NormDokument.wxe?Abfrage=Bundesnormen&Gesetzesnummer=10008910&Paragraf=5', '§5 geltende Fassung, in Kraft seit 01.01.1995 (RIS-Fassung 02.11.2026)', 'Colin Buzoianu', '2026-11-02', 'official', CURRENT_TIMESTAMP),
+  (gen_random_uuid()::text, 'v1-dach-2026', 'AT', 'documentation', 'DOK-VO', 'Form und Inhalt der Sicherheits- und Gesundheitsschutzdokumente', 'https://www.ris.bka.gv.at/GeltendeFassung.wxe?Abfrage=Bundesnormen&Gesetzesnummer=10009021', 'BGBl. Nr. 478/1996 idF BGBl. II Nr. 53/1997', 'Colin Buzoianu', '2026-11-02', 'official', CURRENT_TIMESTAMP),
+  (gen_random_uuid()::text, 'v1-dach-2026', 'AT', 'instruction', 'ASchG §14', 'Unterweisung der Arbeitnehmer (nachweislich, während der Arbeitszeit, zu festgelegten Anlässen)', 'https://www.ris.bka.gv.at/NormDokument.wxe?Abfrage=Bundesnormen&Gesetzesnummer=10008910&Paragraf=14', '§14 idF BGBl. I Nr. 159/2001, in Kraft 01.01.2002', 'Colin Buzoianu', '2026-11-02', 'mirror', CURRENT_TIMESTAMP),
+  (gen_random_uuid()::text, 'v1-dach-2026', 'AT', 'expert-personnel', 'ASchG §§73 ff.', 'Bestellung von Sicherheitsfachkräften und Arbeitsmedizinern (Präventivdienste)', 'https://www.ris.bka.gv.at/NormDokument.wxe?Abfrage=Bundesnormen&Gesetzesnummer=10008910&Paragraf=73', '§73 idF BGBl. I Nr. 147/2006, in Kraft 12.08.2006', 'Colin Buzoianu', '2026-11-02', 'mirror', CURRENT_TIMESTAMP),
+  (gen_random_uuid()::text, 'v1-dach-2026', 'AT', 'workplaces', 'AStV', 'Anforderungen an Arbeitsstätten', 'https://www.ris.bka.gv.at/GeltendeFassung.wxe?Abfrage=Bundesnormen&Gesetzesnummer=10009098', 'BGBl. II Nr. 368/1998 idF BGBl. II Nr. 309/2017 (RIS-Fassung 02.11.2026)', 'Colin Buzoianu', '2026-11-02', 'official', CURRENT_TIMESTAMP),
+  (gen_random_uuid()::text, 'v1-dach-2026', 'AT', 'work-equipment', 'AM-VO', 'Schutz der Arbeitnehmer bei der Benutzung von Arbeitsmitteln', 'https://www.ris.bka.gv.at/GeltendeFassung.wxe?Abfrage=Bundesnormen&Gesetzesnummer=20000727', 'BGBl. II Nr. 164/2000 idF BGBl. II Nr. 330/2024 (RIS-Fassung 02.11.2026)', 'Colin Buzoianu', '2026-11-02', 'official', CURRENT_TIMESTAMP),
+  (gen_random_uuid()::text, 'v1-dach-2026', 'DE', 'risk-assessment', 'ArbSchG §5', 'Beurteilung der Arbeitsbedingungen (Gefährdungsbeurteilung), je nach Art der Tätigkeiten', 'https://www.gesetze-im-internet.de/arbschg/__5.html', 'zuletzt geändert durch Art. 7 G v. 22.12.2025 I Nr. 369', 'Colin Buzoianu', '2026-11-02', 'official', CURRENT_TIMESTAMP),
+  (gen_random_uuid()::text, 'v1-dach-2026', 'DE', 'documentation', 'ArbSchG §6', 'Dokumentation der Gefährdungsbeurteilung', 'https://www.gesetze-im-internet.de/arbschg/__6.html', 'zuletzt geändert durch Art. 7 G v. 22.12.2025 I Nr. 369', 'Colin Buzoianu', '2026-11-02', 'official', CURRENT_TIMESTAMP),
+  (gen_random_uuid()::text, 'v1-dach-2026', 'DE', 'risk-assessment', 'ArbSchG §5 Abs. 3 Nr. 6', 'Psychische Belastungen bei der Arbeit als zu berücksichtigender Gefährdungsfaktor', 'https://www.gesetze-im-internet.de/arbschg/__5.html', 'zuletzt geändert durch Art. 7 G v. 22.12.2025 I Nr. 369', 'Colin Buzoianu', '2026-11-02', 'official', CURRENT_TIMESTAMP),
+  (gen_random_uuid()::text, 'v1-dach-2026', 'DE', 'instruction', 'ArbSchG §12', 'Unterweisung der Beschäftigten', 'https://www.gesetze-im-internet.de/arbschg/__12.html', 'zuletzt geändert durch Art. 7 G v. 22.12.2025 I Nr. 369', 'Colin Buzoianu', '2026-11-02', 'official', CURRENT_TIMESTAMP),
+  (gen_random_uuid()::text, 'v1-dach-2026', 'DE', 'expert-personnel', 'ASiG', 'Bestellung von Betriebsärzten und Fachkräften für Arbeitssicherheit', 'https://www.gesetze-im-internet.de/asig/', 'zuletzt geändert durch Art. 3 Abs. 5 G v. 20.4.2013 I 868', 'Colin Buzoianu', '2026-11-02', 'official', CURRENT_TIMESTAMP),
+  (gen_random_uuid()::text, 'v1-dach-2026', 'DE', 'workplaces', 'ArbStättV', 'Einrichten und Betreiben von Arbeitsstätten (konkretisiert durch die ASR)', 'https://www.gesetze-im-internet.de/arbst_ttv_2004/', 'Art. 10 G v. 27.3.2024 I Nr. 109', 'Colin Buzoianu', '2026-11-02', 'official', CURRENT_TIMESTAMP),
+  (gen_random_uuid()::text, 'v1-dach-2026', 'DE', 'work-equipment', 'BetrSichV', 'Gefährdungsbeurteilung und Schutzmaßnahmen bei der Verwendung von Arbeitsmitteln', 'https://www.gesetze-im-internet.de/betrsichv_2015/', 'zuletzt geändert durch Art. 27 G v. 18.12.2025 I Nr. 347', 'Colin Buzoianu', '2026-11-02', 'official', CURRENT_TIMESTAMP),
+  (gen_random_uuid()::text, 'v1-dach-2026', 'DE', 'noise-vibration', 'LärmVibrationsArbSchV', 'Gefährdungsbeurteilung bei Lärm und Vibrationen (Grenzwerte folgen in einem eigenen Katalog)', 'https://www.gesetze-im-internet.de/l_rmvibrationsarbschv/', 'zuletzt geändert durch Art. 3 V v. 21.7.2021 I 3115', 'Colin Buzoianu', '2026-11-02', 'official', CURRENT_TIMESTAMP),
+  (gen_random_uuid()::text, 'v1-dach-2026', 'DE', 'ppe', 'PSA-BV', 'Auswahl, Bereitstellung und Benutzung persönlicher Schutzausrüstung, Unterweisung', 'https://www.gesetze-im-internet.de/psa-bv/', 'geändert durch Art. 2 V v. 2.12.2024 I Nr. 384', 'Colin Buzoianu', '2026-11-02', 'official', CURRENT_TIMESTAMP);

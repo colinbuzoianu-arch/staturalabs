@@ -1173,6 +1173,13 @@ model LegalReference {
   consolidatedVersion String?
   verifiedBy          String
   verifiedAt          DateTime
+  // How this row was verified (approved worksheet §2): "official" = Stand read
+  // from the official portal, "mirror" = paragraph + version confirmed via a
+  // consolidated-text mirror citing the official source, "seed-check" =
+  // resolved to "official" at seed time by reading the Stand off the official
+  // page (a row that could not be read is skipped, never seeded). Founder-
+  // approved delegated verification per ERGO_COMPLIANCE_BY_DESIGN.md §3.19.
+  verificationMethod  String
   notes               String?
   createdAt           DateTime    @default(now())
 
