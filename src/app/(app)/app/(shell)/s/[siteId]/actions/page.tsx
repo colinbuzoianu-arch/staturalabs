@@ -6,6 +6,7 @@ import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administrat
 import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { prisma } from "@/lib/prisma";
+import { ActionsTabs } from "./calendar/page";
 
 const HIERARCHY_OPTIONS = Object.values(HierarchyOfControl);
 
@@ -173,6 +174,12 @@ export default async function ActionsPage({
         </p>
         <h1 className="font-heading text-2xl font-bold">{dict.heading}</h1>
       </div>
+
+      <ActionsTabs
+        siteId={siteId}
+        active="list"
+        dict={getAdministrationDictionary(locale).actionsViews}
+      />
 
       <section className="flex flex-col gap-4">
         <h2 className="font-heading text-lg font-bold">{dict.createHeading}</h2>
