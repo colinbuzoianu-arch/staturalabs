@@ -1129,6 +1129,59 @@ model ExposureLimitCatalogVersion {
   limits ExposureLimit[]
 }
 
+/// Versioned, country-scoped catalogue of the LEGAL REFERENCES the risk
+/// module cites per jurisdiction (SLD_RESTRUCTURE_PLAN_platform-modules.md
+/// §4.2, ERGO_COMPLIANCE_BY_DESIGN.md §3.19) — e.g. ASchG §§4-5 for AT,
+/// ArbSchG §§5-6 for DE, VUV/ArGV 3 for CH. Same fail-closed,
+/// single-active-version contract as ExposureLimitCatalogVersion /
+/// MethodologyVersion: at most one isActive = true (hand-added partial
+/// unique index `LegalReferenceCatalogVersion_isActive_unique_when_true`),
+/// zero active = misconfiguration that throws (getActiveLegalReferenceCatalog,
+/// src/lib/country/legal-reference-catalog-version.ts). Nothing is seeded
+/// into LegalReference until the founder has verified each row against the
+/// official consolidated text (§3.19 / §4 never-build — the
+/// SLD_P3_LEGAL_CATALOGUE_DRAFT.md worksheet is that gate).
+model LegalReferenceCatalogVersion {
+  version     String   @id
+  label       String
+  isActive    Boolean  @default(false)
+  activatedAt DateTime @default(now())
+
+  references LegalReference[]
+}
+
+/// One legal reference for one topic in one country, under one catalogue
+/// version. `topic` groups references by the §4.2 row type
+/// (risk-assessment / instruction / expert-personnel / workplaces /
+/// work-equipment / ppe / noise-vibration). The lookup
+/// (lookupLegalReferences, src/lib/country/legal-reference-lookup.ts) filters
+/// by country + topic and NEVER falls back to another country's reference
+/// (§3.15) — a country with no row for a topic is an honest gap. `sourceUrl`
+/// + `consolidatedVersion` + `verifiedBy`/`verifiedAt` are the verification
+/// provenance: a reference exists in the catalogue only because a named human
+/// confirmed it against the official consolidated text on a given date.
+/// `verifiedBy`/`verifiedAt`/`sourceUrl`/`code`/`obligation`/`topic` are all
+/// required — there is no such thing as an unverified or sourceless row here.
+model LegalReference {
+  id                  String      @id @default(cuid())
+  catalogVersion      String
+  country             CountryCode
+  topic               String
+  code                String
+  obligation          String
+  sourceUrl           String
+  consolidatedVersion String?
+  verifiedBy          String
+  verifiedAt          DateTime
+  notes               String?
+  createdAt           DateTime    @default(now())
+
+  catalog LegalReferenceCatalogVersion @relation(fields: [catalogVersion], references: [version], onDelete: Restrict)
+
+  @@unique([catalogVersion, country, code])
+  @@index([catalogVersion, country, topic])
+}
+
 /// One legal exposure limit for one parameter in one country, under one
 /// catalog version (SLD_IMPLEMENTATION_PLAN_austria-first.md §4.5).
 /// `actionValue`/`limitValue` are BOTH nullable, independently — a row
