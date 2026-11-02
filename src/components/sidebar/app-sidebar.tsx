@@ -24,6 +24,16 @@ import {
 // locale dictionary and the site's CountryPack (AT "Evaluierung" vs DE
 // "Gefährdungsbeurteilung"); the proposal passes a German map.
 
+// Nav badge colour by urgency type — gives the sidebar meaningful secondary
+// colour (blue for your inbox, amber for upcoming training, red for overdue
+// /open-incident pressure) rather than one coral count everywhere.
+const BADGE_CLASS: Record<BadgeSource, string> = {
+  "overdue-actions": "bg-status-high",
+  "open-incidents": "bg-status-high",
+  "open-my-tasks": "bg-info",
+  "due-trainings": "bg-accent-secondary",
+};
+
 const GROUP_LABEL: Record<MenuGroup, string | null> = {
   overview: "ÜBERSICHT",
   assess: "BEURTEILEN",
@@ -85,6 +95,7 @@ export function AppSidebar({
                 siteId={siteId}
                 collapsed={collapsed}
                 badge={m.badge ? badges[m.badge] : undefined}
+                badgeClass={m.badge ? BADGE_CLASS[m.badge] : undefined}
                 t={t}
               />
             ))}
@@ -194,6 +205,7 @@ function Item({
   siteId,
   collapsed,
   badge,
+  badgeClass,
   t,
 }: {
   def: ModuleDefinition;
@@ -201,6 +213,7 @@ function Item({
   siteId: string;
   collapsed: boolean;
   badge?: number;
+  badgeClass?: string;
   t: (labelKey: string) => string;
 }) {
   const label = t(def.labelKey);
@@ -224,7 +237,12 @@ function Item({
         <Icon name={def.icon} />
         {!collapsed ? <span className="flex-1 truncate">{label}</span> : null}
         {!collapsed && badge ? (
-          <span className="grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-[11px] font-medium text-white">
+          <span
+            className={cn(
+              "grid h-5 min-w-5 place-items-center rounded-full px-1 text-[11px] font-medium text-white",
+              badgeClass ?? "bg-accent",
+            )}
+          >
             {badge}
           </span>
         ) : null}

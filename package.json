@@ -23,12 +23,15 @@
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.110.1",
     "image-size": "^2.0.2",
+    "lucide-react": "^1.66.0",
     "next": "16.2.10",
     "pg": "^8.22.0",
     "pngjs": "^7.0.0",
+    "radix-ui": "^1.8.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "server-only": "^0.0.1",
+    "tailwind-merge": "^3.7.0",
     "three": "^0.185.1"
   },
   "devDependencies": {

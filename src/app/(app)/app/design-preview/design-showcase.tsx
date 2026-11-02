@@ -98,6 +98,57 @@ function Tokens() {
   return (
     <section>
       <Band>1 · Tokens (beide Themes via Umschalter oben)</Band>
+      <Card className="mb-6">
+        <CardHeader
+          title="Markenfarben — jetzt vier statt zwei"
+          description="Teal + Ivory (Basis) · Coral (primärer CTA) · NEU: Amber (sekundärer Akzent) & Blau (Info/Links)"
+        />
+        <CardBody className="space-y-4">
+          <div className="flex flex-wrap gap-4">
+            <Swatch cls="bg-teal" name="teal" />
+            <Swatch cls="bg-ivory" name="ivory" />
+            <Swatch cls="bg-accent" name="coral · accent" />
+            <Swatch cls="bg-accent-secondary" name="amber · accent-secondary" />
+            <Swatch cls="bg-info" name="blue · info" />
+            <Swatch cls="bg-sage-dark" name="sage" />
+          </div>
+          <div className="flex flex-wrap items-center gap-6 border-t border-border pt-4">
+            <div>
+              <p className="mb-1 text-xs text-foreground-subtle">
+                Diagramm-Serien
+              </p>
+              <div className="flex gap-1.5">
+                {[
+                  "bg-chart-1",
+                  "bg-chart-2",
+                  "bg-chart-3",
+                  "bg-chart-4",
+                  "bg-chart-5",
+                ].map((c) => (
+                  <span
+                    key={c}
+                    className={`h-6 w-6 rounded-[var(--radius-sm)] ${c}`}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="rounded-[var(--radius-md)] border-l-4 border-info bg-surface px-4 py-2">
+              <p className="text-xs font-medium text-info">
+                Info-Hinweis (Blau)
+              </p>
+              <p className="text-sm text-foreground-muted">
+                Links, In-Bearbeitung, informative Callouts.
+              </p>
+            </div>
+            <div className="rounded-[var(--radius-md)] border border-border bg-surface px-4 py-2">
+              <p className="text-xs text-foreground-subtle">Offene Maßnahmen</p>
+              <p className="font-[family-name:var(--font-heading)] text-2xl font-bold text-accent-secondary">
+                7
+              </p>
+            </div>
+          </div>
+        </CardBody>
+      </Card>
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader title="Flächen & Text" />
@@ -561,7 +612,7 @@ function InspectionRunMockup() {
 function DependencyProposal() {
   return (
     <section>
-      <Band>5 · Abhängigkeiten — Vorschlag (noch nicht installiert)</Band>
+      <Band>5 · Abhängigkeiten — freigegeben & installiert</Band>
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader title="radix-ui" />
@@ -590,9 +641,10 @@ function DependencyProposal() {
         <p className="mb-1 font-medium text-foreground">
           Status der Primitives
         </p>
-        Gebaut &amp; hier gezeigt: Button, Badge/Status-Chip (aus Enums), Card,
-        Input/Select/Textarea/Checkbox, Progress, Timeline, EmptyState,
-        DataTable (Optik), Sidebar. Für den Vollausbau mit Radix vorgesehen:
+        lucide-react und tailwind-merge sind bereits übernommen (die Icons oben
+        kommen aus lucide). Gebaut &amp; hier gezeigt: Button, Badge/Status-Chip
+        (aus Enums), Card, Input/Select/Textarea/Checkbox, Progress, Timeline,
+        EmptyState, DataTable (Optik), Sidebar. Als Nächstes mit Radix:
         Combobox, Datepicker, Dialog, Drawer, Tooltip, Toast, Kalender/Agenda,
         Datei-Upload, plus Tabelle mit
         Sortierung/Filter/Spaltenwahl/gespeicherten Ansichten.

@@ -17,6 +17,14 @@
   --color-coral: #e35c3a;
   --color-sage-dark: #568076;
   --color-sage-light: #96a5a0;
+  /* Two secondary brand colours added in P2 (SLD_RESTRUCTURE_PLAN §5.2
+     review): the base palette was reading as teal+ivory only. Both are
+     chosen to sit with the existing teal/coral/sage — amber is the warm
+     complement to teal (and distinct in ROLE from coral, which stays the
+     single primary CTA), blue is a cool neighbour of teal. Used as the
+     secondary accent, the info colour, and categorical chart series. */
+  --color-amber: #d79a34;
+  --color-blue: #3f6e8c;
   /* Card/panel lift: brand surface mixed ~10% toward the opposite base
      color, one direction per theme — never a pure white/black surface. */
   --color-surface-on-dark: #164541;
@@ -29,13 +37,29 @@
   --surface: var(--color-surface-on-dark);
   --border: var(--color-sage-dark);
   --accent: var(--color-coral);
+  /* Secondary accent (amber) and informational (blue) — the two new brand
+     hues in semantic roles. Primary CTA stays --accent (coral); these carry
+     emphasis, selection, KPIs, links and info states so the UI isn't
+     monochrome. Per-theme tints below keep each readable on its background. */
+  --accent-secondary: var(--color-amber);
+  --info: var(--color-blue);
+
+  /* Categorical data-viz series (reports/KPIs) — teal/blue/amber/coral/sage,
+     a harmonious cool-base + warm-accent ramp with distinct hues. */
+  --chart-1: var(--color-blue);
+  --chart-2: var(--color-amber);
+  --chart-3: var(--color-coral);
+  --chart-4: var(--color-sage-dark);
+  --chart-5: #7a9b94;
 
   /* --- P2 design-system extension (SLD_RESTRUCTURE_PLAN_platform-modules.md
      §5.2). Surface/text/border LEVELS layer on the base semantic tokens so a
      data-dense work app has lift and hierarchy without leaving the brand.
      Defaults here are the dark theme; the light block overrides them. --- */
-  --surface-raised: #1c524d; /* cards/menus lifted above --surface */
-  --surface-sunken: #11403c; /* table headers, wells, inset areas */
+  /* Surface levels, widened separation (P2 review: lift was too subtle).
+     background #0e3733 < sunken < surface < raised, each a clear step. */
+  --surface-raised: #205e58; /* cards/menus lifted above --surface */
+  --surface-sunken: #0b2b28; /* table headers, wells, inset areas */
   --foreground-muted: #c3d0cc; /* secondary text, labels */
   --foreground-subtle: #8fa49f; /* hints, disabled, metadata */
   --border-strong: #6f9188; /* emphasised dividers, focused inputs */
@@ -55,11 +79,11 @@
      text and is therefore theme-independent — the same token passes WCAG AA
      whether the page behind it is ivory or teal. Hand-picked dark enough for
      AA against white (~4.5:1+); founder to confirm final hues on review. */
-  --status-low: #1f6b43; /* RiskBand LOW / success / CHECKED_NO_HAZARD */
-  --status-moderate: #8a5a00; /* RiskBand MODERATE / warning */
-  --status-elevated: #b4531d; /* RiskBand ELEVATED */
-  --status-high: #a12020; /* RiskBand HIGH / danger / overdue */
-  --status-info: #1d4e6b; /* informational / in-progress */
+  --status-low: #2e7d4f; /* RiskBand LOW / success / CHECKED_NO_HAZARD */
+  --status-moderate: #a06a12; /* RiskBand MODERATE / warning (amber family) */
+  --status-elevated: #c25a1c; /* RiskBand ELEVATED */
+  --status-high: #b42626; /* RiskBand HIGH / danger / overdue */
+  --status-info: #35627f; /* informational / in-progress (blue family) */
   --status-neutral: #4a5f5a; /* OPEN / not-yet-assessed / n.a. (dark theme) */
   --status-fg: #ffffff; /* text on any solid status fill */
 }
@@ -73,7 +97,7 @@
   /* Light-theme level overrides — surfaces lift toward white, text/borders
      darken toward teal. Status tokens are theme-independent (see :root). */
   --surface-raised: #ffffff;
-  --surface-sunken: #e7e3d6;
+  --surface-sunken: #ded6c4;
   --foreground-muted: #3c5a54;
   --foreground-subtle: #6b807a;
   --border-strong: #46655d;
@@ -86,8 +110,8 @@
   --surface: var(--color-surface-on-dark);
   --border: var(--color-sage-dark);
 
-  --surface-raised: #1c524d;
-  --surface-sunken: #11403c;
+  --surface-raised: #205e58;
+  --surface-sunken: #0b2b28;
   --foreground-muted: #c3d0cc;
   --foreground-subtle: #8fa49f;
   --border-strong: #6f9188;
@@ -100,6 +124,13 @@
   --color-surface: var(--surface);
   --color-border: var(--border);
   --color-accent: var(--accent);
+  --color-accent-secondary: var(--accent-secondary);
+  --color-info: var(--info);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
 
   /* Expose the P2 level + status tokens as Tailwind colour utilities
      (bg-surface-raised, text-foreground-muted, border-border-strong,
@@ -125,6 +156,8 @@
   --color-teal: var(--color-teal);
   --color-ivory: var(--color-ivory);
   --color-coral: var(--color-coral);
+  --color-amber: var(--color-amber);
+  --color-blue: var(--color-blue);
   --color-sage-dark: var(--color-sage-dark);
   --color-sage-light: var(--color-sage-light);
 
