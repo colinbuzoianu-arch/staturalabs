@@ -14,10 +14,13 @@ export default async function ActionsPage({
   searchParams,
 }: {
   params: Promise<{ siteId: string }>;
-  searchParams: Promise<{ fromFindingId?: string }>;
+  searchParams: Promise<{
+    fromFindingId?: string;
+    fromEnvironmentalFindingId?: string;
+  }>;
 }) {
   const { siteId } = await params;
-  const { fromFindingId } = await searchParams;
+  const { fromFindingId, fromEnvironmentalFindingId } = await searchParams;
   const { site } = await requireSiteAdministrationAccess(siteId);
   const locale = await getLocale();
   const dict = getAdministrationDictionary(locale).actionsPage;
@@ -36,6 +39,7 @@ export default async function ActionsPage({
     const sourceType = formData.get("sourceType");
     const riskFindingIdRaw = formData.get("riskFindingId");
     const assessmentSessionIdRaw = formData.get("assessmentSessionId");
+    const environmentalFindingIdRaw = formData.get("environmentalFindingId");
 
     const isFinding =
       sourceType === "finding" &&
@@ -45,8 +49,12 @@ export default async function ActionsPage({
       sourceType === "session" &&
       typeof assessmentSessionIdRaw === "string" &&
       assessmentSessionIdRaw.length > 0;
+    const isEnvFinding =
+      sourceType === "environmental-finding" &&
+      typeof environmentalFindingIdRaw === "string" &&
+      environmentalFindingIdRaw.length > 0;
 
-    if (!isFinding && !isSession) {
+    if (!isFinding && !isSession && !isEnvFinding) {
       throw new Error(dict.sourceRequired);
     }
 
@@ -97,6 +105,9 @@ export default async function ActionsPage({
           assessmentSessionId: isSession
             ? (assessmentSessionIdRaw as string)
             : null,
+          environmentalFindingId: isEnvFinding
+            ? (environmentalFindingIdRaw as string)
+            : null,
           title: title.trim(),
           description,
           hierarchyOfControl,
@@ -116,26 +127,41 @@ export default async function ActionsPage({
     revalidatePath(`/app/s/${siteId}/actions`);
   }
 
-  const [actions, findings, sessions, platformUsers] = await Promise.all([
-    prisma.action.findMany({
-      where: { siteId },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.riskFinding.findMany({
-      where: { riskAssessment: { siteId } },
-      include: {
-        hazard: true,
-        riskAssessment: { include: { workstation: true, process: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.assessmentSession.findMany({
-      where: { workstation: { siteId } },
-      include: { workstation: true },
-      orderBy: { startedAt: "desc" },
-    }),
-    prisma.platformUser.findMany({ where: { companyId: site.companyId } }),
-  ]);
+  const [actions, findings, sessions, environmentalFindings, platformUsers] =
+    await Promise.all([
+      prisma.action.findMany({
+        where: { siteId },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.riskFinding.findMany({
+        where: { riskAssessment: { siteId } },
+        include: {
+          hazard: true,
+          riskAssessment: { include: { workstation: true, process: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.assessmentSession.findMany({
+        where: { workstation: { siteId } },
+        include: { workstation: true },
+        orderBy: { startedAt: "desc" },
+      }),
+      // P4: environmental findings are a third, equal Action source
+      // (Action.environmentalFindingId, the exactly-one-of-three CHECK) —
+      // closes the deferred "raise an action from an environmental finding"
+      // item. Kept in the OSH/environment domain separation: this only
+      // populates the source dropdown, the action itself carries no
+      // environmental vocabulary beyond the link.
+      prisma.environmentalFinding.findMany({
+        where: { environmentalAssessment: { siteId } },
+        include: {
+          aspect: true,
+          environmentalAssessment: { include: { workstation: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.platformUser.findMany({ where: { companyId: site.companyId } }),
+    ]);
 
   const now = new Date();
 
@@ -169,9 +195,18 @@ export default async function ActionsPage({
                 type="radio"
                 name="sourceType"
                 value="session"
-                defaultChecked={!fromFindingId}
+                defaultChecked={!fromFindingId && !fromEnvironmentalFindingId}
               />
               {dict.fromSessionOption}
+            </label>
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                name="sourceType"
+                value="environmental-finding"
+                defaultChecked={!!fromEnvironmentalFindingId}
+              />
+              {dict.fromEnvironmentalFindingOption}
             </label>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -203,6 +238,23 @@ export default async function ActionsPage({
                   <option key={session.id} value={session.id}>
                     {session.workstation.name} —{" "}
                     {session.startedAt.toISOString()}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              {dict.environmentalFindingLabel}
+              <select
+                name="environmentalFindingId"
+                defaultValue={fromEnvironmentalFindingId ?? ""}
+                className="rounded border border-border bg-background px-2 py-1"
+              >
+                <option value="">{commonDict.none}</option>
+                {environmentalFindings.map((finding) => (
+                  <option key={finding.id} value={finding.id}>
+                    {finding.environmentalAssessment.workstation?.name ??
+                      site.name}{" "}
+                    — {finding.aspect.name} ({riskBandLabels[finding.riskBand]})
                   </option>
                 ))}
               </select>

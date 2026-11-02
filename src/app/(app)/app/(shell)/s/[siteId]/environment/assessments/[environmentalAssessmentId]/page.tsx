@@ -520,6 +520,13 @@ export default async function EnvironmentalAssessmentDetailPage({
                           <p className="text-border">{finding.notes}</p>
                         )}
 
+                        <Link
+                          href={`/app/s/${siteId}/actions?fromEnvironmentalFindingId=${finding.id}`}
+                          className="self-start text-xs text-accent hover:underline"
+                        >
+                          {dict.raiseActionLink}
+                        </Link>
+
                         <div>
                           <h4 className="text-xs font-semibold">
                             {dict.quantitiesHeading}
