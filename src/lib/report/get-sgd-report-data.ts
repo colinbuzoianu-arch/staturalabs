@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getActiveLegalReferenceCatalog } from "@/lib/country/legal-reference-catalog-version";
 import { prisma } from "@/lib/prisma";
 import { getActiveMethodologyVersion } from "@/lib/scoring/methodology-version";
 import { deriveAppliedStandards } from "./applied-standards";
@@ -117,6 +118,25 @@ export async function getSgdReportData(scope: SgdScope) {
   });
   const userNames = new Map(users.map((u) => [u.id, u.name]));
 
+  // Applicable legal references for this site's country, from the active
+  // country legal-reference catalogue (§4.2/§6). Graceful + fail-closed on
+  // the country boundary: if no catalogue is active, or the country has no
+  // verified rows (e.g. CH), this is empty and the document shows an honest
+  // gap (§3.15) — the SGD must still generate, and it never borrows another
+  // country's references.
+  let legalReferences: Awaited<
+    ReturnType<typeof prisma.legalReference.findMany>
+  > = [];
+  try {
+    const legalCatalogVersion = await getActiveLegalReferenceCatalog();
+    legalReferences = await prisma.legalReference.findMany({
+      where: { catalogVersion: legalCatalogVersion, country: site.country },
+      orderBy: [{ topic: "asc" }, { code: "asc" }],
+    });
+  } catch {
+    legalReferences = [];
+  }
+
   // DOK-VO item 3's "per workplace or activity group" is the CURRENT
   // state — the latest APPROVED assessment per distinct workstation/
   // process subject in scope (same "latest APPROVED" precedent as the
@@ -155,6 +175,7 @@ export async function getSgdReportData(scope: SgdScope) {
     history: riskAssessments,
     actions,
     userNames,
+    legalReferences,
   };
 }
 

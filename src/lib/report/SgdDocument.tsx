@@ -5,6 +5,7 @@ import {
 } from "@/lib/risk/exposure-threshold-status";
 import { BrandMark } from "./brand-mark";
 import type { SgdReportData } from "./get-sgd-report-data";
+import { getSgdFraming } from "./sgd-framing";
 
 // Same palette/type conventions as the other three report documents — one
 // visual system across every printable artifact this app produces.
@@ -299,7 +300,9 @@ export function SgdDocument({ data }: { data: SgdReportData }) {
     history,
     actions,
     userNames,
+    legalReferences,
   } = data;
+  const framing = getSgdFraming(site.country);
   const company = site.company;
   const year = generatedAt.getUTCFullYear();
   const scopeLabel = workstation
@@ -309,9 +312,9 @@ export function SgdDocument({ data }: { data: SgdReportData }) {
 
   return (
     <Document
-      title={`Sicherheits- und Gesundheitsschutzdokument — ${site.name}`}
+      title={`${framing.docTitle} — ${site.name}`}
       author="Statura Labs Dynamics"
-      subject={`SGD für ${site.name}, ${company.name}`}
+      subject={`${framing.docTitle} für ${site.name}, ${company.name}`}
     >
       <Page size="A4" style={styles.page} wrap>
         <View style={styles.headerRow}>
@@ -329,13 +332,8 @@ export function SgdDocument({ data }: { data: SgdReportData }) {
 
         <View style={styles.divider} />
 
-        <Text style={styles.title}>
-          Sicherheits- und Gesundheitsschutzdokument (SGD)
-        </Text>
-        <Text style={styles.subtitle}>
-          gemäß §5 ASchG und DOK-VO (Verordnung über die Sicherheits- und
-          Gesundheitsschutzdokumente)
-        </Text>
+        <Text style={styles.title}>{framing.docTitle}</Text>
+        <Text style={styles.subtitle}>{framing.legalBasisLine}</Text>
 
         {/* 1. Betrieb / Arbeitsstätte identification, evaluation scope. */}
         <Text style={styles.sectionTitle}>1. Betrieb / Arbeitsstätte</Text>
@@ -349,6 +347,26 @@ export function SgdDocument({ data }: { data: SgdReportData }) {
             Umfang dieses Dokuments: {scopeLabel}
           </Text>
         </View>
+
+        {/* Applicable legal references for this site's country, from the
+            founder-verified country legal-reference catalogue (§4.2/§6).
+            Empty for a country with no verified rows (e.g. CH) — shown as an
+            honest gap, never another country's law (§3.15). */}
+        <Text style={styles.sectionTitle}>Rechtsgrundlagen</Text>
+        {legalReferences.length === 0 ? (
+          <Text style={styles.emptyNote}>
+            Für dieses Land sind derzeit keine Rechtsgrundlagen im geprüften
+            Katalog hinterlegt.
+          </Text>
+        ) : (
+          legalReferences.map((ref) => (
+            <Text key={ref.id} style={styles.standardRow}>
+              <Text style={styles.standardRef}>{ref.code}</Text> —{" "}
+              {ref.obligation}
+              {ref.consolidatedVersion ? ` (${ref.consolidatedVersion})` : ""}
+            </Text>
+          ))
+        )}
 
         {/* 2. Completeness: proof that every HazardCategory was considered
             — the Arbeitsinspektor's first question (§4/§5 ASchG). H1d. */}
@@ -564,7 +582,7 @@ export function SgdDocument({ data }: { data: SgdReportData }) {
         <Text style={styles.sectionIntro}>
           Wo ÖNORMEN, harmonisierte europäische Normen oder sonstige anerkannte
           Regeln der Technik zur Ableitung von Maßnahmen herangezogen wurden,
-          sind diese hier benannt (§5 DOK-VO).
+          sind diese hier benannt ({framing.normsBasisRef}).
         </Text>
         {appliedStandards.length === 0 ? (
           <Text style={styles.emptyNote}>
@@ -583,10 +601,7 @@ export function SgdDocument({ data }: { data: SgdReportData }) {
         <Text style={styles.sectionTitle}>
           7. Überprüfung der Wirksamkeit von Maßnahmen
         </Text>
-        <Text style={styles.sectionIntro}>
-          §4 Abs 4 ASchG verlangt, dass die Wirksamkeit gesetzter Maßnahmen
-          überprüft und diese bei Bedarf angepasst werden.
-        </Text>
+        <Text style={styles.sectionIntro}>{framing.verificationBasis}</Text>
         {verifiedActions.length === 0 ? (
           <Text style={styles.emptyNote}>
             Für den gewählten Umfang liegt noch keine verifizierte Maßnahme vor.
@@ -641,9 +656,10 @@ export function SgdDocument({ data }: { data: SgdReportData }) {
         <View style={styles.footer} fixed>
           <Text style={styles.footerCopyright}>© {year} Verumsell SRL</Text>
           <Text style={styles.footerDisclaimer}>
-            Dieses Dokument bildet die eigene Evaluierung des Arbeitgebers gemäß
-            §5 ASchG/DOK-VO ab. Es ersetzt nicht die Beurteilung durch eine
-            befugte Sicherheitsfachkraft oder einen Arbeitsmediziner.
+            Dieses Dokument bildet die eigene Gefährdungsbeurteilung des
+            Arbeitgebers gemäß {framing.disclaimerStatute} ab. Es ersetzt nicht
+            die Beurteilung durch eine befugte Sicherheitsfachkraft oder einen
+            Arbeitsmediziner.
           </Text>
         </View>
         <Text
