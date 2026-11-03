@@ -1880,3 +1880,61 @@ model DocumentVersion {
   @@unique([documentId, version])
   @@index([documentId])
 }
+
+// P5 notifications service (SLD_RESTRUCTURE_PLAN_platform-modules.md §7.9).
+// The event vocabulary. Only the first five have a generator in v1 (their
+// recipient is unambiguous in today's data — see src/lib/notifications/
+// generate.ts); the rest are reserved enum values with no generator yet,
+// the same forward-declaration discipline AssessmentMode.CONTINUOUS and
+// PostureSampleSource.IMPORTED_MODEL already follow. A notification NEVER
+// describes an individual's behaviour or health (ERGO_COMPLIANCE_BY_DESIGN.md
+// §3.18, plan §6 "never let a notification describe an individual").
+enum NotificationEventType {
+  ACTION_DUE_SOON
+  ACTION_OVERDUE
+  ACTION_VERIFICATION_DUE
+  DOCUMENT_REVIEW_DUE
+  ASSESSMENT_REVIEW_DUE
+  // Reserved — land with their modules (P6–P12), no generator yet.
+  ENVIRONMENTAL_ASSESSMENT_REVIEW_DUE
+  INSPECTION_DUE
+  INCIDENT_REPORTED
+  NOTIFICATION_DEADLINE_APPROACHING
+  SDS_OUTDATED
+  INSTRUCTION_DUE
+  INSTRUCTION_OVERDUE
+  LEGAL_REQUIREMENT_REVIEW_DUE
+}
+
+// A single in-app notification instance for one recipient. Like AuditEvent,
+// it carries recipientUserId/companyId/siteId/subjectId as PLAIN columns
+// (no FKs) so it outlives the entities it points at and never cascades.
+// recipientUserId is a PlatformUser account id (logs in) — never a Person
+// (§3.18(4)). dedupeKey makes generation idempotent: re-running the generator
+// upserts on (recipientUserId, dedupeKey) instead of piling up duplicates.
+model Notification {
+  id              String                @id @default(cuid())
+  recipientUserId String                @db.Uuid
+  eventType       NotificationEventType
+  companyId       String?
+  siteId          String?
+  // What it points at (e.g. "Action", "Document", "RiskAssessment") + id,
+  // plain columns, and the in-app deep link the inbox renders.
+  subjectType String?
+  subjectId   String?
+  href        String
+  title       String
+  body        String
+  // The due date the event is about (for sorting the inbox); null for
+  // events with no date dimension.
+  dueAt     DateTime?
+  dedupeKey String
+  readAt    DateTime?
+  // Best-effort email dispatch stamp (null = not sent / no provider).
+  emailedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@unique([recipientUserId, dedupeKey])
+  @@index([recipientUserId, readAt])
+  @@index([siteId])
+}
