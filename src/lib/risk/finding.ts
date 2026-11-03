@@ -37,12 +37,50 @@ export type CreateFindingInput = {
   riskBand: RiskBand;
   existingControls?: string | null;
   notes?: string | null;
+  // P6 §6 step link: the Task this finding relates to. The caller must have
+  // validated it belongs to the assessment's subject (assertTaskInAssessment
+  // Subject) before passing it.
+  taskId?: string | null;
   // Required iff category === PSYCHOSOCIAL; ignored otherwise.
   dimension?: PsychosocialDimension | null;
   method?: PsychosocialMethod | null;
   groupSize?: number | null;
   externalProcedureName?: string | null;
 };
+
+// P6 §6: a finding's linked Task (the "step") must belong to the assessment's
+// OWN subject — the assessed workstation, or a task in the assessed process —
+// not merely the same site. Throws otherwise. Call before createFinding.
+export async function assertTaskInAssessmentSubject(
+  taskId: string,
+  assessment: { workstationId: string | null; processId: string | null },
+): Promise<void> {
+  if (assessment.workstationId) {
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { workstationId: true },
+    });
+    if (!task || task.workstationId !== assessment.workstationId) {
+      throw new Error(
+        `Task ${taskId} is not part of this assessment's workstation`,
+      );
+    }
+    return;
+  }
+  if (assessment.processId) {
+    const link = await prisma.processTask.findFirst({
+      where: { taskId, processId: assessment.processId },
+      select: { id: true },
+    });
+    if (!link) {
+      throw new Error(
+        `Task ${taskId} is not part of this assessment's process`,
+      );
+    }
+    return;
+  }
+  throw new Error("Assessment has no subject to validate the task against");
+}
 
 export async function createFinding(
   input: CreateFindingInput,
@@ -75,6 +113,7 @@ export async function createFinding(
       method: input.method,
       groupSize: input.groupSize,
       externalProcedureName: input.externalProcedureName ?? null,
+      taskId: input.taskId ?? null,
     });
     await markCategoryHazardPresent(
       prisma,
@@ -95,6 +134,7 @@ export async function createFinding(
         riskBand: input.riskBand,
         existingControls: input.existingControls ?? null,
         notes: input.notes ?? null,
+        taskId: input.taskId ?? null,
       },
     });
     await markCategoryHazardPresent(tx, input.riskAssessmentId, input.category);

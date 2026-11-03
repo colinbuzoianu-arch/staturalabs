@@ -52,6 +52,8 @@ export type CreatePsychosocialFindingInput = {
   method: PsychosocialMethod;
   groupSize: number;
   externalProcedureName?: string | null;
+  // P6 §6 step link (optional); the caller validates subject membership.
+  taskId?: string | null;
 };
 
 // The single gate for creating a PSYCHOSOCIAL-category RiskFinding with
@@ -79,6 +81,7 @@ export async function createPsychosocialFinding(
         riskBand: input.riskBand,
         existingControls: input.existingControls ?? null,
         notes: input.notes ?? null,
+        taskId: input.taskId ?? null,
       },
     });
 

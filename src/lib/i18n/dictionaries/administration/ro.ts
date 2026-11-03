@@ -204,6 +204,11 @@ export const ro: typeof en = {
     findingsHeading: "Constatări",
     findingsEmpty: "Nu există încă constatări înregistrate.",
     addFindingHeading: "Adaugă constatare",
+    stepTaskLabel: "Sarcină asociată (pas, opțional)",
+    stepTaskNone: "— niciuna —",
+    stepTaskPrefix: "Pas:",
+    taskNotInSubjectError:
+      "Acea sarcină nu face parte din locul de muncă sau procesul acestei evaluări.",
     hazardLabel: "Pericol",
     psychosocialDimensionLabel: "Dimensiune (ÖNORM EN ISO 10075)",
     psychosocialDimensionLabels: {

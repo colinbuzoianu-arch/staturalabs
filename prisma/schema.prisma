@@ -205,6 +205,7 @@ model Task {
   assessmentSessions AssessmentSessionTask[]
   processTasks       ProcessTask[]
   planPositions      TaskPlanPosition[]
+  riskFindings       RiskFinding[]
 
   @@index([workstationId])
 }
@@ -1068,16 +1069,23 @@ model RiskFinding {
   residualSeverity    Int?
   residualRiskScore   Int?
   residualRiskBand    RiskBand?
+  // P6 §6 step link: the specific Task (the "step") this finding relates to,
+  // within the assessed workstation/process. Optional; validated to belong to
+  // the assessment's own subject before being set (not merely same-site). No
+  // new "step" entity — Task already means "a specific job at a workstation".
+  taskId              String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
   riskAssessment     RiskAssessment             @relation(fields: [riskAssessmentId], references: [id], onDelete: Restrict)
   hazard             Hazard                     @relation(fields: [hazardId], references: [id], onDelete: Restrict)
+  task               Task?                      @relation(fields: [taskId], references: [id], onDelete: Restrict)
   measurements       ExposureMeasurement[]
   actions            Action[]
   psychosocialDetail PsychosocialFindingDetail?
 
   @@index([riskAssessmentId])
+  @@index([taskId])
 }
 
 /// Instrument or survey measurement supporting a finding, with the legal

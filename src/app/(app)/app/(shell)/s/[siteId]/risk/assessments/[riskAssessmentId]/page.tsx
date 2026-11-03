@@ -29,7 +29,10 @@ import {
 import { getActiveExposureLimitCatalog } from "@/lib/risk/exposure-limit-catalog-version";
 import { matchExposureLimits } from "@/lib/risk/exposure-limit-lookup";
 import { exposureThresholdStatus } from "@/lib/risk/exposure-threshold-status";
-import { createFinding } from "@/lib/risk/finding";
+import {
+  assertTaskInAssessmentSubject,
+  createFinding,
+} from "@/lib/risk/finding";
 import { isOtherHazardCode } from "@/lib/risk/hazard-catalog";
 import { lookupRiskMatrixCell } from "@/lib/risk/matrix-lookup";
 import { computeNextReviewDate, isReviewDue } from "@/lib/risk/review-cycle";
@@ -48,6 +51,7 @@ async function loadRiskAssessment(riskAssessmentId: string) {
           hazard: true,
           measurements: { orderBy: { measuredAt: "desc" } },
           psychosocialDetail: true,
+          task: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: "asc" },
       },
@@ -91,6 +95,25 @@ export default async function RiskAssessmentDetailPage({
     initial.reviewRequired,
     new Date(),
   );
+
+  // P6 §6 step link: the tasks a finding may be linked to — this assessment's
+  // workstation's tasks, or the tasks in its process. Empty for neither.
+  const candidateTasks: Array<{ id: string; name: string }> =
+    initial.workstationId
+      ? await prisma.task.findMany({
+          where: { workstationId: initial.workstationId },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        })
+      : initial.processId
+        ? (
+            await prisma.processTask.findMany({
+              where: { processId: initial.processId },
+              select: { task: { select: { id: true, name: true } } },
+              orderBy: { sequence: "asc" },
+            })
+          ).map((pt) => pt.task)
+        : [];
 
   async function submitForReviewAction() {
     "use server";
@@ -247,6 +270,19 @@ export default async function RiskAssessmentDetailPage({
         ? notesRaw.trim()
         : null;
 
+    // P6 §6 step link (optional). Validate it belongs to this assessment's
+    // own subject (not merely same-site) before it can be stored.
+    const taskIdRaw = formData.get("taskId");
+    const taskId =
+      typeof taskIdRaw === "string" && taskIdRaw.length > 0 ? taskIdRaw : null;
+    if (taskId) {
+      try {
+        await assertTaskInAssessmentSubject(taskId, current);
+      } catch {
+        throw new Error(dict.taskNotInSubjectError);
+      }
+    }
+
     const cell = await lookupRiskMatrixCell({
       probability,
       severity,
@@ -333,6 +369,7 @@ export default async function RiskAssessmentDetailPage({
         riskBand: cell.riskBand,
         existingControls,
         notes,
+        taskId,
         dimension,
         method,
         groupSize,
@@ -777,6 +814,23 @@ export default async function RiskAssessmentDetailPage({
               className="rounded border border-border bg-background px-2 py-1"
             />
           </label>
+          {candidateTasks.length > 0 && (
+            <label className="flex flex-col gap-1 text-sm">
+              {dict.stepTaskLabel}
+              <select
+                name="taskId"
+                defaultValue=""
+                className="rounded border border-border bg-background px-2 py-1"
+              >
+                <option value="">{dict.stepTaskNone}</option>
+                {candidateTasks.map((task) => (
+                  <option key={task.id} value={task.id}>
+                    {task.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <button
             type="submit"
             className="self-start rounded bg-accent px-3 py-1.5 text-sm font-semibold text-background"
@@ -804,6 +858,11 @@ export default async function RiskAssessmentDetailPage({
                     {dict.riskBandLabel} {riskBandLabels[finding.riskBand]}
                   </span>
                 </div>
+                {finding.task && (
+                  <p className="text-xs text-foreground-subtle">
+                    {dict.stepTaskPrefix} {finding.task.name}
+                  </p>
+                )}
                 {finding.existingControls && (
                   <p className="text-sm text-border">
                     {finding.existingControls}

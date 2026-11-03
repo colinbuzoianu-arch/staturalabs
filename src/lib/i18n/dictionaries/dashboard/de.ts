@@ -78,6 +78,7 @@ export const de: typeof en = {
   },
   workstationHub: {
     breadcrumbSites: "Standorte",
+    reviewRequiredBadge: "Überprüfung erforderlich — Beurteilung öffnen →",
     eyebrow: "Arbeitsplatz //",
     description:
       "Alle Gefährdungskategorien für diesen Arbeitsplatz durcharbeiten und die Evaluierung anschließend zur Prüfung einreichen.",

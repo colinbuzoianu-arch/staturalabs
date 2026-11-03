@@ -78,6 +78,7 @@ export const ro: typeof en = {
   },
   workstationHub: {
     breadcrumbSites: "Locații",
+    reviewRequiredBadge: "Revizuire necesară — deschide evaluarea →",
     eyebrow: "Loc de muncă //",
     description:
       "Parcurgeți fiecare categorie de pericol pentru acest loc de muncă, apoi trimiteți evaluarea spre revizuire.",

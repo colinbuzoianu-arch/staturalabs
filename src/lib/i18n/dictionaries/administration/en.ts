@@ -221,6 +221,11 @@ export const en = {
     findingsHeading: "Findings",
     findingsEmpty: "No findings recorded yet.",
     addFindingHeading: "Add finding",
+    stepTaskLabel: "Related task (step, optional)",
+    stepTaskNone: "— none —",
+    stepTaskPrefix: "Step:",
+    taskNotInSubjectError:
+      "That task is not part of this assessment's workstation or process.",
     hazardLabel: "Hazard",
     // Psychosocial (SLD_IMPLEMENTATION_PLAN_austria-first.md §7 B7):
     // shown only when the selected hazard's category is PSYCHOSOCIAL

@@ -205,6 +205,11 @@ export const de: typeof en = {
     findingsHeading: "Feststellungen",
     findingsEmpty: "Noch keine Feststellungen erfasst.",
     addFindingHeading: "Feststellung hinzufügen",
+    stepTaskLabel: "Zugehörige Aufgabe (Schritt, optional)",
+    stepTaskNone: "— keine —",
+    stepTaskPrefix: "Schritt:",
+    taskNotInSubjectError:
+      "Diese Aufgabe gehört nicht zum Arbeitsplatz oder Prozess dieser Beurteilung.",
     hazardLabel: "Gefährdung",
     psychosocialDimensionLabel: "Dimension (ÖNORM EN ISO 10075)",
     psychosocialDimensionLabels: {

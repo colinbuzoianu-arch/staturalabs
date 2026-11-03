@@ -111,6 +111,7 @@ describe("createPsychosocialFinding", () => {
         riskBand: "MODERATE",
         existingControls: "Regular team check-ins",
         notes: "Discussed during shift handover",
+        taskId: null,
       },
     });
     expect(prisma.psychosocialFindingDetail.create).toHaveBeenCalledWith({

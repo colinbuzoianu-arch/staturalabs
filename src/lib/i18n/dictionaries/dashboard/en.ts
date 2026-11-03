@@ -117,6 +117,7 @@ export const en = {
   // hazardCategoryLabels above.
   workstationHub: {
     breadcrumbSites: "Sites",
+    reviewRequiredBadge: "Review required — open the assessment →",
     eyebrow: "Workstation //",
     description:
       "Work through every hazard category for this workstation, then submit the assessment for review.",

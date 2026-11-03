@@ -28,6 +28,7 @@ import {
 } from "@/lib/risk/finding";
 import { isOtherHazardCode } from "@/lib/risk/hazard-catalog";
 import { lookupRiskMatrixCell } from "@/lib/risk/matrix-lookup";
+import { isReviewDue } from "@/lib/risk/review-cycle";
 import { createRiskAssessment } from "@/lib/risk/risk-assessment";
 
 const PSYCHOSOCIAL_DIMENSIONS: PsychosocialDimension[] = [
@@ -307,6 +308,21 @@ export default async function WorkstationHubPage({
     }),
   ]);
 
+  // P6 §6 review cycle: surface the latest approved assessment's
+  // "Überprüfung erforderlich" state on the hub, linking to its detail.
+  const latestApproved = await prisma.riskAssessment.findFirst({
+    where: { workstationId, status: RiskAssessmentStatus.APPROVED },
+    orderBy: { assessedAt: "desc" },
+    select: { id: true, nextReviewDate: true, reviewRequired: true },
+  });
+  const reviewDueNow = latestApproved
+    ? isReviewDue(
+        latestApproved.nextReviewDate,
+        latestApproved.reviewRequired,
+        new Date(),
+      )
+    : false;
+
   const hazardsByCategory = new Map<HazardCategory, FindingHazardOption[]>();
   for (const hazard of [...systemHazards, ...companyHazards]) {
     const option: FindingHazardOption = {
@@ -405,6 +421,15 @@ export default async function WorkstationHubPage({
           )}
         </div>
       </div>
+
+      {reviewDueNow && latestApproved && (
+        <Link
+          href={`/app/s/${siteId}/risk/assessments/${latestApproved.id}`}
+          className="rounded-lg border border-status-high bg-surface p-3 text-sm font-semibold text-status-high hover:underline"
+        >
+          {dict.reviewRequiredBadge}
+        </Link>
+      )}
 
       {!draft ? (
         <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-6">
