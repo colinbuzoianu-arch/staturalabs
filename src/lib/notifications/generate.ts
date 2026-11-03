@@ -3,6 +3,7 @@ import {
   type NotificationEventType,
 } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
+import { isReviewDue } from "@/lib/risk/review-cycle";
 import {
   ACTION_DUE_SOON_LEAD_DAYS,
   buildDedupeKey,
@@ -41,6 +42,7 @@ const EMAIL_EVENT_LABEL_DE: Partial<Record<NotificationEventType, string>> = {
   [EventType.ACTION_OVERDUE]: "Maßnahme überfällig",
   [EventType.ACTION_VERIFICATION_DUE]: "Wirksamkeitsprüfung fällig",
   [EventType.DOCUMENT_REVIEW_DUE]: "Dokumentenprüfung fällig",
+  [EventType.ASSESSMENT_REVIEW_DUE]: "Überprüfung der Evaluierung fällig",
 };
 
 export type GenerateOptions = {
@@ -77,7 +79,7 @@ export async function generateDueNotifications(
   const { siteIds } = options;
   if (siteIds.length === 0) return { scanned: 0, created: 0 };
 
-  const [actions, documents, sites] = await Promise.all([
+  const [actions, documents, riskAssessments, sites] = await Promise.all([
     prisma.action.findMany({
       where: {
         siteId: { in: siteIds },
@@ -106,6 +108,23 @@ export async function generateDueNotifications(
         title: true,
         reviewDueDate: true,
         createdByUserId: true,
+      },
+    }),
+    // P6 §6 review cycle: APPROVED assessments whose review is due or flagged.
+    // Recipient is the assessor — the one PlatformUser the record names (the
+    // approver isn't a stored field; role-based routing waits for
+    // NotificationRule). OR-ing nextReviewDate/reviewRequired is done in JS
+    // via isReviewDue so the one date rule lives in one place.
+    prisma.riskAssessment.findMany({
+      where: { siteId: { in: siteIds }, status: "APPROVED" },
+      select: {
+        id: true,
+        siteId: true,
+        assessorUserId: true,
+        nextReviewDate: true,
+        reviewRequired: true,
+        workstation: { select: { name: true } },
+        process: { select: { name: true } },
       },
     }),
     prisma.site.findMany({
@@ -178,6 +197,24 @@ export async function generateDueNotifications(
       title: doc.title,
       body: site?.name ?? "",
       dueAt: doc.reviewDueDate,
+    });
+  }
+
+  for (const ra of riskAssessments) {
+    scanned++;
+    if (!isReviewDue(ra.nextReviewDate, ra.reviewRequired, now)) continue;
+    const site = siteById.get(ra.siteId);
+    candidates.push({
+      recipientUserId: ra.assessorUserId,
+      eventType: EventType.ASSESSMENT_REVIEW_DUE,
+      companyId: site?.companyId ?? null,
+      siteId: ra.siteId,
+      subjectType: "RiskAssessment",
+      subjectId: ra.id,
+      href: `/app/s/${ra.siteId}/risk/assessments/${ra.id}`,
+      title: ra.workstation?.name ?? ra.process?.name ?? site?.name ?? "",
+      body: site?.name ?? "",
+      dueAt: ra.nextReviewDate,
     });
   }
 

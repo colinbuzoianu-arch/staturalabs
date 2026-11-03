@@ -320,6 +320,70 @@ async function main() {
       [siteIds],
     );
 
+    // P4 document tables (GeneratedDocument, Document/DocumentVersion) FK to
+    // Site/Document with onDelete Restrict — they must go before Site, and
+    // their storage blobs removed like FloorPlan's. (This closes the same
+    // class of reset gap previously hit for PostureSampleValidationEvent and
+    // PsychosocialFindingDetail.)
+    async function removeStorageObjects(bucket, paths) {
+      if (paths.length === 0) return;
+      const { error: removeError } = await admin.storage
+        .from(bucket)
+        .remove(paths);
+      if (removeError) {
+        throw new Error(
+          `Failed to remove ${bucket} storage objects: ${removeError.message}`,
+        );
+      }
+      console.log(`  ${bucket} storage objects: ${paths.length} removed`);
+    }
+
+    const generatedPaths = (
+      await db.query(
+        `SELECT "storagePath" FROM "GeneratedDocument" WHERE "siteId" = ANY($1)`,
+        [siteIds],
+      )
+    ).rows.map((r) => r.storagePath);
+    await removeStorageObjects("generated-documents", generatedPaths);
+    await del(
+      db,
+      "GeneratedDocument",
+      `DELETE FROM "GeneratedDocument" WHERE "siteId" = ANY($1)`,
+      [siteIds],
+    );
+
+    const documentVersionPaths = (
+      await db.query(
+        `SELECT dv."storagePath" FROM "DocumentVersion" dv
+         JOIN "Document" d ON d.id = dv."documentId"
+         WHERE d."siteId" = ANY($1)`,
+        [siteIds],
+      )
+    ).rows.map((r) => r.storagePath);
+    await removeStorageObjects("documents", documentVersionPaths);
+    await del(
+      db,
+      "DocumentVersion",
+      `DELETE FROM "DocumentVersion" WHERE "documentId" IN (
+         SELECT id FROM "Document" WHERE "siteId" = ANY($1))`,
+      [siteIds],
+    );
+    await del(
+      db,
+      "Document",
+      `DELETE FROM "Document" WHERE "siteId" = ANY($1)`,
+      [siteIds],
+    );
+
+    // P5 notifications have no FK (plain columns) so they never block the
+    // delete, but clean the demo site's own for idempotency hygiene.
+    await del(
+      db,
+      "Notification",
+      `DELETE FROM "Notification" WHERE "siteId" = ANY($1)`,
+      [siteIds],
+    );
+
     await del(db, "Site", `DELETE FROM "Site" WHERE "companyId" = $1`, [
       company.id,
     ]);
@@ -327,6 +391,14 @@ async function main() {
       db,
       "PlatformUser",
       `DELETE FROM "PlatformUser" WHERE "companyId" = $1`,
+      [company.id],
+    );
+    // P1 CompanyModule entitlement rows FK to Company (Restrict) — delete
+    // before the Company, same reset-gap class as the P4 document tables above.
+    await del(
+      db,
+      "CompanyModule",
+      `DELETE FROM "CompanyModule" WHERE "companyId" = $1`,
       [company.id],
     );
     await del(db, "Company", `DELETE FROM "Company" WHERE id = $1`, [

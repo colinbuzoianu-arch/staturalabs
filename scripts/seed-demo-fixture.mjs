@@ -715,7 +715,15 @@ async function main() {
       );
       const assessedAt = monthsAgo(5);
 
-      async function createApprovedAssessment(workstationName) {
+      // P6 §6: header attributes + review cycle on the seeded assessments so
+      // the hub/detail render them. reviewIntervalMonths defaults to 12 (next
+      // review ~7 months out, not yet due); pass a shorter interval to make an
+      // assessment visibly "Überprüfung erforderlich" for the demo walkthrough.
+      async function createApprovedAssessment(
+        workstationName,
+        { reviewIntervalMonths = 12 } = {},
+      ) {
+        const nextReviewDate = addDays(assessedAt, reviewIntervalMonths * 30);
         return insertRow(db, "RiskAssessment", {
           id: crypto.randomUUID(),
           siteId: site.id,
@@ -727,6 +735,12 @@ async function main() {
           assessedAt,
           approvedAt: addDays(assessedAt, 3),
           pilotContext: DEMO_PILOT_CONTEXT,
+          activityType: "ROUTINE",
+          personsExposedCount: 4,
+          shiftPattern: "2-Schicht-Betrieb",
+          processDescription: "Manuelle Montage von Paneelen am Arbeitsplatz.",
+          reviewIntervalMonths,
+          nextReviewDate,
           updatedAt: new Date(),
         });
       }
@@ -838,8 +852,13 @@ async function main() {
       // limit value, must never be exceeded) — a better demo beat than a
       // single EU-directive number, since it shows two thresholds
       // crossing at once (SLD_IMPLEMENTATION_PLAN_austria-first.md §4.4).
+      // Hero assessment: a 5-month review interval over a 5-months-ago
+      // assessment date puts its next review ~now, so it shows "Überprüfung
+      // erforderlich" and generates an ASSESSMENT_REVIEW_DUE notification in
+      // the live demo.
       const heroAssessment = await createApprovedAssessment(
         "Montageplatz Paneele 1",
+        { reviewIntervalMonths: 5 },
       );
       const heroFinding = await addFinding(
         heroAssessment,

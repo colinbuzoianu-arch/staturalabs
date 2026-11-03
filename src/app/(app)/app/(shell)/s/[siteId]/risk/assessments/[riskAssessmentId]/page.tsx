@@ -11,6 +11,7 @@ import {
 } from "@/components/exposure-limit-fields";
 import { PresentModeNav } from "@/components/present-mode-nav";
 import {
+  type ActivityType,
   PsychosocialDimension,
   PsychosocialMethod,
   RiskAssessmentStatus,
@@ -31,6 +32,7 @@ import { exposureThresholdStatus } from "@/lib/risk/exposure-threshold-status";
 import { createFinding } from "@/lib/risk/finding";
 import { isOtherHazardCode } from "@/lib/risk/hazard-catalog";
 import { lookupRiskMatrixCell } from "@/lib/risk/matrix-lookup";
+import { computeNextReviewDate, isReviewDue } from "@/lib/risk/review-cycle";
 
 const PSYCHOSOCIAL_DIMENSIONS = Object.values(PsychosocialDimension);
 const PSYCHOSOCIAL_METHODS = Object.values(PsychosocialMethod);
@@ -83,6 +85,12 @@ export default async function RiskAssessmentDetailPage({
   const statusLabels = administrationDict.riskAssessmentStatusLabels;
   const categoryLabels = administrationDict.hazardCategoryLabels;
   const riskBandLabels = getCommonDictionary(locale).riskBandLabels;
+  const headerDict = dict.header;
+  const reviewDueNow = isReviewDue(
+    initial.nextReviewDate,
+    initial.reviewRequired,
+    new Date(),
+  );
 
   async function submitForReviewAction() {
     "use server";
@@ -142,6 +150,58 @@ export default async function RiskAssessmentDetailPage({
     });
     revalidatePath(`/app/s/${siteId}/risk/assessments/${riskAssessmentId}`);
     revalidatePath(`/app/s/${siteId}/risk/assessments`);
+  }
+
+  // P6 §6: save the header attributes + review cycle. Editable in any status
+  // (header context and the review schedule aren't gated behind approval).
+  // nextReviewDate is taken from the date field if given, else computed from
+  // the interval over assessedAt — the one review-date rule lives in
+  // computeNextReviewDate.
+  async function saveHeaderAction(formData: FormData) {
+    "use server";
+    const current = await loadRiskAssessment(riskAssessmentId);
+    await requireSiteAdministrationAccess(current.siteId);
+
+    const str = (k: string) => {
+      const v = formData.get(k);
+      return typeof v === "string" && v.trim().length > 0 ? v.trim() : null;
+    };
+    const intOrNull = (k: string) => {
+      const v = str(k);
+      if (v === null) return null;
+      const n = Number.parseInt(v, 10);
+      return Number.isFinite(n) && n >= 0 ? n : null;
+    };
+
+    const activityRaw = str("activityType");
+    const activityType =
+      activityRaw === "ROUTINE" || activityRaw === "NON_ROUTINE"
+        ? (activityRaw as ActivityType)
+        : null;
+    const reviewIntervalMonths = intOrNull("reviewIntervalMonths");
+    const explicitReviewDate = str("nextReviewDate");
+    const nextReviewDate = explicitReviewDate
+      ? new Date(explicitReviewDate)
+      : computeNextReviewDate(current.assessedAt, reviewIntervalMonths);
+    const reviewRequired = formData.get("reviewRequired") === "on";
+
+    await prisma.riskAssessment.update({
+      where: { id: riskAssessmentId },
+      data: {
+        activityType,
+        personsExposedCount: intOrNull("personsExposedCount"),
+        shiftPattern: str("shiftPattern"),
+        productReference: str("productReference"),
+        processDescription: str("processDescription"),
+        reviewIntervalMonths,
+        nextReviewDate,
+        reviewRequired,
+        reviewRequiredReason: reviewRequired
+          ? str("reviewRequiredReason")
+          : null,
+      },
+    });
+    revalidatePath(`/app/s/${siteId}/risk/assessments/${riskAssessmentId}`);
   }
 
   async function addFindingAction(formData: FormData) {
@@ -483,6 +543,129 @@ export default async function RiskAssessmentDetailPage({
           )}
         </dl>
       </div>
+
+      {reviewDueNow && (
+        <div className="rounded-lg border border-status-high bg-surface p-3 text-sm font-semibold text-status-high">
+          {headerDict.reviewRequiredBadge}
+          {initial.reviewRequiredReason
+            ? ` — ${initial.reviewRequiredReason}`
+            : ""}
+        </div>
+      )}
+
+      {!presentMode && (
+        <section className="flex flex-col gap-4">
+          <h2 className="font-heading text-lg font-bold">
+            {headerDict.heading}
+          </h2>
+          <form
+            action={saveHeaderAction}
+            className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4 text-sm"
+          >
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-1">
+                {headerDict.activityTypeLabel}
+                <select
+                  name="activityType"
+                  defaultValue={initial.activityType ?? ""}
+                  className="rounded border border-border bg-background px-2 py-1"
+                >
+                  <option value="">—</option>
+                  <option value="ROUTINE">{headerDict.activityRoutine}</option>
+                  <option value="NON_ROUTINE">
+                    {headerDict.activityNonRoutine}
+                  </option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                {headerDict.personsExposedLabel}
+                <input
+                  type="number"
+                  min={0}
+                  name="personsExposedCount"
+                  defaultValue={initial.personsExposedCount ?? ""}
+                  className="rounded border border-border bg-background px-2 py-1"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                {headerDict.shiftPatternLabel}
+                <input
+                  name="shiftPattern"
+                  defaultValue={initial.shiftPattern ?? ""}
+                  className="rounded border border-border bg-background px-2 py-1"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                {headerDict.productReferenceLabel}
+                <input
+                  name="productReference"
+                  defaultValue={initial.productReference ?? ""}
+                  className="rounded border border-border bg-background px-2 py-1"
+                />
+              </label>
+            </div>
+            <label className="flex flex-col gap-1">
+              {headerDict.processDescriptionLabel}
+              <textarea
+                name="processDescription"
+                rows={2}
+                defaultValue={initial.processDescription ?? ""}
+                className="rounded border border-border bg-background px-2 py-1"
+              />
+            </label>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-1">
+                {headerDict.reviewIntervalLabel}
+                <input
+                  type="number"
+                  min={0}
+                  name="reviewIntervalMonths"
+                  defaultValue={initial.reviewIntervalMonths ?? ""}
+                  className="rounded border border-border bg-background px-2 py-1"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                {headerDict.nextReviewDateLabel}
+                <input
+                  type="date"
+                  name="nextReviewDate"
+                  defaultValue={
+                    initial.nextReviewDate
+                      ? initial.nextReviewDate.toISOString().slice(0, 10)
+                      : ""
+                  }
+                  className="rounded border border-border bg-background px-2 py-1"
+                />
+              </label>
+            </div>
+            <p className="text-xs text-foreground-subtle">
+              {headerDict.nextReviewHint}
+            </p>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                name="reviewRequired"
+                defaultChecked={initial.reviewRequired}
+              />
+              {headerDict.reviewRequiredLabel}
+            </label>
+            <label className="flex flex-col gap-1">
+              {headerDict.reviewRequiredReasonLabel}
+              <input
+                name="reviewRequiredReason"
+                defaultValue={initial.reviewRequiredReason ?? ""}
+                className="rounded border border-border bg-background px-2 py-1"
+              />
+            </label>
+            <button
+              type="submit"
+              className="self-start rounded bg-accent px-3 py-1.5 text-sm font-semibold text-background"
+            >
+              {headerDict.saveButton}
+            </button>
+          </form>
+        </section>
+      )}
 
       {presentMode && (
         <PresentModeNav

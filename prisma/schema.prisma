@@ -959,6 +959,23 @@ model RiskAssessment {
   approvedAt       DateTime?
   pilotContext     String?
   notes            String?
+  // P6 §6 header attributes (additive): the context an inspector / the
+  // statutory document expects on an assessment. personsExposedCount is a
+  // COUNT only — never an identity (§3.1). Applicable legal references are a
+  // deferred join to the country LegalReference catalogue (P6b).
+  activityType         ActivityType?
+  personsExposedCount  Int?
+  shiftPattern         String?
+  productReference     String?
+  processDescription   String?
+  // P6 §6 review cycle: next-review date (computed from the interval or set
+  // directly) and an "Überprüfung erforderlich" flag an incident / changed
+  // substance / closed action raises (manual for now; the module triggers
+  // land with P8 Gefahrstoffe and P10 Ereignisse).
+  reviewIntervalMonths Int?
+  nextReviewDate       DateTime?
+  reviewRequired       Boolean              @default(false)
+  reviewRequiredReason String?
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
 
@@ -1879,6 +1896,14 @@ model DocumentVersion {
 
   @@unique([documentId, version])
   @@index([documentId])
+}
+
+// P6 §6: whether the assessed activity is routine or non-routine (§2 Z 7
+// ASchG-style distinction). Nullable on RiskAssessment — legacy rows and
+// in-progress drafts legitimately have no value yet.
+enum ActivityType {
+  ROUTINE
+  NON_ROUTINE
 }
 
 // P5 notifications service (SLD_RESTRUCTURE_PLAN_platform-modules.md §7.9).
