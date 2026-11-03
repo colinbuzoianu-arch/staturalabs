@@ -1396,6 +1396,10 @@ model Action {
   environmentalMeasureType EnvironmentalMeasureType?
   responsibleUserId        String?                   @db.Uuid
   responsibleRoleLabel     String?
+  // P6 §6: when an action was started from a TypicalMeasure suggestion, record
+  // which one — provenance survives the assessor editing the title, and lets a
+  // later "suggested vs. custom" report run with no person data. Nullable FK.
+  typicalMeasureId         String?
   dueDate                  DateTime?
   status                   ActionStatus              @default(OPEN)
   implementedAt            DateTime?
@@ -1412,6 +1416,7 @@ model Action {
   assessmentSession      AssessmentSession?    @relation(fields: [assessmentSessionId], references: [id], onDelete: Restrict)
   environmentalFinding   EnvironmentalFinding? @relation(fields: [environmentalFindingId], references: [id], onDelete: Restrict)
   verificationAssessment RiskAssessment?       @relation("ActionVerificationAssessment", fields: [verificationAssessmentId], references: [id], onDelete: Restrict)
+  typicalMeasure         TypicalMeasure?       @relation(fields: [typicalMeasureId], references: [id], onDelete: Restrict)
   statusEvents           ActionStatusEvent[]
 
   @@index([siteId, status])
@@ -1990,4 +1995,39 @@ model Notification {
   @@unique([recipientUserId, dedupeKey])
   @@index([recipientUserId, readAt])
   @@index([siteId])
+}
+
+// P6 §6 typical measures (SLD_P6_TYPICAL_MEASURES_APPROVED.md). Founder-worded
+// good-practice measure suggestions, offered when raising an Action from a
+// finding — never auto-created. Versioned the same fail-closed way as every
+// other catalogue (single active row; hand-added partial unique index on
+// isActive in the migration, which Prisma's schema can't express).
+model TypicalMeasureCatalogVersion {
+  version     String   @id
+  label       String
+  isActive    Boolean  @default(false)
+  activatedAt DateTime @default(now())
+
+  measures TypicalMeasure[]
+}
+
+model TypicalMeasure {
+  id                 String             @id @default(cuid())
+  catalogVersion     String
+  hazardCategory     HazardCategory
+  // Null = applies to the whole category; a system Hazard.code narrows it to a
+  // specific hazard (none seeded with a code in v1 — the column exists so
+  // hazard-specific measures can be added later without a migration).
+  hazardCode         String?
+  hierarchyOfControl HierarchyOfControl
+  measureDe          String
+  measureEn          String?
+  order              Int
+  notes              String?
+  createdAt          DateTime           @default(now())
+
+  catalog TypicalMeasureCatalogVersion @relation(fields: [catalogVersion], references: [version], onDelete: Restrict)
+  actions Action[]
+
+  @@index([catalogVersion, hazardCategory])
 }

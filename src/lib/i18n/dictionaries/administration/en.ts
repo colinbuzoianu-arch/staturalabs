@@ -330,6 +330,13 @@ export const en = {
     responsibleRoleLabel: "Responsible role label (optional)",
     dueDateLabel: "Due date (optional)",
     create: "Raise action",
+    typicalMeasuresHeading: "Suggested measures",
+    typicalMeasuresHint:
+      "Pick a suggestion to pre-fill the title and control type — you can still edit everything.",
+    typicalMeasuresNone: "No suggestions for this hazard category.",
+    typicalMeasuresClear: "Clear suggestion",
+    typicalMeasuresStopHint:
+      "Technical and organisational measures take precedence over PPE (STOP principle).",
     colTitle: "Title",
     colStatus: "Status",
     colDue: "Due",

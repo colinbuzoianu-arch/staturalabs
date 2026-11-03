@@ -303,6 +303,13 @@ export const de: typeof en = {
     responsibleRoleLabel: "Verantwortliche Rolle (optional)",
     dueDateLabel: "Fällig am (optional)",
     create: "Maßnahme erstellen",
+    typicalMeasuresHeading: "Vorgeschlagene Maßnahmen",
+    typicalMeasuresHint:
+      "Vorschlag wählen, um Titel und Maßnahmenhierarchie vorzubefüllen — alles bleibt bearbeitbar.",
+    typicalMeasuresNone: "Keine Vorschläge für diese Gefährdungskategorie.",
+    typicalMeasuresClear: "Vorschlag entfernen",
+    typicalMeasuresStopHint:
+      "Technische und organisatorische Maßnahmen haben Vorrang vor PSA (STOP-Prinzip).",
     colTitle: "Titel",
     colStatus: "Status",
     colDue: "Fällig",

@@ -1,11 +1,20 @@
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { HierarchyOfControl } from "@/generated/prisma/enums";
+import {
+  type MeasureOption,
+  RaiseActionForm,
+} from "@/components/raise-action-form";
+import {
+  type HazardCategory,
+  HierarchyOfControl,
+} from "@/generated/prisma/enums";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { prisma } from "@/lib/prisma";
+import { isHigherTier, orderTypicalMeasures } from "@/lib/risk/typical-measure";
+import { getActiveTypicalMeasureCatalog } from "@/lib/risk/typical-measure-catalog-version";
 import { ActionsTabs } from "./calendar/page";
 
 const HIERARCHY_OPTIONS = Object.values(HierarchyOfControl);
@@ -98,6 +107,39 @@ export default async function ActionsPage({
         ? new Date(dueDateRaw)
         : null;
 
+    // P6 §6: provenance when started from a suggestion. Only for a finding
+    // source, and only when the posted id is a real measure of the active
+    // catalogue whose category matches the finding's hazard — never trust the
+    // posted id. Invalid/mismatched → dropped silently (it's metadata, not a
+    // hard input), the action is still created.
+    const typicalMeasureIdRaw = formData.get("typicalMeasureId");
+    let typicalMeasureId: string | null = null;
+    if (
+      isFinding &&
+      typeof typicalMeasureIdRaw === "string" &&
+      typicalMeasureIdRaw.length > 0
+    ) {
+      const [finding, measure, activeCatalog] = await Promise.all([
+        prisma.riskFinding.findUnique({
+          where: { id: riskFindingIdRaw as string },
+          select: { hazard: { select: { category: true } } },
+        }),
+        prisma.typicalMeasure.findUnique({
+          where: { id: typicalMeasureIdRaw },
+          select: { hazardCategory: true, catalogVersion: true },
+        }),
+        getActiveTypicalMeasureCatalog().catch(() => null),
+      ]);
+      if (
+        finding &&
+        measure &&
+        measure.catalogVersion === activeCatalog &&
+        measure.hazardCategory === finding.hazard.category
+      ) {
+        typicalMeasureId = typicalMeasureIdRaw;
+      }
+    }
+
     try {
       await prisma.action.create({
         data: {
@@ -115,6 +157,7 @@ export default async function ActionsPage({
           responsibleUserId,
           responsibleRoleLabel,
           dueDate,
+          typicalMeasureId,
         },
       });
     } catch (error) {
@@ -164,6 +207,62 @@ export default async function ActionsPage({
       prisma.platformUser.findMany({ where: { companyId: site.companyId } }),
     ]);
 
+  // P6 §6: active typical-measure catalogue, grouped by category and ordered
+  // by prevention tier. Empty when no catalogue is active (honest empty
+  // picker, never invented suggestions).
+  let measuresByCategory: Partial<Record<HazardCategory, MeasureOption[]>> = {};
+  try {
+    const catalogVersion = await getActiveTypicalMeasureCatalog();
+    const measures = await prisma.typicalMeasure.findMany({
+      where: { catalogVersion },
+    });
+    const grouped: Partial<Record<HazardCategory, MeasureOption[]>> = {};
+    for (const m of measures) {
+      const list = grouped[m.hazardCategory] ?? [];
+      list.push({
+        id: m.id,
+        hierarchyOfControl: m.hierarchyOfControl,
+        measureDe: m.measureDe,
+        measureEn: m.measureEn,
+        order: m.order,
+      });
+      grouped[m.hazardCategory] = list;
+    }
+    for (const key of Object.keys(grouped) as HazardCategory[]) {
+      const list = grouped[key];
+      if (list) grouped[key] = orderTypicalMeasures(list);
+    }
+    measuresByCategory = grouped;
+  } catch {
+    measuresByCategory = {};
+  }
+
+  // Which findings already have an open/implemented action at a higher
+  // (technical/substitution/elimination) tier — drives the STOP hint.
+  const findingsWithHigherTierAction = new Set(
+    actions
+      .filter(
+        (a) =>
+          a.riskFindingId !== null &&
+          (a.status === "OPEN" ||
+            a.status === "IN_PROGRESS" ||
+            a.status === "IMPLEMENTED") &&
+          a.hierarchyOfControl !== null &&
+          isHigherTier(a.hierarchyOfControl),
+      )
+      .map((a) => a.riskFindingId as string),
+  );
+
+  const findingOptions = findings.map((finding) => ({
+    id: finding.id,
+    label: `${
+      finding.riskAssessment.workstation?.name ??
+      finding.riskAssessment.process?.name
+    } — ${finding.hazard.name} (${riskBandLabels[finding.riskBand]})`,
+    category: finding.hazard.category,
+    hasHigherTierAction: findingsWithHigherTierAction.has(finding.id),
+  }));
+
   const now = new Date();
 
   return (
@@ -183,157 +282,52 @@ export default async function ActionsPage({
 
       <section className="flex flex-col gap-4">
         <h2 className="font-heading text-lg font-bold">{dict.createHeading}</h2>
-        <form
+        <RaiseActionForm
           action={createActionAction}
-          className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4"
-        >
-          <div className="flex flex-wrap gap-4 text-sm">
-            <label className="flex items-center gap-1">
-              <input
-                type="radio"
-                name="sourceType"
-                value="finding"
-                defaultChecked={!!fromFindingId}
-              />
-              {dict.fromFindingOption}
-            </label>
-            <label className="flex items-center gap-1">
-              <input
-                type="radio"
-                name="sourceType"
-                value="session"
-                defaultChecked={!fromFindingId && !fromEnvironmentalFindingId}
-              />
-              {dict.fromSessionOption}
-            </label>
-            <label className="flex items-center gap-1">
-              <input
-                type="radio"
-                name="sourceType"
-                value="environmental-finding"
-                defaultChecked={!!fromEnvironmentalFindingId}
-              />
-              {dict.fromEnvironmentalFindingOption}
-            </label>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <label className="flex flex-col gap-1 text-sm">
-              {dict.findingLabel}
-              <select
-                name="riskFindingId"
-                defaultValue={fromFindingId ?? ""}
-                className="rounded border border-border bg-background px-2 py-1"
-              >
-                <option value="">{commonDict.none}</option>
-                {findings.map((finding) => (
-                  <option key={finding.id} value={finding.id}>
-                    {finding.riskAssessment.workstation?.name ??
-                      finding.riskAssessment.process?.name}{" "}
-                    — {finding.hazard.name} ({riskBandLabels[finding.riskBand]})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              {dict.sessionLabel}
-              <select
-                name="assessmentSessionId"
-                className="rounded border border-border bg-background px-2 py-1"
-              >
-                <option value="">{commonDict.none}</option>
-                {sessions.map((session) => (
-                  <option key={session.id} value={session.id}>
-                    {session.workstation.name} —{" "}
-                    {session.startedAt.toISOString()}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              {dict.environmentalFindingLabel}
-              <select
-                name="environmentalFindingId"
-                defaultValue={fromEnvironmentalFindingId ?? ""}
-                className="rounded border border-border bg-background px-2 py-1"
-              >
-                <option value="">{commonDict.none}</option>
-                {environmentalFindings.map((finding) => (
-                  <option key={finding.id} value={finding.id}>
-                    {finding.environmentalAssessment.workstation?.name ??
-                      site.name}{" "}
-                    — {finding.aspect.name} ({riskBandLabels[finding.riskBand]})
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <label className="flex flex-col gap-1 text-sm">
-            {dict.titleLabel}
-            <input
-              name="title"
-              required
-              className="rounded border border-border bg-background px-2 py-1"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            {dict.descriptionLabel}
-            <input
-              name="description"
-              className="rounded border border-border bg-background px-2 py-1"
-            />
-          </label>
-          <div className="flex flex-wrap gap-2">
-            <label className="flex flex-col gap-1 text-sm">
-              {dict.hierarchyLabel}
-              <select
-                name="hierarchyOfControl"
-                className="rounded border border-border bg-background px-2 py-1"
-              >
-                <option value="">{commonDict.none}</option>
-                {HIERARCHY_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {hierarchyLabels[option]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              {dict.responsibleUserLabel}
-              <select
-                name="responsibleUserId"
-                className="rounded border border-border bg-background px-2 py-1"
-              >
-                <option value="">{commonDict.none}</option>
-                {platformUsers.map((platformUser) => (
-                  <option key={platformUser.id} value={platformUser.id}>
-                    {platformUser.name} ({platformUser.email})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              {dict.responsibleRoleLabel}
-              <input
-                name="responsibleRoleLabel"
-                className="rounded border border-border bg-background px-2 py-1"
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              {dict.dueDateLabel}
-              <input
-                type="date"
-                name="dueDate"
-                className="rounded border border-border bg-background px-2 py-1"
-              />
-            </label>
-          </div>
-          <button
-            type="submit"
-            className="self-start rounded bg-accent px-3 py-1.5 text-sm font-semibold text-background"
-          >
-            {dict.create}
-          </button>
-        </form>
+          locale={locale}
+          findings={findingOptions}
+          sessions={sessions.map((s) => ({
+            id: s.id,
+            label: `${s.workstation.name} — ${s.startedAt.toISOString()}`,
+          }))}
+          environmentalFindings={environmentalFindings.map((f) => ({
+            id: f.id,
+            label: `${f.environmentalAssessment.workstation?.name ?? site.name} — ${f.aspect.name} (${riskBandLabels[f.riskBand]})`,
+          }))}
+          users={platformUsers.map((u) => ({
+            id: u.id,
+            label: `${u.name} (${u.email})`,
+          }))}
+          hierarchyOptions={HIERARCHY_OPTIONS.map((o) => ({
+            value: o,
+            label: hierarchyLabels[o],
+          }))}
+          measuresByCategory={measuresByCategory}
+          hierarchyLabels={hierarchyLabels}
+          defaultFindingId={fromFindingId ?? null}
+          defaultEnvironmentalFindingId={fromEnvironmentalFindingId ?? null}
+          labels={{
+            fromFindingOption: dict.fromFindingOption,
+            fromSessionOption: dict.fromSessionOption,
+            fromEnvironmentalFindingOption: dict.fromEnvironmentalFindingOption,
+            findingLabel: dict.findingLabel,
+            sessionLabel: dict.sessionLabel,
+            environmentalFindingLabel: dict.environmentalFindingLabel,
+            titleLabel: dict.titleLabel,
+            descriptionLabel: dict.descriptionLabel,
+            hierarchyLabel: dict.hierarchyLabel,
+            responsibleUserLabel: dict.responsibleUserLabel,
+            responsibleRoleLabel: dict.responsibleRoleLabel,
+            dueDateLabel: dict.dueDateLabel,
+            create: dict.create,
+            none: commonDict.none,
+            measuresHeading: dict.typicalMeasuresHeading,
+            measuresHint: dict.typicalMeasuresHint,
+            measuresNone: dict.typicalMeasuresNone,
+            clearSuggestion: dict.typicalMeasuresClear,
+            stopHint: dict.typicalMeasuresStopHint,
+          }}
+        />
       </section>
 
       {actions.length === 0 ? (

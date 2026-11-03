@@ -303,6 +303,13 @@ export const ro: typeof en = {
     responsibleRoleLabel: "Rol responsabil (opțional)",
     dueDateLabel: "Termen (opțional)",
     create: "Creează măsura",
+    typicalMeasuresHeading: "Măsuri sugerate",
+    typicalMeasuresHint:
+      "Alegeți o sugestie pentru a precompleta titlul și tipul de control — totul rămâne editabil.",
+    typicalMeasuresNone: "Nicio sugestie pentru această categorie de pericol.",
+    typicalMeasuresClear: "Elimină sugestia",
+    typicalMeasuresStopHint:
+      "Măsurile tehnice și organizatorice au prioritate față de EIP (principiul STOP).",
     colTitle: "Titlu",
     colStatus: "Stare",
     colDue: "Termen",
