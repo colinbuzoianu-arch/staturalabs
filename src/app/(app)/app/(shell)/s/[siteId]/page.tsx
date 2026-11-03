@@ -185,6 +185,52 @@ export default async function SiteDetailPage({
         .filter((id): id is string => id !== null),
     );
 
+    // E3 site-map domain toggle: environmental overview. Environmental
+    // assessment is primarily site-level (EnvironmentalAssessment.workstationId
+    // is usually null), so the Umwelt view colours a workstation pin only when
+    // a workstation-scoped approved assessment exists, and always surfaces the
+    // site-level summary alongside. No cross-domain join — this reads the
+    // separate environment chain (option (b)), RiskFinding untouched.
+    const [envAssessments, envAssessmentCount] = await Promise.all([
+      prisma.environmentalAssessment.findMany({
+        where: { siteId, status: "APPROVED" },
+        orderBy: { assessedAt: "desc" },
+        select: {
+          workstationId: true,
+          findings: { select: { riskBand: true, significant: true } },
+        },
+      }),
+      prisma.environmentalAssessment.count({ where: { siteId } }),
+    ]);
+
+    // Per-workstation: the latest approved assessment wins (findMany is
+    // already assessedAt-desc, so the first row seen per workstation is its
+    // latest).
+    const environmentalByWorkstation = new Map<
+      string,
+      { band: RiskBand | null; significantCount: number }
+    >();
+    for (const assessment of envAssessments) {
+      if (!assessment.workstationId) continue;
+      if (environmentalByWorkstation.has(assessment.workstationId)) continue;
+      environmentalByWorkstation.set(assessment.workstationId, {
+        band: worstRiskBand(assessment.findings.map((f) => f.riskBand)),
+        significantCount: assessment.findings.filter((f) => f.significant)
+          .length,
+      });
+    }
+
+    const environmentSummary = {
+      hasAssessment: envAssessmentCount > 0,
+      worstBand: worstRiskBand(
+        envAssessments.flatMap((a) => a.findings.map((f) => f.riskBand)),
+      ),
+      significantCount: envAssessments.reduce(
+        (sum, a) => sum + a.findings.filter((f) => f.significant).length,
+        0,
+      ),
+    };
+
     let methodologyVersion: string | null;
     try {
       methodologyVersion = await getActiveMethodologyVersion();
@@ -306,6 +352,11 @@ export default async function SiteDetailPage({
             : [],
           openActionsCount:
             openActionsCountByWorkstation.get(workstation.id) ?? 0,
+          environmentalBand:
+            environmentalByWorkstation.get(workstation.id)?.band ?? null,
+          environmentalSignificantCount:
+            environmentalByWorkstation.get(workstation.id)?.significantCount ??
+            0,
         },
       ];
     });
@@ -352,6 +403,7 @@ export default async function SiteDetailPage({
           </Link>
         )}
         <SiteMapClient
+          siteId={siteId}
           floorPlanName={selectedFloorPlan.name}
           imageUrl={imageUrl}
           imageWidth={selectedFloorPlan.width}
@@ -360,6 +412,7 @@ export default async function SiteDetailPage({
           workstationPins={workstationPins}
           dict={mapDict}
           hazardCategoryLabels={hazardCategoryLabels}
+          environmentSummary={environmentSummary}
         />
       </div>
     );

@@ -501,5 +501,25 @@ export const en = {
     legendIncompleteMarker: "Assessment incomplete (open categories)",
     workstationPopoverIncomplete:
       "Assessment incomplete — open hazard categories remain",
+    // E3 site-map domain toggle (SLD_IMPLEMENTATION_PLAN_hazards-and-
+    // environment.md): switch the heatmap between worker-protection risk and
+    // environmental significance. Environmental assessment is primarily a
+    // site-level concern, so the Umwelt view colours pins only where a
+    // workstation-scoped environmental assessment exists and surfaces the
+    // site-level summary alongside.
+    domainToggleHeading: "View",
+    domainOshLabel: "Occupational safety",
+    domainEnvLabel: "Environment",
+    environmentSummaryHeading: "Environmental significance (site level)",
+    environmentSummaryWorstBandPrefix: "Worst significance:",
+    environmentSummarySignificantPrefix: "Significant aspects:",
+    environmentSummaryNone: "No environmental assessment yet for this site.",
+    environmentRegisterLink: "Open environmental register →",
+    workstationPopoverEnvBandPrefix: "Environmental significance:",
+    workstationPopoverEnvNotAssessed:
+      "No workstation-level environmental assessment",
+    workstationPopoverEnvSignificantPrefix: "Significant aspects:",
+    legendEnvNote:
+      "Environment is assessed at site level; pins show workstation-scoped assessments only.",
   },
 };

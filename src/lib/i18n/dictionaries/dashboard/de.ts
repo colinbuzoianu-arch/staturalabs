@@ -428,5 +428,20 @@ export const de: typeof en = {
     legendIncompleteMarker: "Evaluierung unvollständig (offene Kategorien)",
     workstationPopoverIncomplete:
       "Evaluierung unvollständig — es bestehen noch offene Gefährdungskategorien",
+    domainToggleHeading: "Ansicht",
+    domainOshLabel: "Arbeitnehmerschutz",
+    domainEnvLabel: "Umwelt",
+    environmentSummaryHeading: "Umweltrelevanz (Standortebene)",
+    environmentSummaryWorstBandPrefix: "Höchste Signifikanz:",
+    environmentSummarySignificantPrefix: "Signifikante Aspekte:",
+    environmentSummaryNone:
+      "Für diesen Standort besteht noch keine Umweltbewertung.",
+    environmentRegisterLink: "Umweltregister öffnen →",
+    workstationPopoverEnvBandPrefix: "Umweltrelevanz:",
+    workstationPopoverEnvNotAssessed:
+      "Keine arbeitsplatzbezogene Umweltbewertung",
+    workstationPopoverEnvSignificantPrefix: "Signifikante Aspekte:",
+    legendEnvNote:
+      "Umwelt wird auf Standortebene bewertet; Markierungen zeigen nur arbeitsplatzbezogene Bewertungen.",
   },
 };

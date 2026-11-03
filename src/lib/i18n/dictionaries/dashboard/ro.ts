@@ -415,5 +415,20 @@ export const ro: typeof en = {
     legendIncompleteMarker: "Evaluare incompletă (categorii deschise)",
     workstationPopoverIncomplete:
       "Evaluare incompletă — rămân categorii de pericol deschise",
+    domainToggleHeading: "Vizualizare",
+    domainOshLabel: "Protecția muncii",
+    domainEnvLabel: "Mediu",
+    environmentSummaryHeading: "Relevanță de mediu (nivel amplasament)",
+    environmentSummaryWorstBandPrefix: "Cea mai mare semnificație:",
+    environmentSummarySignificantPrefix: "Aspecte semnificative:",
+    environmentSummaryNone:
+      "Nu există încă o evaluare de mediu pentru acest amplasament.",
+    environmentRegisterLink: "Deschide registrul de mediu →",
+    workstationPopoverEnvBandPrefix: "Relevanță de mediu:",
+    workstationPopoverEnvNotAssessed:
+      "Nicio evaluare de mediu la nivel de loc de muncă",
+    workstationPopoverEnvSignificantPrefix: "Aspecte semnificative:",
+    legendEnvNote:
+      "Mediul se evaluează la nivel de amplasament; marcajele arată doar evaluările pe loc de muncă.",
   },
 };

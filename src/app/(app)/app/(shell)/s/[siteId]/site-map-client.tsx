@@ -38,7 +38,21 @@ export type SiteMapDict = {
   workstationPopoverNoUnplacedData: string;
   legendIncompleteMarker: string;
   workstationPopoverIncomplete: string;
+  domainToggleHeading: string;
+  domainOshLabel: string;
+  domainEnvLabel: string;
+  environmentSummaryHeading: string;
+  environmentSummaryWorstBandPrefix: string;
+  environmentSummarySignificantPrefix: string;
+  environmentSummaryNone: string;
+  environmentRegisterLink: string;
+  workstationPopoverEnvBandPrefix: string;
+  workstationPopoverEnvNotAssessed: string;
+  workstationPopoverEnvSignificantPrefix: string;
+  legendEnvNote: string;
 };
+
+type MapDomain = "osh" | "environment";
 
 type TaskPin = {
   taskId: string;
@@ -66,6 +80,22 @@ type WorkstationPin = {
   incomplete: boolean;
   findings: Array<{ category: HazardCategory; band: RiskBand }>;
   openActionsCount: number;
+  // E3 environment domain: worst significance band of this workstation's
+  // own (workstation-scoped) latest approved EnvironmentalAssessment, and
+  // how many of its findings are significant. null band = no workstation-
+  // level environmental assessment exists (the common case — environment is
+  // assessed primarily at site level; see environmentSummary).
+  environmentalBand: RiskBand | null;
+  environmentalSignificantCount: number;
+};
+
+// Site-level environmental overview, shown in the Umwelt view since
+// environmental assessment is primarily a site concern (workstationId is
+// usually null on an EnvironmentalAssessment).
+export type EnvironmentSummary = {
+  hasAssessment: boolean;
+  worstBand: RiskBand | null;
+  significantCount: number;
 };
 
 const INCOMPLETE_MARKER_COLOR = "#b45309";
@@ -92,6 +122,7 @@ function worstBandForCategory(
 }
 
 export function SiteMapClient({
+  siteId,
   floorPlanName,
   imageUrl,
   imageWidth,
@@ -100,7 +131,9 @@ export function SiteMapClient({
   workstationPins,
   dict,
   hazardCategoryLabels,
+  environmentSummary,
 }: {
+  siteId: string;
   floorPlanName: string;
   imageUrl: string;
   imageWidth: number;
@@ -109,14 +142,17 @@ export function SiteMapClient({
   workstationPins: WorkstationPin[];
   dict: SiteMapDict;
   hazardCategoryLabels: Record<HazardCategory, string>;
+  environmentSummary: EnvironmentSummary;
 }) {
   const { locale } = useLocale();
   const commonDict = getCommonDictionary(locale);
+  const [domain, setDomain] = useState<MapDomain>("osh");
   const [selectedCategory, setSelectedCategory] =
     useState<HazardCategory | null>(null);
   const [hoveredKey, setHoveredKey] = useState<PinKey | null>(null);
   const [selectedKey, setSelectedKey] = useState<PinKey | null>(null);
   const activeKey = hoveredKey ?? selectedKey;
+  const isEnvironment = domain === "environment";
 
   // BodyRegion carries no HazardCategory of its own anywhere in this
   // schema — a task's band comes entirely from posture/ergonomic scoring,
@@ -129,22 +165,56 @@ export function SiteMapClient({
   const isErgonomicView =
     selectedCategory === null || selectedCategory === "ERGONOMIC_MSD";
 
-  const visibleTaskPins = isErgonomicView ? taskPins : [];
+  // Environment view: task-level pins are ergonomic-only, so none apply; the
+  // OSH category filter is hidden entirely (below).
+  const visibleTaskPins = isEnvironment ? [] : isErgonomicView ? taskPins : [];
 
   const visibleWorkstationPins: Array<{
     pin: WorkstationPin;
     variant: "full" | "mixed";
     band: RiskBand | null;
-  }> = workstationPins.flatMap(
-    (
-      pin,
-    ): Array<{
-      pin: WorkstationPin;
-      variant: "full" | "mixed";
-      band: RiskBand | null;
-    }> => {
-      if (isErgonomicView) {
-        if (pin.placedTaskCount === 0) {
+  }> = isEnvironment
+    ? workstationPins.map((pin) => ({
+        pin,
+        variant: "full" as const,
+        band: pin.environmentalBand,
+      }))
+    : workstationPins.flatMap(
+        (
+          pin,
+        ): Array<{
+          pin: WorkstationPin;
+          variant: "full" | "mixed";
+          band: RiskBand | null;
+        }> => {
+          if (isErgonomicView) {
+            if (pin.placedTaskCount === 0) {
+              return [
+                {
+                  pin,
+                  variant: "full" as const,
+                  band: worstBandForCategory(pin.findings, selectedCategory),
+                },
+              ];
+            }
+            if (pin.placedTaskCount < pin.totalTaskCount) {
+              return [
+                {
+                  pin,
+                  variant: "mixed" as const,
+                  band: pin.unplacedErgonomicBand,
+                },
+              ];
+            }
+            // Every task at this workstation is individually pinned — the
+            // workstation-level marker would just restate the same tasks'
+            // ergonomic risk a second time, so it's dropped entirely here.
+            return [];
+          }
+          // Non-ergonomic category: task data is irrelevant (see comment above),
+          // so always show the full RiskAssessment-based aggregate regardless of
+          // placement tier — otherwise a fully-task-pinned workstation would
+          // vanish from e.g. the Noise filter even if it has real noise findings.
           return [
             {
               pin,
@@ -152,30 +222,8 @@ export function SiteMapClient({
               band: worstBandForCategory(pin.findings, selectedCategory),
             },
           ];
-        }
-        if (pin.placedTaskCount < pin.totalTaskCount) {
-          return [
-            { pin, variant: "mixed" as const, band: pin.unplacedErgonomicBand },
-          ];
-        }
-        // Every task at this workstation is individually pinned — the
-        // workstation-level marker would just restate the same tasks'
-        // ergonomic risk a second time, so it's dropped entirely here.
-        return [];
-      }
-      // Non-ergonomic category: task data is irrelevant (see comment above),
-      // so always show the full RiskAssessment-based aggregate regardless of
-      // placement tier — otherwise a fully-task-pinned workstation would
-      // vanish from e.g. the Noise filter even if it has real noise findings.
-      return [
-        {
-          pin,
-          variant: "full" as const,
-          band: worstBandForCategory(pin.findings, selectedCategory),
         },
-      ];
-    },
-  );
+      );
 
   const activeTaskPin = taskPins.find((p) => activeKey === `task:${p.taskId}`);
   const activeWorkstationEntry = visibleWorkstationPins.find(
@@ -186,26 +234,76 @@ export function SiteMapClient({
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <h2 className="font-heading text-sm font-bold text-border">
-          {dict.categoryFilterHeading}
+          {dict.domainToggleHeading}
         </h2>
         <div className="flex flex-wrap gap-2 text-sm">
           <CategoryChip
-            label={dict.allCategoriesLabel}
-            active={selectedCategory === null}
-            onClick={() => setSelectedCategory(null)}
+            label={dict.domainOshLabel}
+            active={domain === "osh"}
+            onClick={() => setDomain("osh")}
           />
-          {(Object.keys(hazardCategoryLabels) as HazardCategory[]).map(
-            (category) => (
-              <CategoryChip
-                key={category}
-                label={hazardCategoryLabels[category]}
-                active={selectedCategory === category}
-                onClick={() => setSelectedCategory(category)}
-              />
-            ),
-          )}
+          <CategoryChip
+            label={dict.domainEnvLabel}
+            active={domain === "environment"}
+            onClick={() => setDomain("environment")}
+          />
         </div>
       </div>
+
+      {!isEnvironment && (
+        <div className="flex flex-col gap-2">
+          <h2 className="font-heading text-sm font-bold text-border">
+            {dict.categoryFilterHeading}
+          </h2>
+          <div className="flex flex-wrap gap-2 text-sm">
+            <CategoryChip
+              label={dict.allCategoriesLabel}
+              active={selectedCategory === null}
+              onClick={() => setSelectedCategory(null)}
+            />
+            {(Object.keys(hazardCategoryLabels) as HazardCategory[]).map(
+              (category) => (
+                <CategoryChip
+                  key={category}
+                  label={hazardCategoryLabels[category]}
+                  active={selectedCategory === category}
+                  onClick={() => setSelectedCategory(category)}
+                />
+              ),
+            )}
+          </div>
+        </div>
+      )}
+
+      {isEnvironment && (
+        <div className="flex flex-col gap-1 rounded-lg border border-border bg-surface p-3 text-sm">
+          <h2 className="font-heading text-sm font-bold text-border">
+            {dict.environmentSummaryHeading}
+          </h2>
+          {environmentSummary.hasAssessment ? (
+            <>
+              <p>
+                {dict.environmentSummaryWorstBandPrefix}{" "}
+                {environmentSummary.worstBand
+                  ? commonDict.riskBandLabels[environmentSummary.worstBand]
+                  : dict.workstationPopoverNotAssessed}
+              </p>
+              <p>
+                {dict.environmentSummarySignificantPrefix}{" "}
+                {environmentSummary.significantCount}
+              </p>
+            </>
+          ) : (
+            <p className="text-border">{dict.environmentSummaryNone}</p>
+          )}
+          <Link
+            href={`/app/s/${siteId}/environment`}
+            className="mt-1 inline-block underline hover:text-accent"
+          >
+            {dict.environmentRegisterLink}
+          </Link>
+        </div>
+      )}
 
       <div className="flex flex-col gap-6 lg:flex-row">
         {/* biome-ignore lint/a11y/noStaticElementInteractions: this click only clears the active popover selection — every real action (opening a pin's popover, following its link) is already reachable via the buttons/links inside the markers and popover below. */}
@@ -242,7 +340,11 @@ export function SiteMapClient({
               // this needs to visually interrupt the pattern, not blend
               // into it — larger, dashed, coral-stroked, same treatment
               // this app already uses for an over-limit measurement.
-              const isUnassessed = !dimmed && band === null;
+              // In the environment view, a null band just means "no
+              // workstation-scoped environmental assessment" — the norm,
+              // since environment is assessed at site level — not a §4 ASchG
+              // gap, so the dramatic unassessed treatment is OSH-only.
+              const isUnassessed = !isEnvironment && !dimmed && band === null;
               const baseRadius = dimmed
                 ? WORKSTATION_MARKER_RADIUS_MIXED
                 : isUnassessed
@@ -278,7 +380,7 @@ export function SiteMapClient({
                   />
                   {/* H1d: incomplete-assessment ring (amber, dashed) drawn
                       around the marker, independent of band/approval. */}
-                  {pin.incomplete && (
+                  {pin.incomplete && !isEnvironment && (
                     <circle
                       cx={`${pin.x * 100}%`}
                       cy={`${pin.y * 100}%`}
@@ -378,47 +480,78 @@ export function SiteMapClient({
               <p className="font-semibold">
                 {activeWorkstationEntry.pin.workstationName}
               </p>
-              {activeWorkstationEntry.pin.incomplete && (
-                <p className="font-semibold text-coral">
-                  {dict.workstationPopoverIncomplete}
-                </p>
-              )}
-              {activeWorkstationEntry.variant === "full" ? (
+              {isEnvironment ? (
                 <>
                   <p>
-                    {dict.workstationPopoverBandPrefix}{" "}
-                    {activeWorkstationEntry.band
-                      ? commonDict.riskBandLabels[activeWorkstationEntry.band]
-                      : activeWorkstationEntry.pin.hasApprovedAssessment
-                        ? dict.workstationPopoverNoFindingsForCategory
-                        : dict.workstationPopoverNotAssessed}
+                    {dict.workstationPopoverEnvBandPrefix}{" "}
+                    {activeWorkstationEntry.pin.environmentalBand
+                      ? commonDict.riskBandLabels[
+                          activeWorkstationEntry.pin.environmentalBand
+                        ]
+                      : dict.workstationPopoverEnvNotAssessed}
                   </p>
-                  <p>
-                    {dict.workstationPopoverOpenActionsPrefix}{" "}
-                    {activeWorkstationEntry.pin.openActionsCount}
-                  </p>
+                  {activeWorkstationEntry.pin.environmentalBand && (
+                    <p>
+                      {dict.workstationPopoverEnvSignificantPrefix}{" "}
+                      {activeWorkstationEntry.pin.environmentalSignificantCount}
+                    </p>
+                  )}
+                  <Link
+                    href={`/app/s/${siteId}/environment`}
+                    className="mt-1 inline-block underline hover:text-accent"
+                  >
+                    {dict.environmentRegisterLink}
+                  </Link>
                 </>
               ) : (
                 <>
-                  <p className="text-border">
-                    {activeWorkstationEntry.pin.placedTaskCount}/
-                    {activeWorkstationEntry.pin.totalTaskCount}{" "}
-                    {dict.workstationPopoverTasksPlacedSuffix}
-                  </p>
-                  <p>
-                    {dict.workstationPopoverUnplacedBandPrefix}{" "}
-                    {activeWorkstationEntry.band
-                      ? commonDict.riskBandLabels[activeWorkstationEntry.band]
-                      : dict.workstationPopoverNoUnplacedData}
-                  </p>
+                  {activeWorkstationEntry.pin.incomplete && (
+                    <p className="font-semibold text-coral">
+                      {dict.workstationPopoverIncomplete}
+                    </p>
+                  )}
+                  {activeWorkstationEntry.variant === "full" ? (
+                    <>
+                      <p>
+                        {dict.workstationPopoverBandPrefix}{" "}
+                        {activeWorkstationEntry.band
+                          ? commonDict.riskBandLabels[
+                              activeWorkstationEntry.band
+                            ]
+                          : activeWorkstationEntry.pin.hasApprovedAssessment
+                            ? dict.workstationPopoverNoFindingsForCategory
+                            : dict.workstationPopoverNotAssessed}
+                      </p>
+                      <p>
+                        {dict.workstationPopoverOpenActionsPrefix}{" "}
+                        {activeWorkstationEntry.pin.openActionsCount}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-border">
+                        {activeWorkstationEntry.pin.placedTaskCount}/
+                        {activeWorkstationEntry.pin.totalTaskCount}{" "}
+                        {dict.workstationPopoverTasksPlacedSuffix}
+                      </p>
+                      <p>
+                        {dict.workstationPopoverUnplacedBandPrefix}{" "}
+                        {activeWorkstationEntry.band
+                          ? commonDict.riskBandLabels[
+                              activeWorkstationEntry.band
+                            ]
+                          : dict.workstationPopoverNoUnplacedData}
+                      </p>
+                    </>
+                  )}
+                  <Link
+                    href={`/app/workstations/${activeWorkstationEntry.pin.workstationId}/risk`}
+                    className="mt-1 inline-block underline hover:text-accent"
+                  >
+                    {dict.workstationPopoverViewLink}
+                  </Link>
                 </>
               )}
-              <Link
-                href={`/app/workstations/${activeWorkstationEntry.pin.workstationId}/risk`}
-                className="mt-1 inline-block underline hover:text-accent"
-              >
-                {dict.workstationPopoverViewLink}
-              </Link>
             </PopoverCard>
           )}
         </div>
@@ -434,12 +567,14 @@ export function SiteMapClient({
             </svg>
             <span>{dict.legendWorkstationShape}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <svg width={16} height={16} aria-hidden="true">
-              <rect x={3} y={3} width={10} height={10} fill="currentColor" />
-            </svg>
-            <span>{dict.legendTaskShape}</span>
-          </div>
+          {!isEnvironment && (
+            <div className="flex items-center gap-2">
+              <svg width={16} height={16} aria-hidden="true">
+                <rect x={3} y={3} width={10} height={10} fill="currentColor" />
+              </svg>
+              <span>{dict.legendTaskShape}</span>
+            </div>
+          )}
 
           <div className="flex flex-col gap-1">
             {(Object.entries(riskBandColors) as Array<[RiskBand, string]>).map(
@@ -460,21 +595,29 @@ export function SiteMapClient({
               />
               <span>{dict.legendNotAssessedColor}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <svg width={16} height={16} aria-hidden="true">
-                <circle
-                  cx={8}
-                  cy={8}
-                  r={6}
-                  fill="none"
-                  stroke={INCOMPLETE_MARKER_COLOR}
-                  strokeWidth={2}
-                  strokeDasharray="2 2"
-                />
-              </svg>
-              <span>{dict.legendIncompleteMarker}</span>
-            </div>
+            {!isEnvironment && (
+              <div className="flex items-center gap-2">
+                <svg width={16} height={16} aria-hidden="true">
+                  <circle
+                    cx={8}
+                    cy={8}
+                    r={6}
+                    fill="none"
+                    stroke={INCOMPLETE_MARKER_COLOR}
+                    strokeWidth={2}
+                    strokeDasharray="2 2"
+                  />
+                </svg>
+                <span>{dict.legendIncompleteMarker}</span>
+              </div>
+            )}
           </div>
+
+          {isEnvironment && (
+            <p className="text-xs text-foreground-muted">
+              {dict.legendEnvNote}
+            </p>
+          )}
         </div>
       </div>
     </div>
