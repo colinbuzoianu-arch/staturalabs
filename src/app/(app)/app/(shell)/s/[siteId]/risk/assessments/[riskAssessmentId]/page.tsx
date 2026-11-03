@@ -17,6 +17,7 @@ import {
   RiskAssessmentStatus,
 } from "@/generated/prisma/enums";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
+import { getActiveLegalReferenceCatalog } from "@/lib/country/legal-reference-catalog-version";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
 import { getLocale } from "@/lib/i18n/get-locale";
@@ -53,6 +54,10 @@ async function loadRiskAssessment(riskAssessmentId: string) {
           psychosocialDetail: true,
           task: { select: { id: true, name: true } },
         },
+        orderBy: { createdAt: "asc" },
+      },
+      legalReferenceLinks: {
+        include: { legalReference: true },
         orderBy: { createdAt: "asc" },
       },
     },
@@ -114,6 +119,28 @@ export default async function RiskAssessmentDetailPage({
             })
           ).map((pt) => pt.task)
         : [];
+
+  // P6 §6 applicable legal references: options = the active catalogue's rows
+  // for this site's country (an honest empty list if no catalogue is active —
+  // never another country's law, §3.15).
+  let legalReferenceOptions: Array<{
+    id: string;
+    code: string;
+    obligation: string;
+  }> = [];
+  try {
+    const catalogVersion = await getActiveLegalReferenceCatalog();
+    legalReferenceOptions = await prisma.legalReference.findMany({
+      where: { catalogVersion, country: site.country },
+      select: { id: true, code: true, obligation: true },
+      orderBy: { code: "asc" },
+    });
+  } catch {
+    legalReferenceOptions = [];
+  }
+  const linkedReferenceIds = new Set(
+    initial.legalReferenceLinks.map((l) => l.legalReferenceId),
+  );
 
   async function submitForReviewAction() {
     "use server";
@@ -224,6 +251,50 @@ export default async function RiskAssessmentDetailPage({
           : null,
       },
     });
+    revalidatePath(`/app/s/${siteId}/risk/assessments/${riskAssessmentId}`);
+  }
+
+  // P6 §6: save the applicable legal references (a curated subset of the
+  // active country catalogue). Replaces the whole set. Each selected id is
+  // re-validated against the active catalogue for the site's country — never
+  // trusting the posted ids — so a reference from another country/version
+  // can't be attached (§3.15).
+  async function saveLegalReferencesAction(formData: FormData) {
+    "use server";
+    const current = await loadRiskAssessment(riskAssessmentId);
+    const { site } = await requireSiteAdministrationAccess(current.siteId);
+
+    const posted = new Set(
+      formData
+        .getAll("legalReferenceIds")
+        .filter((v): v is string => typeof v === "string"),
+    );
+
+    let allowedIds = new Set<string>();
+    try {
+      const catalogVersion = await getActiveLegalReferenceCatalog();
+      const allowed = await prisma.legalReference.findMany({
+        where: { catalogVersion, country: site.country },
+        select: { id: true },
+      });
+      allowedIds = new Set(allowed.map((r) => r.id));
+    } catch {
+      // No active catalogue — nothing legitimately selectable; clears the set.
+      allowedIds = new Set();
+    }
+    const selected = [...posted].filter((id) => allowedIds.has(id));
+
+    await prisma.$transaction([
+      prisma.riskAssessmentLegalReference.deleteMany({
+        where: { riskAssessmentId },
+      }),
+      prisma.riskAssessmentLegalReference.createMany({
+        data: selected.map((legalReferenceId) => ({
+          riskAssessmentId,
+          legalReferenceId,
+        })),
+      }),
+    ]);
     revalidatePath(`/app/s/${siteId}/risk/assessments/${riskAssessmentId}`);
   }
 
@@ -701,6 +772,59 @@ export default async function RiskAssessmentDetailPage({
               {headerDict.saveButton}
             </button>
           </form>
+        </section>
+      )}
+
+      {(initial.legalReferenceLinks.length > 0 ||
+        (!presentMode && legalReferenceOptions.length > 0)) && (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-heading text-lg font-bold">
+            {headerDict.legalReferencesHeading}
+          </h2>
+          {initial.legalReferenceLinks.length > 0 ? (
+            <ul className="flex flex-col gap-1 text-sm">
+              {initial.legalReferenceLinks.map((link) => (
+                <li key={link.id}>
+                  <span className="font-semibold">
+                    {link.legalReference.code}
+                  </span>{" "}
+                  — {link.legalReference.obligation}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-border">
+              {headerDict.legalReferencesEmpty}
+            </p>
+          )}
+          {!presentMode && legalReferenceOptions.length > 0 && (
+            <form
+              action={saveLegalReferencesAction}
+              className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4 text-sm"
+            >
+              {legalReferenceOptions.map((ref) => (
+                <label key={ref.id} className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    name="legalReferenceIds"
+                    value={ref.id}
+                    defaultChecked={linkedReferenceIds.has(ref.id)}
+                    className="mt-1"
+                  />
+                  <span>
+                    <span className="font-semibold">{ref.code}</span> —{" "}
+                    {ref.obligation}
+                  </span>
+                </label>
+              ))}
+              <button
+                type="submit"
+                className="self-start rounded bg-accent px-3 py-1.5 text-sm font-semibold text-background"
+              >
+                {headerDict.legalReferencesSaveButton}
+              </button>
+            </form>
+          )}
         </section>
       )}
 

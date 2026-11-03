@@ -987,6 +987,7 @@ model RiskAssessment {
   findings            RiskFinding[]
   categoryChecks      HazardCategoryCheck[]
   verifiedActions     Action[]              @relation("ActionVerificationAssessment")
+  legalReferenceLinks RiskAssessmentLegalReference[]
 
   @@index([siteId])
   @@index([workstationId])
@@ -1211,9 +1212,28 @@ model LegalReference {
   createdAt           DateTime    @default(now())
 
   catalog LegalReferenceCatalogVersion @relation(fields: [catalogVersion], references: [version], onDelete: Restrict)
+  assessmentLinks RiskAssessmentLegalReference[]
 
   @@unique([catalogVersion, country, code])
   @@index([catalogVersion, country, topic])
+}
+
+// P6 §6: the "applicable legal references" an assessor marks on a specific
+// RiskAssessment, chosen from the country catalogue. A curated subset — the
+// catalogue says what law exists for the market; this says which rows the
+// assessor considers applicable to THIS assessment. Both FKs Restrict (§3.9).
+model RiskAssessmentLegalReference {
+  id               String   @id @default(cuid())
+  riskAssessmentId String
+  legalReferenceId String
+  createdAt        DateTime @default(now())
+
+  riskAssessment RiskAssessment @relation(fields: [riskAssessmentId], references: [id], onDelete: Restrict)
+  legalReference LegalReference @relation(fields: [legalReferenceId], references: [id], onDelete: Restrict)
+
+  @@unique([riskAssessmentId, legalReferenceId])
+  @@index([riskAssessmentId])
+  @@index([legalReferenceId])
 }
 
 /// One legal exposure limit for one parameter in one country, under one
