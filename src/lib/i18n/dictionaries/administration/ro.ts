@@ -488,9 +488,24 @@ export const ro: typeof en = {
       TRAINING_RECORD: "Înregistrare de instruire",
       TRAINING_SESSION: "Sesiune de instruire",
       PERSON_ASSIGNMENT: "Atribuire",
+      SDS: "Fișă cu date de securitate",
+      SUBSTANCE_USE: "Utilizare substanță",
+      SUBSTANCE_EXPOSURE_KM: "Registru de expunere (C/M)",
+      SUBSTANCE_EXPOSURE_R: "Registru de expunere (R)",
     },
     readOnlyNote: "Doar un administrator de companie gestionează păstrarea.",
     none: "—",
+    substanceHeading: "Înregistrări privind substanțele",
+    substanceIntro:
+      "Fișele cu date de securitate și înregistrările de utilizare pot fi șterse după expirarea termenului REACH art. 36 (10 ani de la ultima utilizare). Acestea nu sunt date cu caracter personal; aprobarea șterge înregistrările ajunse la termen.",
+    substanceRunCheck: "Verifică înregistrările care pot fi șterse",
+    substanceNoCandidates:
+      "Nicio înregistrare de substanță nu este scadentă pentru ștergere.",
+    substanceProposedBanner:
+      "Înregistrări de substanțe propuse pentru ștergere.",
+    substanceBatchesHeading: "Loturi de ștergere",
+    substanceRecords: "înregistrări",
+    substanceApprove: "Aprobă și șterge",
   },
   peopleImport: {
     eyebrow: "Persoane",

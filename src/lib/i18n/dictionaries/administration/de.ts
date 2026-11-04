@@ -490,9 +490,23 @@ export const de: typeof en = {
       TRAINING_RECORD: "Unterweisungsnachweis",
       TRAINING_SESSION: "Unterweisungssitzung",
       PERSON_ASSIGNMENT: "Einsatz",
+      SDS: "Sicherheitsdatenblatt",
+      SUBSTANCE_USE: "Stoffverwendung",
+      SUBSTANCE_EXPOSURE_KM: "Expositionsverzeichnis (K/M)",
+      SUBSTANCE_EXPOSURE_R: "Expositionsverzeichnis (R)",
     },
     readOnlyNote: "Nur ein Firmen-Administrator verwaltet die Aufbewahrung.",
     none: "—",
+    substanceHeading: "Gefahrstoff-Datensätze",
+    substanceIntro:
+      "Sicherheitsdatenblätter und Verwendungsnachweise dürfen gelöscht werden, sobald die REACH-Art.-36-Frist (10 Jahre nach der letzten Verwendung) abgelaufen ist. Dies sind keine personenbezogenen Daten; die Freigabe löscht die fälligen Datensätze.",
+    substanceRunCheck: "Auf löschbare Gefahrstoff-Datensätze prüfen",
+    substanceNoCandidates: "Keine Gefahrstoff-Datensätze zur Löschung fällig.",
+    substanceProposedBanner:
+      "Gefahrstoff-Datensätze zur Löschung vorgeschlagen.",
+    substanceBatchesHeading: "Löschstapel",
+    substanceRecords: "Datensätze",
+    substanceApprove: "Freigeben & löschen",
   },
   peopleImport: {
     eyebrow: "Personen",

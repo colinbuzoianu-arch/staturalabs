@@ -2254,6 +2254,12 @@ enum RetentionRecordType {
   TRAINING_RECORD
   TRAINING_SESSION
   PERSON_ASSIGNMENT
+  // P8 §3.4 substance records (non-person data).
+  SDS
+  SUBSTANCE_USE
+  // Reserved for P10 (no rules seeded yet): per-person exposure registers.
+  SUBSTANCE_EXPOSURE_KM
+  SUBSTANCE_EXPOSURE_R
 }
 
 enum RetentionBasis {
@@ -2266,6 +2272,8 @@ enum RetentionTrigger {
   END_OF_EMPLOYMENT
   RECORD_DATE
   SUPERSEDED
+  // P8 §3.4: retention runs from when the record was last used.
+  LAST_USE
 }
 
 // Versioned, single-active catalogue — the fail-closed pattern used by every
@@ -2359,6 +2367,38 @@ model CompanyRetentionConfig {
   autoExecute     Boolean  @default(false)
   updatedByUserId String?  @db.Uuid
   updatedAt       DateTime @updatedAt @default(now())
+}
+
+// P8 §3.4: non-person substance-record deletion batches. Deliberately separate
+// from RetentionBatch (person anonymisation) — the two kinds of review must
+// never be co-approved, and no FK reaches into the people compartment. Approval
+// HARD-DELETES the matured SDS / SubstanceUse rows (REACH Art. 36 period passed).
+model SubstanceRetentionBatch {
+  id               String               @id @default(cuid())
+  companyId        String
+  status           RetentionBatchStatus @default(PROPOSED)
+  createdAt        DateTime             @default(now())
+  approvedByUserId String?              @db.Uuid
+  approvedAt       DateTime?
+
+  items SubstanceRetentionItem[]
+
+  @@index([companyId, status])
+}
+
+model SubstanceRetentionItem {
+  id         String              @id @default(cuid())
+  batchId    String
+  // recordType is SDS or SUBSTANCE_USE (hand-added CHECK); recordId is its
+  // plain id (the batch outlives the row, like RetentionBatchItem's personId).
+  recordType RetentionRecordType
+  recordId   String
+  maturedAt  DateTime
+  deletedAt  DateTime?
+
+  batch SubstanceRetentionBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
 }
 
 // P8 Gefahrstoffe (SLD_P8_GEFAHRSTOFFE_APPROVED.md). Person-free: substances

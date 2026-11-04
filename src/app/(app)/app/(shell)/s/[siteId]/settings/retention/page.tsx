@@ -2,6 +2,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { canAccessCompany } from "@/lib/auth/rbac";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
+import {
+  approveSubstanceRetentionBatch,
+  cancelSubstanceRetentionBatch,
+  generateSubstanceRetentionProposal,
+} from "@/lib/chemicals/substance-retention-batch";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
 import {
@@ -20,10 +25,10 @@ export default async function RetentionPage({
   searchParams,
 }: {
   params: Promise<{ siteId: string }>;
-  searchParams: Promise<{ proposed?: string }>;
+  searchParams: Promise<{ proposed?: string; subProposed?: string }>;
 }) {
   const { siteId } = await params;
-  const { proposed } = await searchParams;
+  const { proposed, subProposed } = await searchParams;
   const { user, site } = await requireSiteAdministrationAccess(siteId);
   const locale = await getLocale();
   const dict = getAdministrationDictionary(locale).retentionPage;
@@ -78,10 +83,54 @@ export default async function RetentionPage({
     revalidatePath(`/app/s/${siteId}/settings/retention`);
   }
 
-  const [settings, config, batches] = await Promise.all([
+  async function runSubstanceCheckAction() {
+    "use server";
+    const { user: actor, site: s } =
+      await requireSiteAdministrationAccess(siteId);
+    if (!canAccessCompany(actor, s.companyId)) return;
+    const batch = await generateSubstanceRetentionProposal(
+      s.companyId,
+      actor.id,
+    );
+    redirect(
+      `/app/s/${siteId}/settings/retention?subProposed=${batch ? "1" : "0"}`,
+    );
+  }
+
+  async function approveSubstanceAction(formData: FormData) {
+    "use server";
+    const { user: actor, site: s } =
+      await requireSiteAdministrationAccess(siteId);
+    if (!canAccessCompany(actor, s.companyId)) return;
+    const id = formData.get("batchId");
+    if (typeof id === "string" && id.length > 0) {
+      await approveSubstanceRetentionBatch(id, s.companyId, actor.id);
+    }
+    revalidatePath(`/app/s/${siteId}/settings/retention`);
+  }
+
+  async function cancelSubstanceAction(formData: FormData) {
+    "use server";
+    const { user: actor, site: s } =
+      await requireSiteAdministrationAccess(siteId);
+    if (!canAccessCompany(actor, s.companyId)) return;
+    const id = formData.get("batchId");
+    if (typeof id === "string" && id.length > 0) {
+      await cancelSubstanceRetentionBatch(id, s.companyId, actor.id);
+    }
+    revalidatePath(`/app/s/${siteId}/settings/retention`);
+  }
+
+  const [settings, config, batches, substanceBatches] = await Promise.all([
     prisma.companyRetentionSetting.findMany({ where: { companyId } }),
     prisma.companyRetentionConfig.findUnique({ where: { companyId } }),
     prisma.retentionBatch.findMany({
+      where: { companyId },
+      include: { _count: { select: { items: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    }),
+    prisma.substanceRetentionBatch.findMany({
       where: { companyId },
       include: { _count: { select: { items: true } } },
       orderBy: { createdAt: "desc" },
@@ -204,6 +253,91 @@ export default async function RetentionPage({
                       </button>
                     </form>
                     <form action={cancelAction}>
+                      <input type="hidden" name="batchId" value={b.id} />
+                      <button
+                        type="submit"
+                        className="text-xs text-foreground-subtle hover:text-accent hover:underline"
+                      >
+                        {dict.cancel}
+                      </button>
+                    </form>
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3 border-t border-border pt-6">
+        <div>
+          <h2 className="font-heading text-sm font-bold">
+            {dict.substanceHeading}
+          </h2>
+          <p className="mt-1 text-xs text-foreground-muted">
+            {dict.substanceIntro}
+          </p>
+        </div>
+
+        {subProposed === "1" && (
+          <p className="rounded-lg border border-info bg-surface p-3 text-sm text-foreground">
+            {dict.substanceProposedBanner}
+          </p>
+        )}
+        {subProposed === "0" && (
+          <p className="rounded-lg border border-border bg-surface p-3 text-sm text-foreground-muted">
+            {dict.substanceNoCandidates}
+          </p>
+        )}
+
+        {canManage && (
+          <form action={runSubstanceCheckAction}>
+            <button
+              type="submit"
+              className="self-start rounded-[var(--radius-md)] bg-accent px-4 py-2 text-sm font-medium text-background"
+            >
+              {dict.substanceRunCheck}
+            </button>
+          </form>
+        )}
+
+        <h3 className="font-heading text-xs font-bold text-foreground-muted">
+          {dict.substanceBatchesHeading}
+        </h3>
+        {substanceBatches.length === 0 ? (
+          <p className="text-sm text-foreground-muted">{dict.batchesEmpty}</p>
+        ) : (
+          <ul className="flex flex-col gap-2 text-sm">
+            {substanceBatches.map((b) => (
+              <li
+                key={b.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded border border-border bg-surface p-3"
+              >
+                <span>
+                  <span className="font-medium text-foreground">
+                    {b.status === "PROPOSED"
+                      ? dict.batchProposed
+                      : b.status === "APPROVED"
+                        ? dict.batchApproved
+                        : dict.batchCancelled}
+                  </span>{" "}
+                  <span className="text-foreground-muted">
+                    · {b._count.items} {dict.substanceRecords} ·{" "}
+                    {b.createdAt.toISOString().slice(0, 10)}
+                  </span>
+                </span>
+                {canManage && b.status === "PROPOSED" && (
+                  <span className="flex gap-2">
+                    <form action={approveSubstanceAction}>
+                      <input type="hidden" name="batchId" value={b.id} />
+                      <button
+                        type="submit"
+                        className="rounded bg-accent px-2 py-1 text-xs font-medium text-background"
+                      >
+                        {dict.substanceApprove}
+                      </button>
+                    </form>
+                    <form action={cancelSubstanceAction}>
                       <input type="hidden" name="batchId" value={b.id} />
                       <button
                         type="submit"
