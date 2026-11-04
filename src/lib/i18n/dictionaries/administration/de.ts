@@ -420,6 +420,8 @@ export const de: typeof en = {
       WORKER_BRIEFING: "Betriebsrats-Information",
       SGD: "SGD",
       AWK: "AWK",
+      BETRIEBSANWEISUNG: "Betriebsanweisung",
+      GEFAHRSTOFFVERZEICHNIS: "Gefahrstoffverzeichnis",
     },
   },
   usersPage: {
@@ -770,6 +772,27 @@ export const de: typeof en = {
       "missing-de-sds": "Kein deutsches SDB",
       "stale-sds": "SDB-Prüfung fällig",
     },
+  },
+  operatingInstructions: {
+    eyebrow: "Gefahrstoffe",
+    heading: "Betriebsanweisungen",
+    intro:
+      "Betriebsanweisung für einen Gefahrstoff entwerfen, freigeben und drucken. Eine neue SDB-Version kennzeichnet eine freigegebene Anweisung zur Überprüfung.",
+    notAvailableCountry:
+      "Betriebsanweisungen werden nur für österreichische und deutsche Standorte erstellt.",
+    createHeading: "Entwurf erstellen",
+    substanceLabel: "Gefahrstoff",
+    createDraft: "Entwurf erstellen",
+    listHeading: "Betriebsanweisungen",
+    listEmpty: "Noch keine.",
+    colSubstance: "Gefahrstoff",
+    colStatus: "Status",
+    statusDraft: "Entwurf",
+    statusApproved: "Freigegeben",
+    reviewRequired: "Überprüfung erforderlich (neues SDB)",
+    approve: "Freigeben",
+    download: "Herunterladen",
+    none: "—",
   },
   myTasks: {
     eyebrow: "Meine Aufgaben",

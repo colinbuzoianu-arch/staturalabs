@@ -418,6 +418,8 @@ export const ro: typeof en = {
       WORKER_BRIEFING: "Informare reprezentanți",
       SGD: "SGD",
       AWK: "AWK",
+      BETRIEBSANWEISUNG: "Instrucțiune de lucru",
+      GEFAHRSTOFFVERZEICHNIS: "Registru de substanțe",
     },
   },
   usersPage: {
@@ -767,6 +769,27 @@ export const ro: typeof en = {
       "missing-de-sds": "Nicio FDS în germană",
       "stale-sds": "Revizuire FDS scadentă",
     },
+  },
+  operatingInstructions: {
+    eyebrow: "Substanțe periculoase",
+    heading: "Instrucțiuni de lucru (Betriebsanweisung)",
+    intro:
+      "Creați, aprobați și tipăriți o instrucțiune de lucru pentru o substanță. O nouă revizie FDS marchează o instrucțiune aprobată pentru revizuire.",
+    notAvailableCountry:
+      "Instrucțiunile de lucru se generează doar pentru amplasamente din Austria și Germania.",
+    createHeading: "Creează o schiță",
+    substanceLabel: "Substanță",
+    createDraft: "Creează schiță",
+    listHeading: "Instrucțiuni de lucru",
+    listEmpty: "Niciuna încă.",
+    colSubstance: "Substanță",
+    colStatus: "Stare",
+    statusDraft: "Schiță",
+    statusApproved: "Aprobată",
+    reviewRequired: "Revizuire necesară (FDS nou)",
+    approve: "Aprobă",
+    download: "Descarcă",
+    none: "—",
   },
   myTasks: {
     eyebrow: "Sarcinile mele",

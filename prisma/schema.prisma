@@ -74,6 +74,7 @@ model Site {
   generatedDocuments       GeneratedDocument[]
   documents                Document[]
   substanceUses            SubstanceUse[]
+  operatingInstructions    OperatingInstruction[]
 
   @@index([companyId])
 }
@@ -1863,6 +1864,8 @@ enum GeneratedDocumentType {
   WORKER_BRIEFING
   SGD
   AWK
+  BETRIEBSANWEISUNG
+  GEFAHRSTOFFVERZEICHNIS
 }
 
 model GeneratedDocument {
@@ -2447,6 +2450,7 @@ model Substance {
   safetyDataSheets  SafetyDataSheet[]
   uses              SubstanceUse[]
   findingLinks      FindingSubstance[]
+  operatingInstructions OperatingInstruction[]
 
   @@index([companyId])
 }
@@ -2530,4 +2534,28 @@ model FindingSubstance {
   @@unique([riskFindingId, substanceId])
   @@index([riskFindingId])
   @@index([substanceId])
+}
+
+// P8 §3.2: a Betriebsanweisung (operating instruction) for a substance at a
+// site. Draft → approved (a human must approve before it counts as valid).
+// basedOnSdsRevisionDate snapshots the SDS it was built from, so a newer SDS
+// revision flags it "Überprüfung erforderlich". Reuses RiskAssessmentStatus
+// (DRAFT / IN_REVIEW / APPROVED; only DRAFT+APPROVED used here).
+model OperatingInstruction {
+  id                     String               @id @default(cuid())
+  substanceId            String
+  siteId                 String
+  status                 RiskAssessmentStatus @default(DRAFT)
+  approvedByUserId       String?              @db.Uuid
+  approvedAt             DateTime?
+  basedOnSdsRevisionDate DateTime?
+  generatedDocumentId    String?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+
+  substance Substance @relation(fields: [substanceId], references: [id], onDelete: Restrict)
+  site      Site      @relation(fields: [siteId], references: [id], onDelete: Restrict)
+
+  @@index([substanceId])
+  @@index([siteId])
 }

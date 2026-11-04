@@ -445,6 +445,8 @@ export const en = {
       WORKER_BRIEFING: "Worker briefing",
       SGD: "SGD",
       AWK: "AWK",
+      BETRIEBSANWEISUNG: "Operating instruction",
+      GEFAHRSTOFFVERZEICHNIS: "Hazardous substance register",
     },
   },
   usersPage: {
@@ -787,6 +789,27 @@ export const en = {
       "missing-de-sds": "No German SDS",
       "stale-sds": "SDS review due",
     },
+  },
+  operatingInstructions: {
+    eyebrow: "Hazardous substances",
+    heading: "Operating instructions (Betriebsanweisung)",
+    intro:
+      "Draft, approve and print a substance operating instruction. A new SDS revision flags an approved instruction for review.",
+    notAvailableCountry:
+      "Operating instructions are generated for Austrian and German sites only.",
+    createHeading: "Create a draft",
+    substanceLabel: "Substance",
+    createDraft: "Create draft",
+    listHeading: "Operating instructions",
+    listEmpty: "None yet.",
+    colSubstance: "Substance",
+    colStatus: "Status",
+    statusDraft: "Draft",
+    statusApproved: "Approved",
+    reviewRequired: "Review required (new SDS)",
+    approve: "Approve",
+    download: "Download",
+    none: "—",
   },
   myTasks: {
     eyebrow: "My tasks",
