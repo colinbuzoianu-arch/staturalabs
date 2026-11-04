@@ -2075,6 +2075,11 @@ model Person {
   // Set by the anonymisation workflow (§3.2 / §6 of the design note); name and
   // personnel number are scrubbed, the row (and any proof rows) survive.
   anonymisedAt    DateTime?
+  // P7d §C.4 legal hold: excludes the person and all linked records from every
+  // retention/anonymisation batch until cleared.
+  legalHold            Boolean  @default(false)
+  legalHoldReason      String?
+  legalHoldSetByUserId String?  @db.Uuid
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -2223,4 +2228,77 @@ model TrainingRequirementSource {
   @@unique([requirementTypeId, subjectType, subjectId])
   @@index([requirementTypeId])
   @@index([subjectType, subjectId])
+}
+
+// P7d §C (SLD_P7B_DEFERRALS_RESOLVED.md): data retention. Desk research found
+// NO statutory retention period for instruction records in AT/DE (ASchG §14 /
+// ArbSchG §12 require proof, not a period) — so retention is company policy
+// with a conservative platform default and an honest "no statutory period"
+// basis shown in the UI. Accident records (statutory) are P10, not here.
+enum RetentionRecordType {
+  PERSON
+  TRAINING_RECORD
+  TRAINING_SESSION
+  PERSON_ASSIGNMENT
+}
+
+enum RetentionBasis {
+  STATUTORY
+  NO_STATUTORY_PERIOD
+  POLICY_DEFAULT
+}
+
+enum RetentionTrigger {
+  END_OF_EMPLOYMENT
+  RECORD_DATE
+  SUPERSEDED
+}
+
+// Versioned, single-active catalogue — the fail-closed pattern used by every
+// other catalogue here (hand-added partial unique index on isActive).
+model RetentionRuleCatalogVersion {
+  version     String   @id
+  label       String
+  isActive    Boolean  @default(false)
+  activatedAt DateTime @default(now())
+
+  rules RetentionRule[]
+}
+
+model RetentionRule {
+  id                  String              @id @default(cuid())
+  catalogVersion      String
+  country             CountryCode
+  recordType          RetentionRecordType
+  basis               RetentionBasis
+  // ISO-8601 duration (e.g. "P10Y"), or null when there is no period.
+  minRetention        String?
+  trigger             RetentionTrigger
+  sourceUrl           String?
+  consolidatedVersion String?
+  verifiedAt          DateTime?
+  verifiedBy          String?
+  verificationMethod  String?
+  notes               String?
+  createdAt           DateTime            @default(now())
+
+  catalog RetentionRuleCatalogVersion @relation(fields: [catalogVersion], references: [version], onDelete: Restrict)
+
+  @@unique([catalogVersion, country, recordType])
+  @@index([catalogVersion, country])
+}
+
+// Per-company policy. May be LONGER than a statutory minimum, never shorter
+// (validated in the lib gate). Pre-filled with the platform defaults.
+model CompanyRetentionSetting {
+  id          String              @id @default(cuid())
+  companyId   String
+  recordType  RetentionRecordType
+  retention   String // ISO-8601 duration
+  trigger     RetentionTrigger
+  setByUserId String?             @db.Uuid
+  setAt       DateTime            @default(now())
+
+  @@unique([companyId, recordType])
+  @@index([companyId])
 }

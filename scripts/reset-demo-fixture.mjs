@@ -408,6 +408,15 @@ async function main() {
       `DELETE FROM "TrainingSession" WHERE "companyId" = $1`,
       [company.id],
     );
+    // P7d §A requirement sources (FK TrainingRequirementType, Restrict) —
+    // before the types.
+    await del(
+      db,
+      "TrainingRequirementSource",
+      `DELETE FROM "TrainingRequirementSource" WHERE "requirementTypeId" IN (
+         SELECT id FROM "TrainingRequirementType" WHERE "companyId" = $1)`,
+      [company.id],
+    );
     await del(
       db,
       "TrainingRequirementType",
@@ -415,6 +424,14 @@ async function main() {
       [company.id],
     );
 
+    // P7d §C: company retention settings (plain companyId, no FK, but clean up
+    // for idempotency so reseed re-creates fresh defaults).
+    await del(
+      db,
+      "CompanyRetentionSetting",
+      `DELETE FROM "CompanyRetentionSetting" WHERE "companyId" = $1`,
+      [company.id],
+    );
     // P7a people compartment: PersonAssignment (FK Person) then Person (FK
     // Company), both Restrict — before the Company delete.
     await del(

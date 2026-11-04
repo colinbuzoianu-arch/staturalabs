@@ -460,6 +460,28 @@ async function main() {
     );
     console.log("TrainingRequirementType: 1 demo type");
 
+    // P7d §C: platform-default company retention policy (idempotent). The
+    // migration seeds these for companies existing at migrate time; the demo
+    // company is re-created on each reset, so (re)create them here too.
+    for (const [recordType, retention] of [
+      ["TRAINING_RECORD", "P10Y"],
+      ["PERSON", "P1Y"],
+    ]) {
+      await selectOrInsert(
+        db,
+        "CompanyRetentionSetting",
+        { companyId: company.id, recordType },
+        {
+          id: crypto.randomUUID(),
+          companyId: company.id,
+          recordType,
+          retention,
+          trigger: "END_OF_EMPLOYMENT",
+        },
+      );
+    }
+    console.log("CompanyRetentionSetting: 2 default policies");
+
     const workstationDefs = [
       {
         name: "Montageplatz Paneele 1",
