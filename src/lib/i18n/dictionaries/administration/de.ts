@@ -688,6 +688,7 @@ export const de: typeof en = {
     colCmr: "CMR",
     colAlerts: "Hinweise",
     detailLink: "Öffnen",
+    downloadRegister: "Verzeichnis herunterladen (PDF)",
     back: "← Zurück zum Verzeichnis",
     classificationHeading: "Einstufung",
     pictogramsLabel: "GHS-Piktogramme",

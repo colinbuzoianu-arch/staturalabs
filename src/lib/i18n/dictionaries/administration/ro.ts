@@ -685,6 +685,7 @@ export const ro: typeof en = {
     colCmr: "CMR",
     colAlerts: "Alerte",
     detailLink: "Deschide",
+    downloadRegister: "Descarcă registrul (PDF)",
     back: "← Înapoi la registru",
     classificationHeading: "Clasificare",
     pictogramsLabel: "Pictograme GHS",

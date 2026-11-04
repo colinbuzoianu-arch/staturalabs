@@ -705,6 +705,7 @@ export const en = {
     colCmr: "CMR",
     colAlerts: "Alerts",
     detailLink: "Open",
+    downloadRegister: "Download register (PDF)",
     back: "← Back to register",
     classificationHeading: "Classification",
     pictogramsLabel: "GHS pictograms",
