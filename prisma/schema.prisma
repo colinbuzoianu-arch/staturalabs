@@ -31,6 +31,7 @@ model Company {
   environmentalAspects EnvironmentalAspect[]
   companyModules       CompanyModule[]
   persons              Person[]
+  substances           Substance[]
 }
 
 /// A physical location/department within a company (conversationally
@@ -72,6 +73,7 @@ model Site {
   wasteStreams             WasteStream[]
   generatedDocuments       GeneratedDocument[]
   documents                Document[]
+  substanceUses            SubstanceUse[]
 
   @@index([companyId])
 }
@@ -194,6 +196,7 @@ model Workstation {
   planPositions            WorkstationPlanPosition[]
   environmentalAssessments EnvironmentalAssessment[]
   wasteStreamOrigins       WasteStream[]
+  substanceUses            SubstanceUse[]
 
   @@index([siteId])
   @@index([orgUnitId])
@@ -822,6 +825,7 @@ model OrgUnit {
   children     OrgUnit[]     @relation("OrgUnitTree")
   workstations Workstation[]
   processes    Process[]
+  substanceUses SubstanceUse[]
 
   @@index([siteId])
   @@index([parentId])
@@ -851,6 +855,7 @@ model Process {
   tasks              ProcessTask[]
   riskAssessments    RiskAssessment[]
   wasteStreamOrigins WasteStream[]
+  substanceUses      SubstanceUse[]
 
   @@index([siteId])
 }
@@ -1100,6 +1105,7 @@ model RiskFinding {
   measurements       ExposureMeasurement[]
   actions            Action[]
   psychosocialDetail PsychosocialFindingDetail?
+  substanceLinks     FindingSubstance[]
 
   @@index([riskAssessmentId])
   @@index([taskId])
@@ -1598,7 +1604,8 @@ model EnvironmentalAspect {
   updatedAt   DateTime                    @updatedAt
 
   company  Company?               @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  findings EnvironmentalFinding[]
+  findings   EnvironmentalFinding[]
+  substances Substance[]
 
   @@index([companyId, category])
 }
@@ -1747,6 +1754,7 @@ model WasteStream {
   originWorkstation    Workstation?          @relation(fields: [originWorkstationId], references: [id], onDelete: Restrict)
   originProcess        Process?              @relation(fields: [originProcessId], references: [id], onDelete: Restrict)
   environmentalFinding EnvironmentalFinding? @relation(fields: [environmentalFindingId], references: [id], onDelete: Restrict)
+  substances           Substance[]
 
   @@index([siteId])
   @@index([environmentalFindingId])
@@ -1923,6 +1931,7 @@ model Document {
   // offboarding is deliberate (§3.9).
   site     Site              @relation(fields: [siteId], references: [id], onDelete: Restrict)
   versions DocumentVersion[]
+  safetyDataSheets SafetyDataSheet[]
 
   @@index([siteId, category])
   @@index([companyId])
@@ -2140,6 +2149,8 @@ model TrainingRequirementType {
   sessions TrainingSession[]
   records  TrainingRecord[]
   sources  TrainingRequirementSource[]
+  retentionOverride        String?
+  retentionOverrideTrigger RetentionTrigger?
 
   @@index([companyId])
 }
@@ -2345,4 +2356,178 @@ model CompanyRetentionConfig {
   autoExecute     Boolean  @default(false)
   updatedByUserId String?  @db.Uuid
   updatedAt       DateTime @updatedAt @default(now())
+}
+
+// P8 Gefahrstoffe (SLD_P8_GEFAHRSTOFFE_APPROVED.md). Person-free: substances
+// describe the job. CLP enums are EU-wide (Regulation (EC) No 1272/2008).
+enum PhysicalState {
+  SOLID
+  LIQUID
+  GAS
+  POWDER
+  GRANULATE
+  PASTE
+  AEROSOL
+  OTHER
+}
+
+enum SubstanceSignalWord {
+  GEFAHR
+  ACHTUNG
+  NONE
+}
+
+enum CmrCategory {
+  CAT_1A
+  CAT_1B
+  CAT_2
+  NONE
+}
+
+enum GhsPictogram {
+  GHS01
+  GHS02
+  GHS03
+  GHS04
+  GHS05
+  GHS06
+  GHS07
+  GHS08
+  GHS09
+}
+
+enum SubstanceStatementKind {
+  H
+  P
+  EUH
+}
+
+enum SubstanceQuantityClass {
+  XS
+  S
+  M
+  L
+  XL
+}
+
+enum ExposureRoute {
+  INHALATION
+  DERMAL
+  ORAL
+  EYE
+}
+
+model Substance {
+  id                   String              @id @default(cuid())
+  companyId            String
+  tradeName            String
+  manufacturer         String?
+  casNumber            String?
+  ecNumber             String?
+  physicalState        PhysicalState
+  signalWord           SubstanceSignalWord @default(NONE)
+  carcinogenicCategory CmrCategory         @default(NONE)
+  mutagenicCategory    CmrCategory         @default(NONE)
+  reprotoxicCategory   CmrCategory         @default(NONE)
+  substitutionCheckDone Boolean            @default(false)
+  substitutionCheckNote String?
+  substitutionCheckedAt DateTime?
+  excludedLowHazard     Boolean            @default(false)
+  excludedLowHazardRationale String?
+  environmentalAspectId String?
+  wasteStreamId         String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  company           Company              @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  environmentalAspect EnvironmentalAspect? @relation(fields: [environmentalAspectId], references: [id], onDelete: Restrict)
+  wasteStream       WasteStream?         @relation(fields: [wasteStreamId], references: [id], onDelete: Restrict)
+  pictograms        SubstancePictogram[]
+  statements        SubstanceStatement[]
+  safetyDataSheets  SafetyDataSheet[]
+  uses              SubstanceUse[]
+  findingLinks      FindingSubstance[]
+
+  @@index([companyId])
+}
+
+model SubstancePictogram {
+  id          String       @id @default(cuid())
+  substanceId String
+  pictogram   GhsPictogram
+
+  substance Substance @relation(fields: [substanceId], references: [id], onDelete: Restrict)
+
+  @@unique([substanceId, pictogram])
+  @@index([substanceId])
+}
+
+model SubstanceStatement {
+  id          String                 @id @default(cuid())
+  substanceId String
+  kind        SubstanceStatementKind
+  code        String
+  text        String?
+
+  substance Substance @relation(fields: [substanceId], references: [id], onDelete: Restrict)
+
+  @@index([substanceId])
+}
+
+model SafetyDataSheet {
+  id          String    @id @default(cuid())
+  substanceId String
+  version     String?
+  revisionDate DateTime
+  language    String
+  supplier    String?
+  documentId  String?
+  supersededAt DateTime?
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  substance Substance @relation(fields: [substanceId], references: [id], onDelete: Restrict)
+  document  Document? @relation(fields: [documentId], references: [id], onDelete: Restrict)
+
+  @@index([substanceId])
+}
+
+model SubstanceUse {
+  id            String                 @id @default(cuid())
+  substanceId   String
+  siteId        String
+  workstationId String?
+  processId     String?
+  orgUnitId     String?
+  purpose       String
+  quantityClass SubstanceQuantityClass
+  storageLocation String?
+  exposureRoutes ExposureRoute[]
+  activeFrom    DateTime
+  activeTo      DateTime?
+  createdAt     DateTime               @default(now())
+
+  substance   Substance    @relation(fields: [substanceId], references: [id], onDelete: Restrict)
+  site        Site         @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  workstation Workstation? @relation(fields: [workstationId], references: [id], onDelete: Restrict)
+  process     Process?     @relation(fields: [processId], references: [id], onDelete: Restrict)
+  orgUnit     OrgUnit?     @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
+
+  @@index([substanceId])
+  @@index([siteId])
+}
+
+// P6 §6 FindingSubstance, activated in P8: a CHEMICAL / DUST_PARTICULATE
+// finding can reference the substances involved.
+model FindingSubstance {
+  id            String @id @default(cuid())
+  riskFindingId String
+  substanceId   String
+
+  riskFinding RiskFinding @relation(fields: [riskFindingId], references: [id], onDelete: Restrict)
+  substance   Substance   @relation(fields: [substanceId], references: [id], onDelete: Restrict)
+
+  @@unique([riskFindingId, substanceId])
+  @@index([riskFindingId])
+  @@index([substanceId])
 }
