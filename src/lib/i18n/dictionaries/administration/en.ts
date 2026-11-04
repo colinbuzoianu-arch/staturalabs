@@ -548,6 +548,17 @@ export const en = {
     colValidUntil: "Valid until",
     titleRequired: "A title is required",
     noAttendeesOrType: "Pick a requirement type and at least one attendee",
+    recordTab: "Record",
+    matrixTab: "Instruction matrix",
+    matrixHeading: "Instruction matrix",
+    matrixIntro:
+      "Per-person instruction status across requirement types (operational view — who still needs instruction).",
+    matrixEmpty: "Add people and requirement types to see the matrix.",
+    statusValid: "Valid",
+    statusExpired: "Expired",
+    statusMissing: "Missing",
+    dueHeading: "Due & missing",
+    dueEmpty: "Everyone is up to date.",
     none: "—",
   },
   myTasks: {

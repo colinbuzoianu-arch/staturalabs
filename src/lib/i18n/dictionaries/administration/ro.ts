@@ -526,6 +526,18 @@ export const ro: typeof en = {
     titleRequired: "Titlul este obligatoriu",
     noAttendeesOrType:
       "Alegeți un tip de instruire și cel puțin un participant",
+    recordTab: "Înregistrează",
+    matrixTab: "Matrice de instruire",
+    matrixHeading: "Matrice de instruire",
+    matrixIntro:
+      "Starea instruirii per persoană pe tipuri de instruire (vedere operațională — cine mai are nevoie de instruire).",
+    matrixEmpty:
+      "Adăugați persoane și tipuri de instruire pentru a vedea matricea.",
+    statusValid: "Valid",
+    statusExpired: "Expirat",
+    statusMissing: "Lipsă",
+    dueHeading: "Scadente & lipsă",
+    dueEmpty: "Toți sunt la zi.",
     none: "—",
   },
   myTasks: {

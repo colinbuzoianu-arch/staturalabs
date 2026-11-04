@@ -134,6 +134,18 @@ export default async function TrainingPage({
         <p className="mt-1 text-sm text-foreground-muted">{dict.intro}</p>
       </div>
 
+      <nav className="flex gap-2 border-b border-border pb-3 text-sm">
+        <span className="rounded-[var(--radius-md)] bg-surface-raised px-3 py-1 font-medium text-foreground">
+          {dict.recordTab}
+        </span>
+        <a
+          href={`/app/s/${siteId}/training/matrix`}
+          className="rounded-[var(--radius-md)] px-3 py-1 text-foreground-muted hover:bg-surface-raised"
+        >
+          {dict.matrixTab}
+        </a>
+      </nav>
+
       <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
         <h2 className="font-heading text-sm font-bold">
           {dict.addTypeHeading}

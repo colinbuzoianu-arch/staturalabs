@@ -529,6 +529,18 @@ export const de: typeof en = {
     titleRequired: "Ein Titel ist erforderlich",
     noAttendeesOrType:
       "Unterweisungsart und mindestens eine teilnehmende Person wählen",
+    recordTab: "Dokumentieren",
+    matrixTab: "Unterweisungsmatrix",
+    matrixHeading: "Unterweisungsmatrix",
+    matrixIntro:
+      "Unterweisungsstatus je Person über die Unterweisungsarten (operative Sicht — wer noch unterwiesen werden muss).",
+    matrixEmpty:
+      "Personen und Unterweisungsarten hinzufügen, um die Matrix zu sehen.",
+    statusValid: "Gültig",
+    statusExpired: "Abgelaufen",
+    statusMissing: "Fehlt",
+    dueHeading: "Fällig & fehlend",
+    dueEmpty: "Alle sind auf dem aktuellen Stand.",
     none: "—",
   },
   myTasks: {
