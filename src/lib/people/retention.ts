@@ -119,3 +119,51 @@ export function isRetentionMatured(
   if (!due) return false;
   return due <= now;
 }
+
+// §C.4 candidate computation (pure). A person is a candidate for anonymisation
+// when: not already anonymised, not on legal hold, has an end-of-employment
+// date, and the effective retention has matured. Effective retention follows
+// the person's linked training records — a person WITH records is kept as long
+// as those records (the training policy); a person with NONE uses the shorter
+// person policy. Returns the matured due date for traceability.
+export type RetentionCandidateInput = {
+  personId: string;
+  employmentEnd: Date | null;
+  hasRecords: boolean;
+  legalHold: boolean;
+  anonymisedAt: Date | null;
+  personRetention: string | null;
+  trainingRetention: string | null;
+};
+
+export function personRetentionDueDate(
+  input: RetentionCandidateInput,
+): Date | null {
+  if (!input.employmentEnd) return null;
+  const retention = input.hasRecords
+    ? input.trainingRetention
+    : input.personRetention;
+  return retentionDueDate(input.employmentEnd, retention);
+}
+
+export function isPersonRetentionMatured(
+  input: RetentionCandidateInput,
+  now: Date,
+): boolean {
+  if (input.anonymisedAt || input.legalHold) return false;
+  const due = personRetentionDueDate(input);
+  return due !== null && due <= now;
+}
+
+export function computeRetentionCandidates(
+  persons: readonly RetentionCandidateInput[],
+  now: Date,
+): { personId: string; maturedAt: Date }[] {
+  const out: { personId: string; maturedAt: Date }[] = [];
+  for (const p of persons) {
+    if (!isPersonRetentionMatured(p, now)) continue;
+    const due = personRetentionDueDate(p);
+    if (due) out.push({ personId: p.personId, maturedAt: due });
+  }
+  return out;
+}

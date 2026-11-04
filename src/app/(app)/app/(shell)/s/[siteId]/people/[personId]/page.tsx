@@ -8,6 +8,7 @@ import {
   createPersonAssignment,
   endPersonAssignment,
 } from "@/lib/people/assignment";
+import { setLegalHold } from "@/lib/people/retention-batch";
 import { prisma } from "@/lib/prisma";
 
 // P7d §A.1 person detail — assignments (Einsatz) + training records + DSAR.
@@ -64,6 +65,23 @@ export default async function PersonDetailPage({
     if (typeof id === "string" && id.length > 0) {
       await endPersonAssignment(id, s.companyId, user.id);
     }
+    revalidatePath(`/app/s/${siteId}/people/${personId}`);
+  }
+
+  async function legalHoldAction(formData: FormData) {
+    "use server";
+    const { user, site: s } = await requireSiteAdministrationAccess(siteId);
+    const hold = formData.get("hold") === "on";
+    const reasonRaw = formData.get("reason");
+    await setLegalHold(
+      personId,
+      s.companyId,
+      hold,
+      typeof reasonRaw === "string" && reasonRaw.trim().length > 0
+        ? reasonRaw.trim()
+        : null,
+      user.id,
+    );
     revalidatePath(`/app/s/${siteId}/people/${personId}`);
   }
 
@@ -194,6 +212,49 @@ export default async function PersonDetailPage({
               </li>
             ))}
           </ul>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4">
+        <h2 className="font-heading text-sm font-bold">
+          {dict.legalHoldHeading}
+        </h2>
+        <p className="text-xs text-foreground-muted">{dict.legalHoldIntro}</p>
+        {person.legalHold && (
+          <p className="text-sm font-semibold text-status-high">
+            {dict.legalHoldActive}
+            {person.legalHoldReason ? ` — ${person.legalHoldReason}` : ""}
+          </p>
+        )}
+        {person.legalHold ? (
+          <form action={legalHoldAction}>
+            <button
+              type="submit"
+              className="self-start rounded border border-border px-3 py-1.5 text-sm hover:border-accent"
+            >
+              {dict.clearHold}
+            </button>
+          </form>
+        ) : (
+          <form
+            action={legalHoldAction}
+            className="flex flex-wrap items-end gap-2 text-sm"
+          >
+            <input type="hidden" name="hold" value="on" />
+            <label className="flex flex-col gap-1">
+              {dict.legalHoldReasonLabel}
+              <input
+                name="reason"
+                className="rounded border border-border bg-background px-2 py-1"
+              />
+            </label>
+            <button
+              type="submit"
+              className="rounded border border-border px-3 py-1.5 text-coral hover:border-coral"
+            >
+              {dict.setHold}
+            </button>
+          </form>
         )}
       </section>
 

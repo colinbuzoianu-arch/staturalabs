@@ -50,6 +50,7 @@ export const MODULE_LABELS_DE: Record<string, string> = {
   "modules.settings.label": "Stammdaten & Einstellungen",
   "modules.settings.children.organisation": "Organisation",
   "modules.settings.children.users-roles": "Benutzer & Rollen",
+  "modules.settings.children.data-retention": "Aufbewahrung",
   "modules.settings.children.catalogues": "Kataloge",
   "modules.settings.children.templates": "Vorlagen",
   "modules.settings.children.notifications": "Benachrichtigungen",

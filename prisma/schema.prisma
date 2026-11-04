@@ -2302,3 +2302,47 @@ model CompanyRetentionSetting {
   @@unique([companyId, recordType])
   @@index([companyId])
 }
+
+// P7d §C.4: the anonymisation job never acts on its own the first time — it
+// writes a PROPOSED batch a company_admin reviews and approves. After the
+// first approval a company may opt into auto-execute (off by default).
+enum RetentionBatchStatus {
+  PROPOSED
+  APPROVED
+  CANCELLED
+}
+
+model RetentionBatch {
+  id              String               @id @default(cuid())
+  companyId       String
+  status          RetentionBatchStatus @default(PROPOSED)
+  createdAt       DateTime             @default(now())
+  approvedByUserId String?             @db.Uuid
+  approvedAt      DateTime?
+
+  items RetentionBatchItem[]
+
+  @@index([companyId, status])
+}
+
+model RetentionBatchItem {
+  id        String    @id @default(cuid())
+  batchId   String
+  // Plain personId (the batch outlives naming; the audit stores ids, not
+  // names). maturedAt = when the retention matured, for traceability.
+  personId    String
+  maturedAt   DateTime
+  anonymisedAt DateTime?
+
+  batch RetentionBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
+}
+
+model CompanyRetentionConfig {
+  id              String   @id @default(cuid())
+  companyId       String   @unique
+  autoExecute     Boolean  @default(false)
+  updatedByUserId String?  @db.Uuid
+  updatedAt       DateTime @updatedAt @default(now())
+}

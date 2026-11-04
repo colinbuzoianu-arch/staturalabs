@@ -71,16 +71,24 @@ export async function anonymisePerson(
   personId: string,
   actorUserId: string,
 ): Promise<void> {
-  const person = await prisma.person.update({
-    where: { id: personId },
-    data: {
-      firstName: "",
-      lastName: "",
-      personnelNumber: null,
-      platformUserId: null,
-      active: false,
-      anonymisedAt: new Date(),
-    },
+  // §C.4: name → "Anonymisiert-<short>", personnel number + self-service link
+  // cleared, assignments deleted (they carry no value once anonymous), while
+  // training records/session attendance survive as anonymous rows so aggregate
+  // statistics still work. The audit stores the id, never the removed name.
+  const short = personId.slice(0, 8);
+  const person = await prisma.$transaction(async (tx) => {
+    await tx.personAssignment.deleteMany({ where: { personId } });
+    return tx.person.update({
+      where: { id: personId },
+      data: {
+        firstName: "",
+        lastName: `Anonymisiert-${short}`,
+        personnelNumber: null,
+        platformUserId: null,
+        active: false,
+        anonymisedAt: new Date(),
+      },
+    });
   });
   await recordAuditEvent({
     actorUserId,

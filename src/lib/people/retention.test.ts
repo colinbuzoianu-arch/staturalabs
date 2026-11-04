@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   addDuration,
+  computeRetentionCandidates,
+  isPersonRetentionMatured,
   isRetentionMatured,
   parseIsoDuration,
+  type RetentionCandidateInput,
   resolveEffectiveRetention,
   retentionDueDate,
 } from "./retention";
@@ -97,5 +100,65 @@ describe("retentionDueDate / isRetentionMatured", () => {
   it("never matures with no trigger date or no period", () => {
     expect(isRetentionMatured(null, "P10Y", now)).toBe(false);
     expect(isRetentionMatured(new Date("2000-01-01Z"), null, now)).toBe(false);
+  });
+});
+
+describe("computeRetentionCandidates", () => {
+  const now = new Date("2026-11-04Z");
+  const base: RetentionCandidateInput = {
+    personId: "p",
+    employmentEnd: new Date("2010-01-01Z"),
+    hasRecords: true,
+    legalHold: false,
+    anonymisedAt: null,
+    personRetention: "P1Y",
+    trainingRetention: "P10Y",
+  };
+
+  it("a person with records matured past the 10y training policy is a candidate", () => {
+    // left 2010, +10y = 2020 < now → candidate.
+    expect(isPersonRetentionMatured(base, now)).toBe(true);
+  });
+  it("a person with records still within the 10y policy is not", () => {
+    expect(
+      isPersonRetentionMatured(
+        { ...base, employmentEnd: new Date("2020-01-01Z") },
+        now,
+      ),
+    ).toBe(false); // +10y = 2030 > now
+  });
+  it("a person with NO records uses the shorter 1y person policy", () => {
+    expect(
+      isPersonRetentionMatured(
+        { ...base, hasRecords: false, employmentEnd: new Date("2024-01-01Z") },
+        now,
+      ),
+    ).toBe(true); // +1y = 2025 < now
+  });
+  it("legal hold excludes a person", () => {
+    expect(isPersonRetentionMatured({ ...base, legalHold: true }, now)).toBe(
+      false,
+    );
+  });
+  it("already anonymised is excluded", () => {
+    expect(
+      isPersonRetentionMatured({ ...base, anonymisedAt: new Date() }, now),
+    ).toBe(false);
+  });
+  it("no employment-end date is excluded", () => {
+    expect(
+      isPersonRetentionMatured({ ...base, employmentEnd: null }, now),
+    ).toBe(false);
+  });
+  it("computeRetentionCandidates returns only the matured, non-held", () => {
+    const out = computeRetentionCandidates(
+      [
+        base, // candidate
+        { ...base, personId: "hold", legalHold: true },
+        { ...base, personId: "fresh", employmentEnd: new Date("2025-01-01Z") },
+      ],
+      now,
+    );
+    expect(out.map((c) => c.personId)).toEqual(["p"]);
   });
 });
