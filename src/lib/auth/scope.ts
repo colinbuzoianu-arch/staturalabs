@@ -67,6 +67,12 @@ export async function canAccessSiteByAssignments(
 export async function accessibleOrgUnitIds(
   user: PlatformUserModel,
 ): Promise<Set<string> | null> {
+  // Only MANAGER is org-unit-scoped. Every other role is company/site-wide for
+  // the person list (admins, ehs_specialist) or doesn't reach it (employee) —
+  // return null (no org-unit filter), independent of RoleAssignment rows, so a
+  // company_admin is never narrowed by a missing/!COMPANY assignment.
+  if (user.role !== "MANAGER") return null;
+
   const assignments = await activeRoleAssignments(user.id);
   if (assignments.some((a) => a.scopeType === "COMPANY")) return null;
 

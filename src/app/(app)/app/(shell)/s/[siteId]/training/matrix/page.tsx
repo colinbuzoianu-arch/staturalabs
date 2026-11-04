@@ -108,10 +108,42 @@ export default async function InstructionMatrixPage({
     if (pt.task.workstationId) set.add(pt.task.workstationId);
     processWorkstations.set(pt.processId, set);
   }
+  // P8: substance → its active-use job subjects (so SUBSTANCE requirement
+  // sources derive to the persons assigned there).
+  const activeUses = await prisma.substanceUse.findMany({
+    where: { substance: { companyId }, activeTo: null },
+    select: {
+      substanceId: true,
+      workstationId: true,
+      processId: true,
+      orgUnitId: true,
+    },
+  });
+  const substanceSubjects = new Map<
+    string,
+    {
+      workstationIds: Set<string>;
+      orgUnitIds: Set<string>;
+      processIds: Set<string>;
+    }
+  >();
+  for (const use of activeUses) {
+    const entry = substanceSubjects.get(use.substanceId) ?? {
+      workstationIds: new Set<string>(),
+      orgUnitIds: new Set<string>(),
+      processIds: new Set<string>(),
+    };
+    if (use.workstationId) entry.workstationIds.add(use.workstationId);
+    if (use.orgUnitId) entry.orgUnitIds.add(use.orgUnitId);
+    if (use.processId) entry.processIds.add(use.processId);
+    substanceSubjects.set(use.substanceId, entry);
+  }
+
   const maps: DerivationMaps = {
     workstationOrgUnit,
     orgUnitAncestors,
     processWorkstations,
+    substanceSubjects,
   };
   const sourceList: RequirementSource[] = sources.map((s) => ({
     requirementTypeId: s.requirementTypeId,

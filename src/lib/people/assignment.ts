@@ -4,6 +4,7 @@ import type {
   TrainingRequirementSourceModel,
 } from "@/generated/prisma/models";
 import { recordAuditEvent } from "@/lib/audit/audit-event";
+import { isCmr1A1B } from "@/lib/chemicals/cmr";
 import { prisma } from "@/lib/prisma";
 
 // P7d §A people-compartment write gates (SLD_P7B_DEFERRALS_RESOLVED.md).
@@ -36,6 +37,13 @@ async function subjectCompanyId(
         select: { site: { select: { companyId: true } } },
       });
       return p?.site.companyId ?? null;
+    }
+    case "SUBSTANCE": {
+      const sub = await prisma.substance.findUnique({
+        where: { id: subjectId },
+        select: { companyId: true },
+      });
+      return sub?.companyId ?? null;
     }
     default:
       return null;
@@ -121,9 +129,6 @@ export async function addRequirementSource(input: {
   companyId: string;
   actorUserId: string;
 }): Promise<TrainingRequirementSourceModel> {
-  if (input.subjectType === "SUBSTANCE") {
-    throw new Error("SUBSTANCE requirement sources are reserved for P8");
-  }
   const subjCompany = await subjectCompanyId(
     input.subjectType,
     input.subjectId,
@@ -134,7 +139,7 @@ export async function addRequirementSource(input: {
   // The requirement type must be system-wide or of this company.
   const type = await prisma.trainingRequirementType.findUnique({
     where: { id: input.requirementTypeId },
-    select: { companyId: true },
+    select: { companyId: true, retentionOverride: true },
   });
   if (
     !type ||
@@ -156,6 +161,30 @@ export async function addRequirementSource(input: {
     entityId: row.id,
     companyId: input.companyId,
   });
+
+  // P8 §3.4: linking a CMR 1A/1B substance pre-fills the type's retention
+  // override with 40 years after end of employment (POLICY_DEFAULT, editable)
+  // — a documentation-proof recommendation, not a statutory period. Only when
+  // the type has no override yet.
+  if (input.subjectType === "SUBSTANCE" && !type.retentionOverride) {
+    const substance = await prisma.substance.findUnique({
+      where: { id: input.subjectId },
+      select: {
+        carcinogenicCategory: true,
+        mutagenicCategory: true,
+        reprotoxicCategory: true,
+      },
+    });
+    if (substance && isCmr1A1B(substance)) {
+      await prisma.trainingRequirementType.update({
+        where: { id: input.requirementTypeId },
+        data: {
+          retentionOverride: "P40Y",
+          retentionOverrideTrigger: "END_OF_EMPLOYMENT",
+        },
+      });
+    }
+  }
   return row;
 }
 

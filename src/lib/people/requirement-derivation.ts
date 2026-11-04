@@ -30,6 +30,16 @@ export type DerivationMaps = {
   orgUnitAncestors: Map<string, string[]>;
   // process id → set of workstation ids hosting its tasks.
   processWorkstations: Map<string, Set<string>>;
+  // P8: substance id → the job subjects it is actively used at. A SUBSTANCE
+  // requirement source expands to these, so persons assigned there inherit it.
+  substanceSubjects?: Map<
+    string,
+    {
+      workstationIds: Set<string>;
+      orgUnitIds: Set<string>;
+      processIds: Set<string>;
+    }
+  >;
 };
 
 export type DerivedRequirement = {
@@ -88,7 +98,21 @@ export function deriveRequiredTrainings(
         }
         break;
       }
-      // SUBSTANCE: reserved until P8 — never matched.
+      case "SUBSTANCE": {
+        // P8: expand the substance to its active-use subjects, then match the
+        // same way (workstation / org-unit inheritance / process).
+        const subj = maps.substanceSubjects?.get(source.subjectId);
+        if (!subj) break;
+        const matched =
+          [...subj.workstationIds].some((w) => workstationIds.has(w)) ||
+          [...subj.orgUnitIds].some((o) => coveredOrgUnits.has(o)) ||
+          [...subj.processIds].some((p) => {
+            const ws = maps.processWorkstations.get(p);
+            return ws != null && [...workstationIds].some((w) => ws.has(w));
+          });
+        if (matched) add(source);
+        break;
+      }
       default:
         break;
     }

@@ -670,10 +670,12 @@ export const en = {
     addSourceButton: "Attach",
     removeSource: "Remove",
     sourcesEmpty: "No sources yet.",
+    retentionOverrideLabel: "Retention:",
     sourceTypeLabels: {
       WORKSTATION: "Workstation",
       ORG_UNIT: "Org unit",
       PROCESS: "Process",
+      SUBSTANCE: "Substance",
     },
     none: "—",
   },

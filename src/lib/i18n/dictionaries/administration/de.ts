@@ -653,10 +653,12 @@ export const de: typeof en = {
     addSourceButton: "Binden",
     removeSource: "Entfernen",
     sourcesEmpty: "Noch keine Quellen.",
+    retentionOverrideLabel: "Aufbewahrung:",
     sourceTypeLabels: {
       WORKSTATION: "Arbeitsplatz",
       ORG_UNIT: "Organisationseinheit",
       PROCESS: "Prozess",
+      SUBSTANCE: "Gefahrstoff",
     },
     none: "—",
   },

@@ -650,10 +650,12 @@ export const ro: typeof en = {
     addSourceButton: "Atașează",
     removeSource: "Elimină",
     sourcesEmpty: "Nicio sursă încă.",
+    retentionOverrideLabel: "Păstrare:",
     sourceTypeLabels: {
       WORKSTATION: "Loc de muncă",
       ORG_UNIT: "Unitate organizatorică",
       PROCESS: "Proces",
+      SUBSTANCE: "Substanță",
     },
     none: "—",
   },

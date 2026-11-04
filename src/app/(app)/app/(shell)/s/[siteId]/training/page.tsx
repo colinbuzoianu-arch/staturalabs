@@ -129,7 +129,9 @@ export default async function TrainingPage({
           ? "ORG_UNIT"
           : kind === "process"
             ? "PROCESS"
-            : null;
+            : kind === "substance"
+              ? "SUBSTANCE"
+              : null;
     if (!subjectType || !subjectId) return;
     await addRequirementSource({
       requirementTypeId,
@@ -159,6 +161,7 @@ export default async function TrainingPage({
     workstations,
     siteOrgUnits,
     processes,
+    substances,
   ] = await Promise.all([
     prisma.trainingRequirementType.findMany({
       where: { OR: [{ companyId }, { companyId: null }] },
@@ -193,11 +196,17 @@ export default async function TrainingPage({
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
+    prisma.substance.findMany({
+      where: { companyId },
+      select: { id: true, tradeName: true },
+      orderBy: { tradeName: "asc" },
+    }),
   ]);
   const subjectName = new Map<string, string>([
     ...workstations.map((w) => [`WORKSTATION:${w.id}`, w.name] as const),
     ...siteOrgUnits.map((o) => [`ORG_UNIT:${o.id}`, o.name] as const),
     ...processes.map((p) => [`PROCESS:${p.id}`, p.name] as const),
+    ...substances.map((x) => [`SUBSTANCE:${x.id}`, x.tradeName] as const),
   ]);
 
   return (
@@ -285,6 +294,9 @@ export default async function TrainingPage({
                 <span className="text-foreground-subtle">
                   · {dict.deliveryMethodLabels[t.deliveryMethod]}
                   {t.recurrenceMonths ? ` · ${t.recurrenceMonths} M` : ""}
+                  {t.retentionOverride
+                    ? ` · ${dict.retentionOverrideLabel} ${t.retentionOverride}`
+                    : ""}
                 </span>
               </li>
             ))}
@@ -342,6 +354,13 @@ export default async function TrainingPage({
                     </option>
                   ))}
                 </optgroup>
+                <optgroup label={dict.sourceTypeLabels.SUBSTANCE}>
+                  {substances.map((x) => (
+                    <option key={`x-${x.id}`} value={`substance:${x.id}`}>
+                      {x.tradeName}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </label>
             <button
@@ -365,10 +384,7 @@ export default async function TrainingPage({
                   {src.requirementType.title}{" "}
                   <span className="text-foreground-subtle">
                     ·{" "}
-                    {dict.sourceTypeLabels[
-                      src.subjectType as "WORKSTATION" | "ORG_UNIT" | "PROCESS"
-                    ] ?? src.subjectType}
-                    :{" "}
+                    {dict.sourceTypeLabels[src.subjectType] ?? src.subjectType}:{" "}
                     {subjectName.get(`${src.subjectType}:${src.subjectId}`) ??
                       dict.none}
                   </span>

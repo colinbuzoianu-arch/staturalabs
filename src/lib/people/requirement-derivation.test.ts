@@ -70,7 +70,7 @@ describe("deriveRequiredTrainings", () => {
     expect(out).toHaveLength(1);
   });
 
-  it("never matches a SUBSTANCE source (reserved)", () => {
+  it("ignores a SUBSTANCE source when no substanceSubjects map is given", () => {
     const out = deriveRequiredTrainings(
       [{ workstationId: "ws1", orgUnitId: null }],
       [
@@ -83,6 +83,33 @@ describe("deriveRequiredTrainings", () => {
       maps,
     );
     expect(out).toHaveLength(0);
+  });
+
+  it("matches a SUBSTANCE source via the substance's active-use workstation", () => {
+    const out = deriveRequiredTrainings(
+      [{ workstationId: "ws1", orgUnitId: null }],
+      [
+        {
+          requirementTypeId: "t1",
+          subjectType: "SUBSTANCE",
+          subjectId: "sub1",
+        },
+      ],
+      {
+        ...maps,
+        substanceSubjects: new Map([
+          [
+            "sub1",
+            {
+              workstationIds: new Set(["ws1"]),
+              orgUnitIds: new Set<string>(),
+              processIds: new Set<string>(),
+            },
+          ],
+        ]),
+      },
+    );
+    expect(out.map((r) => r.requirementTypeId)).toEqual(["t1"]);
   });
 
   it("collects multiple sources (the why) for one type", () => {
