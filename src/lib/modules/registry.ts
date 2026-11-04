@@ -350,6 +350,10 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
         labelKey: "modules.settings.children.organisation",
         slug: "org-units",
       },
+      {
+        labelKey: "modules.settings.children.users-roles",
+        slug: "users",
+      },
       { labelKey: "modules.settings.children.catalogues", slug: "hazards" },
     ],
   },
