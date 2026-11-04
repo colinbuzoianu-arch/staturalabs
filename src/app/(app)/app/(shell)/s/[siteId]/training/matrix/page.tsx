@@ -1,64 +1,194 @@
 import Link from "next/link";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
+import { accessibleOrgUnitIds } from "@/lib/auth/scope";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
 import {
   buildInstructionMatrix,
+  DEFAULT_DUE_SOON_DAYS,
   type InstructionCellStatus,
 } from "@/lib/people/instruction-status";
+import {
+  type DerivationMaps,
+  deriveRequiredTrainings,
+  type RequirementSource,
+} from "@/lib/people/requirement-derivation";
 import { prisma } from "@/lib/prisma";
 
 const STATUS_DOT: Record<InstructionCellStatus, string> = {
   valid: "bg-status-low",
-  expired: "bg-status-high",
+  "due-soon": "bg-status-moderate",
+  overdue: "bg-status-high",
   missing: "bg-status-neutral",
 };
 
-// P7c-2 instruction matrix (plan §7.6): persons × requirement types with
-// status, plus a due/missing list. Operational per-person view (not a
-// statistic, so no §3.4 minimum-group-size gate). Company-scoped.
+// P7d §A.3 instruction matrix: REQUIRED cells only (via requirement
+// derivation), four-state status, manager org-unit scope. Operational
+// per-person duty view (not a statistic → no §3.4 group-size gate).
 export default async function InstructionMatrixPage({
   params,
 }: {
   params: Promise<{ siteId: string }>;
 }) {
   const { siteId } = await params;
-  const { site } = await requireSiteAdministrationAccess(siteId);
+  const { user, site } = await requireSiteAdministrationAccess(siteId);
   const locale = await getLocale();
   const dict = getAdministrationDictionary(locale).trainingPage;
   const companyId = site.companyId;
 
-  const [persons, types, records] = await Promise.all([
-    prisma.person.findMany({
-      where: { companyId, active: true, anonymisedAt: null },
-      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-    }),
-    prisma.trainingRequirementType.findMany({
-      where: { OR: [{ companyId }, { companyId: null }] },
-      orderBy: { title: "asc" },
-    }),
-    prisma.trainingRecord.findMany({
-      where: { person: { companyId } },
-      select: { personId: true, requirementTypeId: true, validUntil: true },
-    }),
-  ]);
+  // Manager scope: null = all org units (company-wide); else the set the user
+  // may see (descendant-expanded).
+  const scopeOrgUnits = await accessibleOrgUnitIds(user);
 
-  const { cells } = buildInstructionMatrix(persons, types, records, new Date());
+  const [persons, types, records, sources, assignments, orgUnits] =
+    await Promise.all([
+      prisma.person.findMany({
+        where: { companyId, active: true, anonymisedAt: null },
+        orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      }),
+      prisma.trainingRequirementType.findMany({
+        where: { OR: [{ companyId }, { companyId: null }] },
+        orderBy: { title: "asc" },
+      }),
+      prisma.trainingRecord.findMany({
+        where: { person: { companyId } },
+        select: { personId: true, requirementTypeId: true, validUntil: true },
+      }),
+      prisma.trainingRequirementSource.findMany({
+        where: {
+          requirementType: { OR: [{ companyId }, { companyId: null }] },
+        },
+        select: { requirementTypeId: true, subjectType: true, subjectId: true },
+      }),
+      prisma.personAssignment.findMany({
+        where: { person: { companyId } },
+        select: {
+          personId: true,
+          workstationId: true,
+          orgUnitId: true,
+          validFrom: true,
+          validUntil: true,
+        },
+      }),
+      prisma.orgUnit.findMany({
+        where: { site: { companyId } },
+        select: { id: true, name: true, parentId: true },
+      }),
+    ]);
+
+  // Derivation maps.
+  const workstations = await prisma.workstation.findMany({
+    where: { site: { companyId } },
+    select: { id: true, orgUnitId: true },
+  });
+  const workstationOrgUnit = new Map(
+    workstations.map((w) => [w.id, w.orgUnitId]),
+  );
+  const parentOf = new Map(orgUnits.map((o) => [o.id, o.parentId]));
+  const orgUnitAncestors = new Map<string, string[]>();
+  for (const o of orgUnits) {
+    const chain: string[] = [];
+    let cur: string | null = o.id;
+    const seen = new Set<string>();
+    while (cur && !seen.has(cur)) {
+      seen.add(cur);
+      chain.push(cur);
+      cur = parentOf.get(cur) ?? null;
+    }
+    orgUnitAncestors.set(o.id, chain);
+  }
+  // process → workstations (company processes only).
+  const companyProcessTasks = await prisma.processTask.findMany({
+    where: { process: { site: { companyId } } },
+    select: { processId: true, task: { select: { workstationId: true } } },
+  });
+  const processWorkstations = new Map<string, Set<string>>();
+  for (const pt of companyProcessTasks) {
+    const set = processWorkstations.get(pt.processId) ?? new Set<string>();
+    if (pt.task.workstationId) set.add(pt.task.workstationId);
+    processWorkstations.set(pt.processId, set);
+  }
+  const maps: DerivationMaps = {
+    workstationOrgUnit,
+    orgUnitAncestors,
+    processWorkstations,
+  };
+  const sourceList: RequirementSource[] = sources.map((s) => ({
+    requirementTypeId: s.requirementTypeId,
+    subjectType: s.subjectType,
+    subjectId: s.subjectId,
+  }));
+
+  const now = new Date();
+  const assignmentsByPerson = new Map<
+    string,
+    { workstationId: string | null; orgUnitId: string | null }[]
+  >();
+  for (const a of assignments) {
+    if (a.validFrom && a.validFrom > now) continue;
+    if (a.validUntil && a.validUntil < now) continue;
+    const list = assignmentsByPerson.get(a.personId) ?? [];
+    list.push({ workstationId: a.workstationId, orgUnitId: a.orgUnitId });
+    assignmentsByPerson.set(a.personId, list);
+  }
+
+  // Manager scope filter: a person is visible if any of their assignment org
+  // units (or assignment workstation's org unit) is in scope.
+  function personInScope(personId: string): boolean {
+    if (scopeOrgUnits === null) return true;
+    for (const a of assignmentsByPerson.get(personId) ?? []) {
+      const ou =
+        a.orgUnitId ??
+        (a.workstationId ? workstationOrgUnit.get(a.workstationId) : null);
+      if (ou && scopeOrgUnits.has(ou)) return true;
+    }
+    return false;
+  }
+  const visiblePersons = persons.filter((p) => personInScope(p.id));
+
+  // Required (person, type) keys + the "why" per key.
+  const requiredKeys = new Set<string>();
+  const whyByKey = new Map<string, RequirementSource[]>();
+  for (const person of visiblePersons) {
+    const derived = deriveRequiredTrainings(
+      assignmentsByPerson.get(person.id) ?? [],
+      sourceList,
+      maps,
+    );
+    for (const d of derived) {
+      const key = `${person.id}:${d.requirementTypeId}`;
+      requiredKeys.add(key);
+      whyByKey.set(key, d.sources);
+    }
+  }
+
+  const { cells } = buildInstructionMatrix(
+    visiblePersons,
+    types,
+    records,
+    requiredKeys,
+    now,
+    DEFAULT_DUE_SOON_DAYS,
+  );
   const cellByKey = new Map(
     cells.map((c) => [`${c.personId}:${c.requirementTypeId}`, c]),
   );
   const personName = new Map(
-    persons.map((p) => [p.id, `${p.lastName}, ${p.firstName}`]),
+    visiblePersons.map((p) => [p.id, `${p.lastName}, ${p.firstName}`]),
   );
   const typeTitle = new Map(types.map((t) => [t.id, t.title]));
-  const due = cells.filter((c) => c.status !== "valid");
+  const due = cells.filter((c) => c.required && c.status !== "valid");
 
   const statusLabel = (s: InstructionCellStatus) =>
     s === "valid"
       ? dict.statusValid
-      : s === "expired"
-        ? dict.statusExpired
-        : dict.statusMissing;
+      : s === "due-soon"
+        ? dict.statusDueSoon
+        : s === "overdue"
+          ? dict.statusOverdue
+          : dict.statusMissing;
+
+  const hasData = visiblePersons.length > 0 && types.length > 0;
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-10">
@@ -84,21 +214,26 @@ export default async function InstructionMatrixPage({
         </span>
       </nav>
 
-      {persons.length === 0 || types.length === 0 ? (
+      {!hasData ? (
         <p className="text-sm text-foreground-muted">{dict.matrixEmpty}</p>
       ) : (
         <>
           <div className="flex flex-wrap gap-4 text-xs text-foreground-muted">
-            {(["valid", "expired", "missing"] as InstructionCellStatus[]).map(
-              (s) => (
-                <span key={s} className="flex items-center gap-1.5">
-                  <span
-                    className={`inline-block h-2.5 w-2.5 rounded-full ${STATUS_DOT[s]}`}
-                  />
-                  {statusLabel(s)}
-                </span>
-              ),
-            )}
+            {(
+              [
+                "valid",
+                "due-soon",
+                "overdue",
+                "missing",
+              ] as InstructionCellStatus[]
+            ).map((s) => (
+              <span key={s} className="flex items-center gap-1.5">
+                <span
+                  className={`inline-block h-2.5 w-2.5 rounded-full ${STATUS_DOT[s]}`}
+                />
+                {statusLabel(s)}
+              </span>
+            ))}
           </div>
 
           <div className="overflow-x-auto">
@@ -117,7 +252,7 @@ export default async function InstructionMatrixPage({
                 </tr>
               </thead>
               <tbody>
-                {persons.map((p) => (
+                {visiblePersons.map((p) => (
                   <tr
                     key={p.id}
                     className="border-b border-border last:border-0"
@@ -127,7 +262,17 @@ export default async function InstructionMatrixPage({
                     </td>
                     {types.map((t) => {
                       const cell = cellByKey.get(`${p.id}:${t.id}`);
-                      const status = cell?.status ?? "missing";
+                      if (!cell?.required) {
+                        return (
+                          <td
+                            key={t.id}
+                            className="px-2 py-1.5 text-center text-foreground-subtle"
+                          >
+                            {dict.notRequired}
+                          </td>
+                        );
+                      }
+                      const status = cell.status ?? "missing";
                       return (
                         <td key={t.id} className="px-2 py-1.5 text-center">
                           <span
@@ -161,12 +306,12 @@ export default async function InstructionMatrixPage({
                     </span>
                     <span
                       className={
-                        c.status === "expired"
+                        c.status === "overdue"
                           ? "text-status-high"
                           : "text-foreground-muted"
                       }
                     >
-                      {statusLabel(c.status)}
+                      {statusLabel(c.status ?? "missing")}
                     </span>
                   </li>
                 ))}

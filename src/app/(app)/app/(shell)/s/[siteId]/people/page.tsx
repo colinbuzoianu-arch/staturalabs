@@ -236,10 +236,15 @@ export default async function PeoplePage({
             <tbody>
               {people.map((p) => (
                 <tr key={p.id} className="border-b border-border last:border-0">
-                  <td className="py-1.5 pr-4 font-medium text-foreground">
-                    {p.anonymisedAt
-                      ? dict.statusAnonymised
-                      : `${p.lastName}, ${p.firstName}`}
+                  <td className="py-1.5 pr-4 font-medium">
+                    <Link
+                      href={`/app/s/${siteId}/people/${p.id}`}
+                      className="text-foreground hover:text-accent hover:underline"
+                    >
+                      {p.anonymisedAt
+                        ? dict.statusAnonymised
+                        : `${p.lastName}, ${p.firstName}`}
+                    </Link>
                   </td>
                   <td className="py-1.5 pr-4 text-foreground-muted">
                     {p.personnelNumber ?? dict.none}

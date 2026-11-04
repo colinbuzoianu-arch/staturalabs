@@ -1,23 +1,32 @@
-// P7c-2 instruction matrix core (plan §7.6). Pure — no DB, no `server-only` —
-// unit-tested. The matrix is an OPERATIONAL per-person view (who still needs
-// instruction), an explicit §7.6 duty — not a person-derived statistic, so
-// the §3.4 minimum-group-size rule does not apply here (it applies to the
-// coverage KPIs in P12).
+// P7d §A.3 (SLD_P7B_DEFERRALS_RESOLVED.md): instruction-matrix core. The
+// matrix shows REQUIRED cells only (a type is required for a person via
+// requirement derivation); non-required cells render "—". Four statuses:
+// valid · due-soon (≤ dueSoonDays) · overdue · missing. Pure, unit-tested.
+// Operational per-person view (an explicit §7.6 duty, not a statistic — no
+// §3.4 minimum-group-size gate; that applies to the P12 coverage KPIs).
 
-export type InstructionCellStatus = "valid" | "expired" | "missing";
+export const DEFAULT_DUE_SOON_DAYS = 30;
 
-// Status of one (person, requirement type) cell given the person's latest
-// record for that type (if any). No record → missing. A record with no
-// validUntil (requirement has no recurrence) → valid indefinitely. Otherwise
-// valid while validUntil is in the future, else expired.
+export type InstructionCellStatus =
+  | "valid"
+  | "due-soon"
+  | "overdue"
+  | "missing";
+
+// Status of one required (person, type) cell from the person's latest record.
+// No record → missing. null validUntil (no recurrence) → valid indefinitely.
+// Past → overdue. Within dueSoonDays → due-soon. Else valid.
 export function instructionCellStatus(
   hasRecord: boolean,
   latestValidUntil: Date | null,
   now: Date,
+  dueSoonDays: number = DEFAULT_DUE_SOON_DAYS,
 ): InstructionCellStatus {
   if (!hasRecord) return "missing";
   if (latestValidUntil === null) return "valid";
-  return latestValidUntil >= now ? "valid" : "expired";
+  if (latestValidUntil < now) return "overdue";
+  const soon = new Date(now.getTime() + dueSoonDays * 24 * 60 * 60 * 1000);
+  return latestValidUntil <= soon ? "due-soon" : "valid";
 }
 
 export type MatrixPerson = { id: string };
@@ -31,20 +40,24 @@ export type MatrixRecord = {
 export type MatrixCell = {
   personId: string;
   requirementTypeId: string;
-  status: InstructionCellStatus;
+  required: boolean;
+  // Only meaningful (and set) when required.
+  status: InstructionCellStatus | null;
   validUntil: Date | null;
 };
 
-// Build the full persons × types matrix. For each cell, the person's LATEST
-// record for that type wins (by latest validUntil; a null validUntil — no
-// recurrence — counts as the strongest "valid").
+// Build persons × types, flagging each cell required or not (via requiredKeys,
+// a set of "personId:requirementTypeId"); status is computed only for required
+// cells. The strongest record per (person, type) wins (null validUntil beats
+// any date; else later). dueCount = required cells that are not valid.
 export function buildInstructionMatrix(
   persons: readonly MatrixPerson[],
   types: readonly MatrixType[],
   records: readonly MatrixRecord[],
+  requiredKeys: ReadonlySet<string>,
   now: Date,
+  dueSoonDays: number = DEFAULT_DUE_SOON_DAYS,
 ): { cells: MatrixCell[]; dueCount: number } {
-  // Best record per (personId, requirementTypeId).
   const best = new Map<string, MatrixRecord>();
   for (const r of records) {
     const key = `${r.personId}:${r.requirementTypeId}`;
@@ -53,7 +66,6 @@ export function buildInstructionMatrix(
       best.set(key, r);
       continue;
     }
-    // A null validUntil (indefinite) beats any date; otherwise later wins.
     if (existing.validUntil === null) continue;
     if (r.validUntil === null || r.validUntil > existing.validUntil) {
       best.set(key, r);
@@ -65,16 +77,29 @@ export function buildInstructionMatrix(
   for (const person of persons) {
     for (const type of types) {
       const key = `${person.id}:${type.id}`;
+      const required = requiredKeys.has(key);
+      if (!required) {
+        cells.push({
+          personId: person.id,
+          requirementTypeId: type.id,
+          required: false,
+          status: null,
+          validUntil: null,
+        });
+        continue;
+      }
       const rec = best.get(key);
       const status = instructionCellStatus(
         rec !== undefined,
         rec?.validUntil ?? null,
         now,
+        dueSoonDays,
       );
       if (status !== "valid") dueCount++;
       cells.push({
         personId: person.id,
         requirementTypeId: type.id,
+        required: true,
         status,
         validUntil: rec?.validUntil ?? null,
       });

@@ -7,6 +7,10 @@ import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
 import {
+  addRequirementSource,
+  removeRequirementSource,
+} from "@/lib/people/assignment";
+import {
   createTrainingRequirementType,
   recordTrainingSession,
 } from "@/lib/people/training";
@@ -105,7 +109,57 @@ export default async function TrainingPage({
     revalidatePath(`/app/s/${siteId}/training`);
   }
 
-  const [types, people, records] = await Promise.all([
+  async function addSourceAction(formData: FormData) {
+    "use server";
+    const { user, site: s } = await requireSiteAdministrationAccess(siteId);
+    const requirementTypeId = formData.get("requirementTypeId");
+    const subjectValue = formData.get("subject");
+    if (
+      typeof requirementTypeId !== "string" ||
+      typeof subjectValue !== "string" ||
+      !subjectValue.includes(":")
+    ) {
+      return;
+    }
+    const [kind, subjectId] = subjectValue.split(":");
+    const subjectType =
+      kind === "workstation"
+        ? "WORKSTATION"
+        : kind === "orgunit"
+          ? "ORG_UNIT"
+          : kind === "process"
+            ? "PROCESS"
+            : null;
+    if (!subjectType || !subjectId) return;
+    await addRequirementSource({
+      requirementTypeId,
+      subjectType,
+      subjectId,
+      companyId: s.companyId,
+      actorUserId: user.id,
+    });
+    revalidatePath(`/app/s/${siteId}/training`);
+  }
+
+  async function removeSourceAction(formData: FormData) {
+    "use server";
+    const { user, site: s } = await requireSiteAdministrationAccess(siteId);
+    const id = formData.get("sourceId");
+    if (typeof id === "string" && id.length > 0) {
+      await removeRequirementSource(id, s.companyId, user.id);
+    }
+    revalidatePath(`/app/s/${siteId}/training`);
+  }
+
+  const [
+    types,
+    people,
+    records,
+    sources,
+    workstations,
+    siteOrgUnits,
+    processes,
+  ] = await Promise.all([
     prisma.trainingRequirementType.findMany({
       where: { OR: [{ companyId }, { companyId: null }] },
       orderBy: { title: "asc" },
@@ -120,6 +174,30 @@ export default async function TrainingPage({
       orderBy: { completedAt: "desc" },
       take: 25,
     }),
+    prisma.trainingRequirementSource.findMany({
+      where: { requirementType: { OR: [{ companyId }, { companyId: null }] } },
+      include: { requirementType: { select: { title: true } } },
+    }),
+    prisma.workstation.findMany({
+      where: { site: { companyId } },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.orgUnit.findMany({
+      where: { site: { companyId } },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.process.findMany({
+      where: { site: { companyId } },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+  const subjectName = new Map<string, string>([
+    ...workstations.map((w) => [`WORKSTATION:${w.id}`, w.name] as const),
+    ...siteOrgUnits.map((o) => [`ORG_UNIT:${o.id}`, o.name] as const),
+    ...processes.map((p) => [`PROCESS:${p.id}`, p.name] as const),
   ]);
 
   return (
@@ -208,6 +286,102 @@ export default async function TrainingPage({
                   · {dict.deliveryMethodLabels[t.deliveryMethod]}
                   {t.recurrenceMonths ? ` · ${t.recurrenceMonths} M` : ""}
                 </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+        <h2 className="font-heading text-sm font-bold">
+          {dict.sourcesHeading}
+        </h2>
+        <p className="text-xs text-foreground-muted">{dict.sourcesIntro}</p>
+        {types.length > 0 && (
+          <form
+            action={addSourceAction}
+            className="flex flex-wrap items-end gap-3 text-sm"
+          >
+            <label className="flex flex-col gap-1">
+              {dict.requirementTypeLabel}
+              <select
+                name="requirementTypeId"
+                className="rounded border border-border bg-background px-2 py-1"
+              >
+                {types.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              {dict.sourceSubjectLabel}
+              <select
+                name="subject"
+                className="rounded border border-border bg-background px-2 py-1"
+              >
+                <optgroup label={dict.sourceTypeLabels.WORKSTATION}>
+                  {workstations.map((w) => (
+                    <option key={`w-${w.id}`} value={`workstation:${w.id}`}>
+                      {w.name}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label={dict.sourceTypeLabels.ORG_UNIT}>
+                  {siteOrgUnits.map((o) => (
+                    <option key={`o-${o.id}`} value={`orgunit:${o.id}`}>
+                      {o.name}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label={dict.sourceTypeLabels.PROCESS}>
+                  {processes.map((p) => (
+                    <option key={`p-${p.id}`} value={`process:${p.id}`}>
+                      {p.name}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </label>
+            <button
+              type="submit"
+              className="rounded-[var(--radius-md)] bg-accent px-3 py-1.5 font-medium text-background"
+            >
+              {dict.addSourceButton}
+            </button>
+          </form>
+        )}
+        {sources.length === 0 ? (
+          <p className="text-sm text-foreground-muted">{dict.sourcesEmpty}</p>
+        ) : (
+          <ul className="flex flex-col gap-1 text-sm">
+            {sources.map((src) => (
+              <li
+                key={src.id}
+                className="flex items-center justify-between gap-3"
+              >
+                <span className="text-foreground">
+                  {src.requirementType.title}{" "}
+                  <span className="text-foreground-subtle">
+                    ·{" "}
+                    {dict.sourceTypeLabels[
+                      src.subjectType as "WORKSTATION" | "ORG_UNIT" | "PROCESS"
+                    ] ?? src.subjectType}
+                    :{" "}
+                    {subjectName.get(`${src.subjectType}:${src.subjectId}`) ??
+                      dict.none}
+                  </span>
+                </span>
+                <form action={removeSourceAction}>
+                  <input type="hidden" name="sourceId" value={src.id} />
+                  <button
+                    type="submit"
+                    className="text-xs text-foreground-subtle hover:text-accent hover:underline"
+                  >
+                    {dict.removeSource}
+                  </button>
+                </form>
               </li>
             ))}
           </ul>
