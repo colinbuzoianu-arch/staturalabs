@@ -41,6 +41,7 @@ const FORBIDDEN_PERSON_MODELS = [
   "Person",
   "PersonAssignment",
   "TrainingRequirementType",
+  "TrainingRequirementSource",
   "TrainingRecord",
   "TrainingSession",
   "Incident",

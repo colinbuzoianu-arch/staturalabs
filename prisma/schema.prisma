@@ -2134,6 +2134,7 @@ model TrainingRequirementType {
 
   sessions TrainingSession[]
   records  TrainingRecord[]
+  sources  TrainingRequirementSource[]
 
   @@index([companyId])
 }
@@ -2196,4 +2197,30 @@ model RoleAssignment {
 
   @@index([platformUserId])
   @@index([scopeType, scopeId])
+}
+
+// P7d §A.2 (SLD_P7B_DEFERRALS_RESOLVED.md): how a TrainingRequirementType
+// becomes required — attached to a job-level subject. subjectId is a plain
+// column (loose subjectType+subjectId, no FK, per §D1) so the training
+// compartment never couples to the assessment chain. SUBSTANCE is reserved
+// (no derivation until P8).
+enum RequirementSourceType {
+  WORKSTATION
+  ORG_UNIT
+  PROCESS
+  SUBSTANCE
+}
+
+model TrainingRequirementSource {
+  id                String                 @id @default(cuid())
+  requirementTypeId String
+  subjectType       RequirementSourceType
+  subjectId         String
+  createdAt         DateTime               @default(now())
+
+  requirementType TrainingRequirementType @relation(fields: [requirementTypeId], references: [id], onDelete: Restrict)
+
+  @@unique([requirementTypeId, subjectType, subjectId])
+  @@index([requirementTypeId])
+  @@index([subjectType, subjectId])
 }
