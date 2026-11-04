@@ -442,6 +442,24 @@ async function main() {
     }
     console.log(`Persons: ${personDefs.length} demo persons`);
 
+    // P7c: one demo training requirement type (idempotent by companyId+title).
+    await selectOrInsert(
+      db,
+      "TrainingRequirementType",
+      { companyId: company.id, title: "Jährliche Sicherheitsunterweisung" },
+      {
+        id: crypto.randomUUID(),
+        companyId: company.id,
+        title: "Jährliche Sicherheitsunterweisung",
+        contentOutline:
+          "Allgemeine Sicherheitsunterweisung nach §14 ASchG (jährlich).",
+        recurrenceMonths: 12,
+        deliveryMethod: "IN_PERSON",
+        updatedAt: new Date(),
+      },
+    );
+    console.log("TrainingRequirementType: 1 demo type");
+
     const workstationDefs = [
       {
         name: "Montageplatz Paneele 1",

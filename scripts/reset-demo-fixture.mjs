@@ -393,6 +393,28 @@ async function main() {
       `DELETE FROM "PlatformUser" WHERE "companyId" = $1`,
       [company.id],
     );
+    // P7c training (FK Person / TrainingRequirementType / TrainingSession,
+    // all Restrict) — records → sessions → types, before Person.
+    await del(
+      db,
+      "TrainingRecord",
+      `DELETE FROM "TrainingRecord" WHERE "personId" IN (
+         SELECT id FROM "Person" WHERE "companyId" = $1)`,
+      [company.id],
+    );
+    await del(
+      db,
+      "TrainingSession",
+      `DELETE FROM "TrainingSession" WHERE "companyId" = $1`,
+      [company.id],
+    );
+    await del(
+      db,
+      "TrainingRequirementType",
+      `DELETE FROM "TrainingRequirementType" WHERE "companyId" = $1`,
+      [company.id],
+    );
+
     // P7a people compartment: PersonAssignment (FK Person) then Person (FK
     // Company), both Restrict — before the Company delete.
     await del(

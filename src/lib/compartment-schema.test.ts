@@ -40,6 +40,7 @@ const ASSESSMENT_CHAIN_MODELS = [
 const FORBIDDEN_PERSON_MODELS = [
   "Person",
   "PersonAssignment",
+  "TrainingRequirementType",
   "TrainingRecord",
   "TrainingSession",
   "Incident",

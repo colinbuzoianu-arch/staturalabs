@@ -2063,8 +2063,9 @@ model Person {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  company     Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  assignments PersonAssignment[]
+  company         Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  assignments     PersonAssignment[]
+  trainingRecords TrainingRecord[]
 
   @@index([companyId])
 }
@@ -2085,4 +2086,75 @@ model PersonAssignment {
   person Person @relation(fields: [personId], references: [id], onDelete: Restrict)
 
   @@index([personId])
+}
+
+// P7c Unterweisungen / training (SLD_P7_COMPARTMENT_DESIGN_NOTE.md, plan §7.6).
+// People-compartment tables — proof of instruction. Like the rest of the
+// compartment they hold no FK into the assessment chain (legalReferenceId is
+// a plain column; requirement SOURCES that point at a workstation/process/
+// finding land in P7c-2 as loose subjectType+subjectId, never a relation).
+enum TrainingDeliveryMethod {
+  IN_PERSON
+  ELEARNING
+  DOCUMENT_READ_CONFIRMATION
+}
+
+enum TrainingConfirmation {
+  SIGNATURE
+  SELF_CONFIRMED
+}
+
+model TrainingRequirementType {
+  id              String                 @id @default(cuid())
+  companyId       String?
+  title           String
+  contentOutline  String?
+  recurrenceMonths Int?
+  // Plain column (no FK) into the P3 LegalReference catalogue — keeps the
+  // training compartment FK-light, same discipline as Person.orgUnitId.
+  legalReferenceId String?
+  deliveryMethod  TrainingDeliveryMethod
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  sessions TrainingSession[]
+  records  TrainingRecord[]
+
+  @@index([companyId])
+}
+
+model TrainingSession {
+  id                String   @id @default(cuid())
+  companyId         String
+  requirementTypeId String
+  date              DateTime
+  instructor        String
+  topics            String?
+  notes             String?
+  createdAt         DateTime @default(now())
+
+  requirementType TrainingRequirementType @relation(fields: [requirementTypeId], references: [id], onDelete: Restrict)
+  records         TrainingRecord[]
+
+  @@index([companyId])
+  @@index([requirementTypeId])
+}
+
+model TrainingRecord {
+  id                String                 @id @default(cuid())
+  personId          String
+  requirementTypeId String
+  trainingSessionId String?
+  completedAt       DateTime
+  method            TrainingDeliveryMethod
+  confirmation      TrainingConfirmation
+  validUntil        DateTime?
+  createdAt         DateTime               @default(now())
+
+  person          Person                  @relation(fields: [personId], references: [id], onDelete: Restrict)
+  requirementType TrainingRequirementType @relation(fields: [requirementTypeId], references: [id], onDelete: Restrict)
+  trainingSession TrainingSession?        @relation(fields: [trainingSessionId], references: [id], onDelete: Restrict)
+
+  @@index([personId])
+  @@index([requirementTypeId])
 }
