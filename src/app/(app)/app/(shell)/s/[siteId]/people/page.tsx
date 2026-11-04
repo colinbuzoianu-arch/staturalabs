@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import Link from "next/link";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
@@ -16,10 +17,13 @@ import { prisma } from "@/lib/prisma";
 // DSAR export link. CSV import and the instruction matrix land in P7b/P7c.
 export default async function PeoplePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ siteId: string }>;
+  searchParams: Promise<{ imported?: string; updated?: string }>;
 }) {
   const { siteId } = await params;
+  const { imported, updated } = await searchParams;
   const { site } = await requireSiteAdministrationAccess(siteId);
   const locale = await getLocale();
   const dict = getAdministrationDictionary(locale).peoplePage;
@@ -134,7 +138,21 @@ export default async function PeoplePage({
           {dict.heading}
         </h1>
         <p className="mt-1 text-sm text-foreground-muted">{dict.intro}</p>
+        <Link
+          href={`/app/s/${siteId}/people/import`}
+          className="mt-2 inline-block text-sm text-accent hover:underline"
+        >
+          {dict.importLink}
+        </Link>
       </div>
+
+      {imported !== undefined && (
+        <div className="rounded-lg border border-border bg-surface p-3 text-sm text-foreground">
+          {dict.importedBanner
+            .replace("{created}", imported ?? "0")
+            .replace("{updated}", updated ?? "0")}
+        </div>
+      )}
 
       <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
         <h2 className="font-heading text-sm font-bold">{dict.addHeading}</h2>

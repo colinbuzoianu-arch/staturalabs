@@ -422,6 +422,43 @@ export const de: typeof en = {
       AWK: "AWK",
     },
   },
+  peopleImport: {
+    eyebrow: "Personen",
+    heading: "Personen importieren (CSV)",
+    backLink: "← Zurück zu Personen",
+    intro:
+      "CSV mit Kopfzeile einfügen oder laden. Spalten werden anhand der Kopfzeile zugeordnet; eine Vorschau zeigt vor dem Import, was angelegt, aktualisiert oder übersprungen wird.",
+    pasteLabel: "CSV-Inhalt",
+    fileLabel: "…oder CSV-Datei wählen",
+    detectedMapping: "Erkannte Spalten",
+    notDetected: "nicht erkannt",
+    summary:
+      "{create} anzulegen · {update} zu aktualisieren · {error} mit Fehlern",
+    previewHeading: "Vorschau",
+    colRow: "Zeile",
+    colAction: "Aktion",
+    colName: "Name",
+    colReason: "Hinweis",
+    importButton: "Importieren",
+    nothingToImport: "Nichts zu importieren",
+    fieldLabels: {
+      firstName: "Vorname",
+      lastName: "Nachname",
+      personnelNumber: "Personalnr.",
+      orgUnitName: "Organisationseinheit",
+      employmentStart: "Eintrittsdatum",
+    },
+    actionLabels: {
+      create: "Anlegen",
+      update: "Aktualisieren",
+      error: "Fehler",
+    },
+    reasonLabels: {
+      "missing-name": "Vor- und Nachname erforderlich",
+      "unknown-org-unit": "Unbekannte Organisationseinheit",
+      "invalid-date": "Datum muss JJJJ-MM-TT sein",
+    },
+  },
   peoplePage: {
     eyebrow: "Personen",
     heading: "Personenregister",
@@ -449,6 +486,8 @@ export const de: typeof en = {
     anonymiseConfirm:
       "Anonymisieren — Name und Personalnummer unwiderruflich löschen?",
     exportLink: "Export (Auskunft)",
+    importLink: "CSV importieren",
+    importedBanner: "{created} angelegt, {updated} aktualisiert.",
     none: "—",
   },
   myTasks: {

@@ -1,6 +1,7 @@
 import type { PersonModel } from "@/generated/prisma/models";
 import { recordAuditEvent } from "@/lib/audit/audit-event";
 import { prisma } from "@/lib/prisma";
+import type { ImportRowResult } from "./csv-import";
 
 // P7a people compartment write gates (SLD_P7_COMPARTMENT_DESIGN_NOTE.md).
 // Every mutation records an AuditEvent (ERGO §3.18(d)) with the acting
@@ -88,4 +89,62 @@ export async function anonymisePerson(
     entityId: personId,
     companyId: person.companyId,
   });
+}
+
+// P7b CSV import commit (SLD_P7_COMPARTMENT_DESIGN_NOTE.md / plan §7.7).
+// Applies an already-validated import plan: "create" and "update" rows only
+// ("error" rows are left for the importer to fix, never silently coerced).
+// One person.import audit event records the counts. The caller re-builds the
+// plan server-side from the raw CSV (never trusting the client's preview).
+export async function importPersons(
+  companyId: string,
+  actorUserId: string,
+  rows: readonly ImportRowResult[],
+): Promise<{ created: number; updated: number }> {
+  let created = 0;
+  let updated = 0;
+  await prisma.$transaction(async (tx) => {
+    for (const row of rows) {
+      const v = row.values;
+      if (row.action === "create") {
+        await tx.person.create({
+          data: {
+            companyId,
+            firstName: v.firstName,
+            lastName: v.lastName,
+            personnelNumber: v.personnelNumber,
+            orgUnitId: v.orgUnitId,
+            employmentStart: v.employmentStart
+              ? new Date(v.employmentStart)
+              : null,
+          },
+        });
+        created++;
+      } else if (row.action === "update" && row.existingPersonId) {
+        // Scope the update to the company (defence in depth — the id came from
+        // this company's existing-by-personnel-number map).
+        const res = await tx.person.updateMany({
+          where: { id: row.existingPersonId, companyId },
+          data: {
+            firstName: v.firstName,
+            lastName: v.lastName,
+            orgUnitId: v.orgUnitId,
+            employmentStart: v.employmentStart
+              ? new Date(v.employmentStart)
+              : null,
+          },
+        });
+        if (res.count > 0) updated++;
+      }
+    }
+  });
+
+  await recordAuditEvent({
+    actorUserId,
+    action: "person.import",
+    entityType: "Person",
+    companyId,
+    diff: { created, updated },
+  });
+  return { created, updated };
 }

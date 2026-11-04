@@ -447,6 +447,38 @@ export const en = {
       AWK: "AWK",
     },
   },
+  peopleImport: {
+    eyebrow: "People",
+    heading: "Import people (CSV)",
+    backLink: "← Back to people",
+    intro:
+      "Paste or load a CSV with a header row. Columns are matched by header name; a live preview shows what will be created, updated or skipped before you import.",
+    pasteLabel: "CSV content",
+    fileLabel: "…or choose a CSV file",
+    detectedMapping: "Detected columns",
+    notDetected: "not detected",
+    summary: "{create} to create · {update} to update · {error} with errors",
+    previewHeading: "Preview",
+    colRow: "Row",
+    colAction: "Action",
+    colName: "Name",
+    colReason: "Note",
+    importButton: "Import",
+    nothingToImport: "Nothing to import",
+    fieldLabels: {
+      firstName: "First name",
+      lastName: "Last name",
+      personnelNumber: "Personnel no.",
+      orgUnitName: "Org unit",
+      employmentStart: "Employment start",
+    },
+    actionLabels: { create: "Create", update: "Update", error: "Error" },
+    reasonLabels: {
+      "missing-name": "First and last name required",
+      "unknown-org-unit": "Unknown org unit",
+      "invalid-date": "Date must be YYYY-MM-DD",
+    },
+  },
   peoplePage: {
     eyebrow: "People",
     heading: "People register",
@@ -474,6 +506,8 @@ export const en = {
     anonymiseConfirm:
       "Anonymise — irreversibly scrub this person's name and personnel number?",
     exportLink: "Export (DSAR)",
+    importLink: "Import CSV",
+    importedBanner: "Imported {created}, updated {updated}.",
     none: "—",
   },
   myTasks: {

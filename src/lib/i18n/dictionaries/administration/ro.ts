@@ -420,6 +420,42 @@ export const ro: typeof en = {
       AWK: "AWK",
     },
   },
+  peopleImport: {
+    eyebrow: "Persoane",
+    heading: "Importă persoane (CSV)",
+    backLink: "← Înapoi la persoane",
+    intro:
+      "Lipiți sau încărcați un CSV cu rând de antet. Coloanele sunt potrivite după antet; o previzualizare arată ce va fi creat, actualizat sau omis înainte de import.",
+    pasteLabel: "Conținut CSV",
+    fileLabel: "…sau alegeți un fișier CSV",
+    detectedMapping: "Coloane detectate",
+    notDetected: "nedetectat",
+    summary: "{create} de creat · {update} de actualizat · {error} cu erori",
+    previewHeading: "Previzualizare",
+    colRow: "Rând",
+    colAction: "Acțiune",
+    colName: "Nume",
+    colReason: "Notă",
+    importButton: "Importă",
+    nothingToImport: "Nimic de importat",
+    fieldLabels: {
+      firstName: "Prenume",
+      lastName: "Nume",
+      personnelNumber: "Nr. personal",
+      orgUnitName: "Unitate org.",
+      employmentStart: "Data angajării",
+    },
+    actionLabels: {
+      create: "Creează",
+      update: "Actualizează",
+      error: "Eroare",
+    },
+    reasonLabels: {
+      "missing-name": "Prenumele și numele sunt obligatorii",
+      "unknown-org-unit": "Unitate organizatorică necunoscută",
+      "invalid-date": "Data trebuie să fie AAAA-LL-ZZ",
+    },
+  },
   peoplePage: {
     eyebrow: "Persoane",
     heading: "Registrul de persoane",
@@ -447,6 +483,8 @@ export const ro: typeof en = {
     anonymiseConfirm:
       "Anonimizare — ștergeți ireversibil numele și numărul de personal?",
     exportLink: "Export (DSAR)",
+    importLink: "Importă CSV",
+    importedBanner: "{created} create, {updated} actualizate.",
     none: "—",
   },
   myTasks: {
