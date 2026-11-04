@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { PlatformUserModel } from "@/generated/prisma/models";
+import { canAccessSiteByAssignments } from "@/lib/auth/scope";
 import { prisma } from "@/lib/prisma";
 
 // Exhaustive by construction: `role` is typed as `never` here, so a role
@@ -26,6 +27,11 @@ export function canAccessCompany(
     case "COMPANY_ADMIN":
       return user.companyId === companyId;
     case "SITE_ADMIN":
+    // P7d §B.2: none of the three new roles has company-wide scope — their
+    // access is per-site / per-org-unit / self (see canAccessSite).
+    case "EHS_SPECIALIST":
+    case "MANAGER":
+    case "EMPLOYEE":
       return false;
     default:
       return unrecognizedRole(user.role);
@@ -56,6 +62,12 @@ export async function canAccessSite(
       });
       return assignment !== null;
     }
+    // P7d §B: the three new roles resolve site access from RoleAssignment
+    // scope (ehs_specialist SITE, manager ORG_UNIT→site, employee SELF→none).
+    case "EHS_SPECIALIST":
+    case "MANAGER":
+    case "EMPLOYEE":
+      return canAccessSiteByAssignments(user, siteId);
     default:
       return unrecognizedRole(user.role);
   }

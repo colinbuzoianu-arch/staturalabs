@@ -98,6 +98,20 @@ enum PlatformRole {
   L3_SUPPORT
   COMPANY_ADMIN
   SITE_ADMIN
+  // P7d (SLD_P7B_DEFERRALS_RESOLVED.md §B): the three provisionable roles.
+  // occupational_physician / works_council stay deferred to P10.
+  EHS_SPECIALIST
+  MANAGER
+  EMPLOYEE
+}
+
+// P7d §B.1: the scope of a RoleAssignment. COMPANY/SELF carry no scopeId; SITE
+// carries a siteId; ORG_UNIT carries an orgUnitId (inherits to descendants).
+enum ScopeType {
+  COMPANY
+  SITE
+  ORG_UNIT
+  SELF
 }
 
 /// The only human-account table in the schema — unlike workstation, a name
@@ -132,6 +146,7 @@ model PlatformUser {
   // from under them.
   company         Company?         @relation(fields: [companyId], references: [id], onDelete: Restrict)
   siteAssignments SiteAssignment[]
+  roleAssignments RoleAssignment[]
 }
 
 /// Scopes a site_admin to the specific site(s) they cover. Only meaningful
@@ -2157,4 +2172,28 @@ model TrainingRecord {
 
   @@index([personId])
   @@index([requirementTypeId])
+}
+
+// P7d §B.1 (SLD_P7B_DEFERRALS_RESOLVED.md): role = bundle of permissions,
+// granted to a PlatformUser at a scope. Replaces the implicit role→scope
+// mapping (the legacy 4 roles are backfilled into rows with no change in
+// effective access; SiteAssignment stays readable during the transition).
+// Append-only in spirit: revoking sets revokedAt, never deletes. scopeId is
+// a plain column (points at Site/OrgUnit/Person depending on scopeType) — no
+// FK, same cross-cutting discipline as AuditEvent. A hand-added CHECK enforces
+// scopeId nullability by scopeType.
+model RoleAssignment {
+  id              String       @id @default(cuid())
+  platformUserId  String       @db.Uuid
+  role            PlatformRole
+  scopeType       ScopeType
+  scopeId         String?
+  grantedByUserId String?      @db.Uuid
+  grantedAt       DateTime     @default(now())
+  revokedAt       DateTime?
+
+  user PlatformUser @relation(fields: [platformUserId], references: [id], onDelete: Cascade)
+
+  @@index([platformUserId])
+  @@index([scopeType, scopeId])
 }

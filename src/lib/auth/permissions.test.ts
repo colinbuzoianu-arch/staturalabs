@@ -9,15 +9,64 @@ describe("permissions", () => {
     }
   });
 
-  it("grants admins every non-health permission and withholds health from all roles", () => {
-    for (const role of Object.values(PlatformRole)) {
+  const ADMIN_ROLES = [
+    PlatformRole.SUPER_ADMIN,
+    PlatformRole.L3_SUPPORT,
+    PlatformRole.COMPANY_ADMIN,
+    PlatformRole.SITE_ADMIN,
+  ];
+
+  it("grants the four admin roles every non-health permission (unchanged)", () => {
+    for (const role of ADMIN_ROLES) {
       expect(hasPermission({ role }, "risk.read")).toBe(true);
       expect(hasPermission({ role }, "settings.write")).toBe(true);
-      // Health sub-compartment is withheld from every existing role
-      // (ERGO_COMPLIANCE_BY_DESIGN.md §3.18(b)).
+    }
+  });
+
+  it("withholds the health sub-compartment from EVERY role (§3.18(b))", () => {
+    for (const role of Object.values(PlatformRole)) {
       expect(hasPermission({ role }, "health_data.read")).toBe(false);
       expect(hasPermission({ role }, "health_data.write")).toBe(false);
     }
+  });
+
+  it("gives the three P7d roles their scoped bundles (no settings, no health)", () => {
+    // ehs_specialist: broad EHS write, but not settings.
+    expect(
+      hasPermission({ role: PlatformRole.EHS_SPECIALIST }, "training.write"),
+    ).toBe(true);
+    expect(
+      hasPermission({ role: PlatformRole.EHS_SPECIALIST }, "people.write"),
+    ).toBe(true);
+    expect(
+      hasPermission({ role: PlatformRole.EHS_SPECIALIST }, "settings.write"),
+    ).toBe(false);
+    // manager: read assessments, run training, not edit assessments or settings.
+    expect(
+      hasPermission({ role: PlatformRole.MANAGER }, "training.write"),
+    ).toBe(true);
+    expect(hasPermission({ role: PlatformRole.MANAGER }, "risk.read")).toBe(
+      true,
+    );
+    expect(hasPermission({ role: PlatformRole.MANAGER }, "risk.write")).toBe(
+      false,
+    );
+    expect(
+      hasPermission({ role: PlatformRole.MANAGER }, "settings.write"),
+    ).toBe(false);
+    // employee: only own training + my-tasks.
+    expect(
+      hasPermission({ role: PlatformRole.EMPLOYEE }, "training.read"),
+    ).toBe(true);
+    expect(
+      hasPermission({ role: PlatformRole.EMPLOYEE }, "my-tasks.read"),
+    ).toBe(true);
+    expect(hasPermission({ role: PlatformRole.EMPLOYEE }, "risk.read")).toBe(
+      false,
+    );
+    expect(hasPermission({ role: PlatformRole.EMPLOYEE }, "people.read")).toBe(
+      false,
+    );
   });
 
   it("denies an unrecognized role fail-closed", () => {

@@ -83,6 +83,47 @@ export const ROLE_PERMISSIONS: Readonly<
   [PlatformRole.L3_SUPPORT]: new Set(ALL_EXCEPT_HEALTH),
   [PlatformRole.COMPANY_ADMIN]: new Set(ALL_EXCEPT_HEALTH),
   [PlatformRole.SITE_ADMIN]: new Set(ALL_EXCEPT_HEALTH),
+  // P7d §B.2 bundles (what each may DO; scope answers where). No role here
+  // holds health_data.* (P10) or, except admins, settings.*.
+  [PlatformRole.EHS_SPECIALIST]: new Set<Permission>([
+    "cockpit.read",
+    "my-tasks.read",
+    "risk.read",
+    "risk.write",
+    "inspections.read",
+    "inspections.write",
+    "incidents.read",
+    "environment.read",
+    "environment.write",
+    "actions.read",
+    "actions.write",
+    "chemicals.read",
+    "chemicals.write",
+    "training.read",
+    "training.write",
+    "people.read",
+    "people.write",
+    "legal.read",
+    "documents.read",
+    "documents.write",
+    "reports.read",
+  ]),
+  [PlatformRole.MANAGER]: new Set<Permission>([
+    "cockpit.read",
+    "my-tasks.read",
+    "risk.read",
+    "actions.read",
+    "actions.write",
+    "training.read",
+    "training.write",
+    "people.read",
+    "documents.read",
+    "reports.read",
+  ]),
+  [PlatformRole.EMPLOYEE]: new Set<Permission>([
+    "my-tasks.read",
+    "training.read",
+  ]),
 };
 
 // Pure permission check. A role not present in ROLE_PERMISSIONS (e.g. a
