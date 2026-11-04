@@ -88,6 +88,29 @@ describe("people compartment schema guard (§3.18)", () => {
     }
   });
 
+  // P7 reverse assertion (SLD_P7_COMPARTMENT_DESIGN_NOTE.md §7): the people
+  // compartment must not FK INTO the assessment chain either. The design
+  // deliberately keeps person↔workstation/org-unit links as plain columns
+  // (no @relation), so this holds absolutely with no carve-out. The moment
+  // someone adds, say, `workstation Workstation @relation` to PersonAssignment,
+  // this goes red and names the field.
+  it("no people-compartment model references an assessment-chain model", () => {
+    const peopleModelsPresent = FORBIDDEN_PERSON_MODELS.filter((name) =>
+      byName.has(name),
+    );
+    for (const modelName of peopleModelsPresent) {
+      const block = byName.get(modelName);
+      if (!block) continue;
+      for (const chainModel of ASSESSMENT_CHAIN_MODELS) {
+        const typeToken = new RegExp(`\\b${chainModel}\\b`);
+        expect(
+          typeToken.test(block.body),
+          `${modelName} must not reference ${chainModel} (people→assessment leak, §3.18(a))`,
+        ).toBe(false);
+      }
+    }
+  });
+
   it("AuditEvent carries no relation fields (append-only, outlives entities)", () => {
     const block = byName.get("AuditEvent");
     expect(block).toBeDefined();

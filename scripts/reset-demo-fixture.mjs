@@ -393,6 +393,19 @@ async function main() {
       `DELETE FROM "PlatformUser" WHERE "companyId" = $1`,
       [company.id],
     );
+    // P7a people compartment: PersonAssignment (FK Person) then Person (FK
+    // Company), both Restrict — before the Company delete.
+    await del(
+      db,
+      "PersonAssignment",
+      `DELETE FROM "PersonAssignment" WHERE "personId" IN (
+         SELECT id FROM "Person" WHERE "companyId" = $1)`,
+      [company.id],
+    );
+    await del(db, "Person", `DELETE FROM "Person" WHERE "companyId" = $1`, [
+      company.id,
+    ]);
+
     // P1 CompanyModule entitlement rows FK to Company (Restrict) — delete
     // before the Company, same reset-gap class as the P4 document tables above.
     await del(

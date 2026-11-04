@@ -394,6 +394,54 @@ async function main() {
     }
     console.log(`OrgUnits: 1 plant + ${departmentNames.length} departments`);
 
+    // P7a: a few demo persons in the people compartment (clearly DEMO — not
+    // customer data). Idempotent by (companyId, personnelNumber). orgUnitId is
+    // a plain column (no FK), pointed at a seeded department.
+    const personDefs = [
+      {
+        personnelNumber: "D-1001",
+        firstName: "Anna",
+        lastName: "Berger",
+        dept: "Montage",
+      },
+      {
+        personnelNumber: "D-1002",
+        firstName: "Bernd",
+        lastName: "Hofer",
+        dept: "Schweißen & Fertigung",
+      },
+      {
+        personnelNumber: "D-1003",
+        firstName: "Clara",
+        lastName: "Mayer",
+        dept: "Oberfläche & Lackierung",
+      },
+      {
+        personnelNumber: "D-1004",
+        firstName: "Dieter",
+        lastName: "Gruber",
+        dept: "Lager & Logistik",
+      },
+    ];
+    for (const p of personDefs) {
+      await selectOrInsert(
+        db,
+        "Person",
+        { companyId: company.id, personnelNumber: p.personnelNumber },
+        {
+          id: crypto.randomUUID(),
+          companyId: company.id,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          personnelNumber: p.personnelNumber,
+          orgUnitId: departments[p.dept].id,
+          active: true,
+          updatedAt: new Date(),
+        },
+      );
+    }
+    console.log(`Persons: ${personDefs.length} demo persons`);
+
     const workstationDefs = [
       {
         name: "Montageplatz Paneele 1",

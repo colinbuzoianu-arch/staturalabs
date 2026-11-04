@@ -30,6 +30,7 @@ model Company {
   hazards              Hazard[]
   environmentalAspects EnvironmentalAspect[]
   companyModules       CompanyModule[]
+  persons              Person[]
 }
 
 /// A physical location/department within a company (conversationally
@@ -2030,4 +2031,58 @@ model TypicalMeasure {
   actions Action[]
 
   @@index([catalogVersion, hazardCategory])
+}
+
+// P7 people compartment (SLD_P7_COMPARTMENT_DESIGN_NOTE.md, plan §3.2). The
+// FIRST person data in the product. Deliberately FK-free into shared/
+// assessment tables: companyId is the only FK (tenant root); orgUnitId /
+// workstationId / platformUserId are PLAIN columns (no relation), so the
+// compartment physically cannot couple to the person-free assessment chain in
+// either direction (the §3.18(a) reverse-assertion in compartment-schema.test
+// stays absolute, no carve-out) — same discipline as AuditEvent/Notification.
+// Field set is exactly §3.2: NO date of birth, address, nationality, gender,
+// health or performance data — never add one without a documented statutory
+// reason (ERGO §3.18 never-build).
+model Person {
+  id              String    @id @default(cuid())
+  companyId       String
+  firstName       String
+  lastName        String
+  personnelNumber String?
+  // Home org unit — plain column, validated via the subject helper, never a FK.
+  orgUnitId       String?
+  employmentStart DateTime?
+  employmentEnd   DateTime?
+  active          Boolean   @default(true)
+  // Optional one-way self-service link to a login account (§3 note) — plain
+  // @db.Uuid, never a FK, same as Action.responsibleUserId.
+  platformUserId  String?   @db.Uuid
+  // Set by the anonymisation workflow (§3.2 / §6 of the design note); name and
+  // personnel number are scrubbed, the row (and any proof rows) survive.
+  anonymisedAt    DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  company     Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  assignments PersonAssignment[]
+
+  @@index([companyId])
+}
+
+// person ↔ workstation OR org unit (hand-added exactly-one CHECK), with
+// validity dates. Exists ONLY to derive instruction requirements (§3.2): never
+// shown on an assessment screen, never in a risk report. workstationId /
+// orgUnitId are plain columns (no FK, see Person above).
+model PersonAssignment {
+  id            String    @id @default(cuid())
+  personId      String
+  workstationId String?
+  orgUnitId     String?
+  validFrom     DateTime?
+  validUntil    DateTime?
+  createdAt     DateTime  @default(now())
+
+  person Person @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@index([personId])
 }
