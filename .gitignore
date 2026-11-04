@@ -56,3 +56,4 @@ next-env.d.ts
 /public/fonts
 
 certificates
+verify-prod-tmp.mjs
