@@ -143,6 +143,30 @@ describe("people compartment schema guard (§3.18)", () => {
     }
   });
 
+  // P11 Rechtskataster (SLD_P11_LEGAL_REQUIREMENTS_APPROVED.md §6.1): the legal-
+  // register module is person-free — none of its models may reference a
+  // people-compartment model. If a future edit wires, say, a `person Person`
+  // onto a compliance evaluation, this goes red and names it.
+  const LEGAL_REGISTER_MODELS = [
+    "LegalRequirement",
+    "SiteLegalRequirement",
+    "ComplianceEvaluation",
+    "ComplianceEvaluationEvent",
+  ];
+  it("the legal-register module references no people-compartment model (§6.1)", () => {
+    for (const modelName of LEGAL_REGISTER_MODELS) {
+      const block = byName.get(modelName);
+      if (!block) continue;
+      for (const forbidden of FORBIDDEN_PERSON_MODELS) {
+        const typeToken = new RegExp(`\\b${forbidden}\\b`);
+        expect(
+          typeToken.test(block.body),
+          `${modelName} must not reference ${forbidden} (people-compartment leak, §3.18)`,
+        ).toBe(false);
+      }
+    }
+  });
+
   it("AuditEvent carries no relation fields (append-only, outlives entities)", () => {
     const block = byName.get("AuditEvent");
     expect(block).toBeDefined();

@@ -58,6 +58,12 @@ model Site {
   // site is not EMAS-registered unless explicitly marked — a safe, correct
   // default, unlike the semantically-required country/mode fields).
   emasRegistered Boolean     @default(false)
+  // P11 §1.1: the site's own headcount figure (a number, NOT person records —
+  // never a count of Person rows), used only to drive Rechtskataster
+  // applicability suggestions (e.g. the AWK >20-employee duty). Nullable: a
+  // site may not have recorded it yet, in which case count-based criteria stay
+  // OPEN for the human.
+  employeeCount  Int?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
@@ -73,6 +79,7 @@ model Site {
   floorPlans               FloorPlan[]
   environmentalAssessments EnvironmentalAssessment[]
   wasteStreams             WasteStream[]
+  siteLegalRequirements    SiteLegalRequirement[]
   generatedDocuments       GeneratedDocument[]
   documents                Document[]
   substanceUses            SubstanceUse[]
@@ -1247,6 +1254,7 @@ model LegalReference {
   catalog           LegalReferenceCatalogVersion   @relation(fields: [catalogVersion], references: [version], onDelete: Restrict)
   assessmentLinks   RiskAssessmentLegalReference[]
   notificationRules IncidentNotificationRule[]
+  legalRequirements LegalRequirement[]
 
   @@unique([catalogVersion, country, code])
   @@index([catalogVersion, country, topic])
@@ -1426,6 +1434,7 @@ model Action {
   environmentalFindingId   String?
   inspectionObservationId  String?
   incidentId               String?
+  complianceEvaluationId   String?
   title                    String
   description              String?
   hierarchyOfControl       HierarchyOfControl?
@@ -1453,6 +1462,7 @@ model Action {
   environmentalFinding   EnvironmentalFinding?  @relation(fields: [environmentalFindingId], references: [id], onDelete: Restrict)
   inspectionObservation  InspectionObservation? @relation(fields: [inspectionObservationId], references: [id], onDelete: Restrict)
   incident               Incident?              @relation(fields: [incidentId], references: [id], onDelete: Restrict)
+  complianceEvaluation   ComplianceEvaluation?  @relation(fields: [complianceEvaluationId], references: [id], onDelete: Restrict)
   verificationAssessment RiskAssessment?        @relation("ActionVerificationAssessment", fields: [verificationAssessmentId], references: [id], onDelete: Restrict)
   typicalMeasure         TypicalMeasure?        @relation(fields: [typicalMeasureId], references: [id], onDelete: Restrict)
   statusEvents           ActionStatusEvent[]
@@ -3117,4 +3127,135 @@ model IncidentInvestigation {
   updatedAt            DateTime                    @updatedAt
 
   incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// P11 Rechtskataster (SLD_P11_LEGAL_REQUIREMENTS_APPROVED.md §1). A per-country
+// register of legal requirements, per-site applicability (human-confirmed), a
+// compliance-evaluation state machine with append-only history, and a change
+// log. Person-free: no model here references the people compartment; the only
+// "count" is Site.employeeCount (a figure, not Person rows). Legal values live
+// in LegalReference (verified, P3 catalogue); obligationSummary is SLD's own
+// short label, never statute text. Versioned single-active catalogue (the
+// ExposureLimitCatalogVersion pattern, fail-closed, partial unique index).
+// ---------------------------------------------------------------------------
+enum LegalDomain {
+  OSH
+  ENVIRONMENT
+}
+
+enum SiteLegalRequirementStatus {
+  OPEN
+  APPLICABLE
+  NOT_APPLICABLE
+}
+
+enum ComplianceState {
+  NOT_EVALUATED
+  COMPLIANT
+  PARTIALLY_COMPLIANT
+  NON_COMPLIANT
+  NOT_APPLICABLE
+}
+
+model LegalRequirementCatalogVersion {
+  version     String   @id
+  label       String
+  isActive    Boolean  @default(false)
+  activatedAt DateTime @default(now())
+
+  requirements LegalRequirement[]
+}
+
+model LegalRequirement {
+  id                    String      @id @default(cuid())
+  catalogVersion        String
+  // null = system/reference catalogue row; set = a company's own addition.
+  companyId             String?
+  country               CountryCode
+  domain                LegalDomain
+  code                  String
+  title                 String
+  // SLD's own short statement of what the obligation is about — a register
+  // label, NOT statute text and NOT legal advice (the source is authoritative).
+  obligationSummary     String
+  // Into the P3 LegalReference catalogue (verified). Nullable: a company
+  // addition may have no catalogue reference.
+  legalReferenceId      String?
+  // Structured applicability criteria (§1.1) as JSON — all derived from
+  // site/module facts, never a person. Drives the per-site suggestion.
+  applicability         Json
+  defaultReviewInterval String      @default("P1Y")
+  notes                 String?
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  catalog        LegalRequirementCatalogVersion @relation(fields: [catalogVersion], references: [version], onDelete: Restrict)
+  legalReference LegalReference?                @relation(fields: [legalReferenceId], references: [id], onDelete: Restrict)
+  siteLinks      SiteLegalRequirement[]
+
+  @@unique([catalogVersion, country, code])
+  @@index([catalogVersion, country, domain])
+  @@index([companyId])
+  @@index([legalReferenceId])
+}
+
+// Per-site applicability (the join). Suggested from applicability vs. the
+// site's facts, CONFIRMED by a human (never inferred). rationale is required
+// for NOT_APPLICABLE (hand-added CHECK, like HazardCategoryCheck). reviewRequired
+// + reviewDiff carry the change-log flag when a catalogue version changes the
+// requirement.
+model SiteLegalRequirement {
+  id                 String                     @id @default(cuid())
+  siteId             String
+  legalRequirementId String
+  status             SiteLegalRequirementStatus @default(OPEN)
+  rationale          String?
+  assignedByUserId   String?                    @db.Uuid
+  assignedAt         DateTime?
+  reviewRequired     Boolean                    @default(false)
+  reviewDiff         Json?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  site             Site                        @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  legalRequirement LegalRequirement            @relation(fields: [legalRequirementId], references: [id], onDelete: Restrict)
+  evaluation       ComplianceEvaluation?
+  evaluationEvents ComplianceEvaluationEvent[]
+
+  @@unique([siteId, legalRequirementId])
+  @@index([siteId, status])
+  @@index([legalRequirementId])
+}
+
+// Current compliance evaluation (1:1 with the site link) + append-only history.
+model ComplianceEvaluation {
+  id                     String          @id @default(cuid())
+  siteLegalRequirementId String          @unique
+  state                  ComplianceState @default(NOT_EVALUATED)
+  evaluatedByUserId      String?         @db.Uuid
+  evaluatedAt            DateTime?
+  // Evidence references (document/action/assessment ids + labels) as JSON.
+  evidence               Json?
+  note                   String?
+  nextReviewDue          DateTime?
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+
+  siteLegalRequirement SiteLegalRequirement @relation(fields: [siteLegalRequirementId], references: [id], onDelete: Restrict)
+  actions              Action[]
+}
+
+model ComplianceEvaluationEvent {
+  id                     String           @id @default(cuid())
+  siteLegalRequirementId String
+  fromState              ComplianceState?
+  toState                ComplianceState
+  byUserId               String           @db.Uuid
+  note                   String?
+  createdAt              DateTime         @default(now())
+
+  siteLegalRequirement SiteLegalRequirement @relation(fields: [siteLegalRequirementId], references: [id], onDelete: Restrict)
+
+  @@index([siteLegalRequirementId])
 }
