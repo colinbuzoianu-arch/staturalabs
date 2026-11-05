@@ -23,10 +23,11 @@ describe("permissions", () => {
     }
   });
 
-  it("withholds the health sub-compartment from EVERY role (§3.18(b))", () => {
+  it("grants the health sub-compartment ONLY to the occupational physician (§3.18(b), P10c)", () => {
     for (const role of Object.values(PlatformRole)) {
-      expect(hasPermission({ role }, "health_data.read")).toBe(false);
-      expect(hasPermission({ role }, "health_data.write")).toBe(false);
+      const expected = role === PlatformRole.OCCUPATIONAL_PHYSICIAN;
+      expect(hasPermission({ role }, "health_data.read")).toBe(expected);
+      expect(hasPermission({ role }, "health_data.write")).toBe(expected);
     }
   });
 
@@ -67,6 +68,42 @@ describe("permissions", () => {
     expect(hasPermission({ role: PlatformRole.EMPLOYEE }, "people.read")).toBe(
       false,
     );
+  });
+
+  it("gives the two P10c roles their bundles (physician = health only, works council = read-only, no health)", () => {
+    // Occupational physician: health + incidents.read, but no risk/people write.
+    expect(
+      hasPermission(
+        { role: PlatformRole.OCCUPATIONAL_PHYSICIAN },
+        "health_data.write",
+      ),
+    ).toBe(true);
+    expect(
+      hasPermission(
+        { role: PlatformRole.OCCUPATIONAL_PHYSICIAN },
+        "incidents.read",
+      ),
+    ).toBe(true);
+    expect(
+      hasPermission(
+        { role: PlatformRole.OCCUPATIONAL_PHYSICIAN },
+        "risk.write",
+      ),
+    ).toBe(false);
+    // Works council: read-only co-determination, no health, no write.
+    expect(
+      hasPermission({ role: PlatformRole.WORKS_COUNCIL }, "incidents.read"),
+    ).toBe(true);
+    expect(
+      hasPermission({ role: PlatformRole.WORKS_COUNCIL }, "health_data.read"),
+    ).toBe(false);
+    expect(
+      hasPermission({ role: PlatformRole.WORKS_COUNCIL }, "incidents.write"),
+    ).toBe(false);
+    // EHS specialist now records events (P10c grant).
+    expect(
+      hasPermission({ role: PlatformRole.EHS_SPECIALIST }, "incidents.write"),
+    ).toBe(true);
   });
 
   it("denies an unrecognized role fail-closed", () => {

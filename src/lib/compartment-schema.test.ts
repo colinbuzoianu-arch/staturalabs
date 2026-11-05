@@ -114,6 +114,35 @@ describe("people compartment schema guard (§3.18)", () => {
     }
   });
 
+  // P10c health sub-compartment (SLD_P10_COMPARTMENT_DESIGN_NOTE.md §8): the
+  // free-text medical fields must be the encrypted (`*Enc`) ones, and the table
+  // must not FK to a login account. If a future edit adds a plaintext
+  // `diagnosis String` or a `physician PlatformUser @relation`, this goes red.
+  it("IncidentHealthDetail keeps free-text medical fields encrypted and holds no PlatformUser relation", () => {
+    const block = byName.get("IncidentHealthDetail");
+    if (!block) return; // not yet in schema → nothing to assert (pre-P10c)
+    // No relation to a login account.
+    expect(
+      /PlatformUser/.test(block.body),
+      "IncidentHealthDetail must not reference PlatformUser (createdByUserId is a plain uuid)",
+    ).toBe(false);
+    // Every String field whose name implies free-text medical content must end
+    // in `Enc` (coarse Boolean/enum/Int fields like medicalTreatmentGiven are
+    // not String fields and are legitimately plaintext).
+    const fieldLine = /^\s*(\w+)\s+String\??/;
+    for (const line of block.body.split("\n")) {
+      const m = fieldLine.exec(line);
+      if (!m) continue;
+      const name = m[1];
+      if (/diagnosis|treatment|medicalhistory/i.test(name)) {
+        expect(
+          name.endsWith("Enc"),
+          `IncidentHealthDetail.${name} is a free-text medical String and must be encrypted (end in "Enc")`,
+        ).toBe(true);
+      }
+    }
+  });
+
   it("AuditEvent carries no relation fields (append-only, outlives entities)", () => {
     const block = byName.get("AuditEvent");
     expect(block).toBeDefined();

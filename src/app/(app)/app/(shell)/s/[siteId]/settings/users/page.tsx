@@ -13,6 +13,8 @@ const GRANTABLE_ROLES: PlatformRole[] = [
   "EHS_SPECIALIST",
   "MANAGER",
   "EMPLOYEE",
+  "OCCUPATIONAL_PHYSICIAN",
+  "WORKS_COUNCIL",
 ];
 const SCOPE_TYPES: ScopeType[] = ["COMPANY", "SITE", "ORG_UNIT", "SELF"];
 

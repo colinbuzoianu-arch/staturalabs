@@ -6,9 +6,11 @@ import {
   type IncidentInvolvedRole,
   RiskBand,
 } from "@/generated/prisma/enums";
+import { hasPermission } from "@/lib/auth/permissions";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
+import { hasHealthDetail } from "@/lib/incidents/health";
 import {
   raiseActionFromIncident,
   setIncidentInvestigation,
@@ -42,9 +44,10 @@ export default async function IncidentDetailPage({
   params: Promise<{ siteId: string; incidentId: string }>;
 }) {
   const { siteId, incidentId } = await params;
-  await requireSiteAdministrationAccess(siteId);
+  const { user } = await requireSiteAdministrationAccess(siteId);
   const locale = await getLocale();
   const dict = getAdministrationDictionary(locale).incidents;
+  const canReadHealth = hasPermission(user, "health_data.read");
 
   const incident = await prisma.incident.findUnique({
     where: { id: incidentId },
@@ -78,6 +81,14 @@ export default async function IncidentDetailPage({
       select: { id: true, firstName: true, lastName: true },
     })
   ).filter((p) => !linkedPersonIds.has(p.id));
+
+  // Whether each involved person has a medical record on file — a NON-health
+  // check (just existence, no decryption, no audit), so an admin can see "on
+  // file (restricted)" without reading it.
+  const healthOnFile = new Map<string, boolean>();
+  for (const ip of incident.involvedPersons) {
+    healthOnFile.set(ip.id, await hasHealthDetail(ip.id));
+  }
 
   const open = incident.status !== "CLOSED";
 
@@ -469,22 +480,37 @@ export default async function IncidentDetailPage({
                   <span className="ml-2 text-xs text-foreground-subtle">
                     {dict.roleLabels[ip.role]}
                   </span>
+                  <span className="ml-2 text-xs text-foreground-subtle">
+                    {healthOnFile.get(ip.id)
+                      ? dict.healthOnFile
+                      : dict.healthNone}
+                  </span>
                 </span>
-                {open && (
-                  <form action={removePersonAction}>
-                    <input
-                      type="hidden"
-                      name="involvedPersonId"
-                      value={ip.id}
-                    />
-                    <button
-                      type="submit"
-                      className="text-xs text-foreground-subtle hover:text-status-high"
+                <span className="flex items-center gap-3">
+                  {canReadHealth && (
+                    <Link
+                      href={`/app/s/${siteId}/incidents/${incidentId}/health/${ip.id}`}
+                      className="text-xs text-accent hover:underline"
                     >
-                      {dict.removePersonButton}
-                    </button>
-                  </form>
-                )}
+                      {dict.healthViewLink}
+                    </Link>
+                  )}
+                  {open && (
+                    <form action={removePersonAction}>
+                      <input
+                        type="hidden"
+                        name="involvedPersonId"
+                        value={ip.id}
+                      />
+                      <button
+                        type="submit"
+                        className="text-xs text-foreground-subtle hover:text-status-high"
+                      >
+                        {dict.removePersonButton}
+                      </button>
+                    </form>
+                  )}
+                </span>
               </li>
             ))}
           </ul>

@@ -111,6 +111,11 @@ enum PlatformRole {
   EHS_SPECIALIST
   MANAGER
   EMPLOYEE
+  // P10c (SLD_P10_COMPARTMENT_DESIGN_NOTE.md §4): the two remaining §3.3 roles.
+  // OCCUPATIONAL_PHYSICIAN is the sole holder of health_data.*; WORKS_COUNCIL
+  // is a read-only co-determination surface (no health, no write).
+  OCCUPATIONAL_PHYSICIAN
+  WORKS_COUNCIL
 }
 
 // P7d §B.1: the scope of a RoleAssignment. COMPANY/SELF carry no scopeId; SITE
@@ -2900,12 +2905,83 @@ model IncidentInvolvedPerson {
   role       IncidentInvolvedRole @default(INJURED)
   createdAt  DateTime             @default(now())
 
-  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
-  person   Person   @relation(fields: [personId], references: [id], onDelete: Restrict)
+  incident     Incident              @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  person       Person                @relation(fields: [personId], references: [id], onDelete: Restrict)
+  healthDetail IncidentHealthDetail?
 
   @@unique([incidentId, personId])
   @@index([incidentId])
   @@index([personId])
+}
+
+// ---------------------------------------------------------------------------
+// P10c health sub-compartment (SLD_P10_COMPARTMENT_DESIGN_NOTE.md §3/§7).
+// The single most sensitive table in the product. 1:1 with an injured
+// involved-person row (both people-side). Read ONLY with health_data.read AND
+// a logged AuditEvent for the read (ERGO §3.18(c)) — the one place a READ is
+// audited — written only with health_data.write; granted to no role but
+// OCCUPATIONAL_PHYSICIAN. No PlatformUser relation (createdByUserId is a plain
+// uuid), no assessment-chain FK.
+//
+// D2 (founder-approved): COARSE STRUCTURED fields stay plaintext — the
+// statutory data sheet needs them and the §7.10 accident KPIs (lost days,
+// body-part distribution) read them, always through the min-group-size helper.
+// FREE-TEXT medical fields are ENCRYPTED at rest (the `*Enc` columns), via
+// src/lib/incidents/health-crypto.ts. The compartment-schema test asserts every
+// String free-text medical field here ends in `Enc`, so a plaintext
+// `diagnosis String` can never slip in.
+// ---------------------------------------------------------------------------
+enum InjuryType {
+  WOUND_LACERATION
+  BRUISE_CONTUSION
+  FRACTURE
+  DISLOCATION_SPRAIN_STRAIN
+  AMPUTATION
+  CONCUSSION_INTERNAL_INJURY
+  BURN_SCALD_FROSTBITE
+  POISONING_INFECTION
+  ASPHYXIA_DROWNING
+  EFFECT_OF_NOISE_VIBRATION
+  EFFECT_OF_TEMPERATURE_RADIATION
+  SHOCK
+  MULTIPLE_INJURIES
+  OTHER
+  UNKNOWN
+}
+
+enum BodyRegionCoarse {
+  HEAD
+  NECK
+  TORSO_BACK
+  SHOULDER_ARM
+  HAND_FINGER
+  HIP_LEG
+  FOOT_TOE
+  INTERNAL
+  MULTIPLE
+  OTHER
+  UNKNOWN
+}
+
+model IncidentHealthDetail {
+  id                       String            @id @default(cuid())
+  incidentInvolvedPersonId String            @unique
+  // Coarse structured (plaintext — data sheet + KPIs, never diagnosis detail):
+  injuryType               InjuryType?
+  bodyRegion               BodyRegionCoarse?
+  incapacityDays           Int?
+  fatal                    Boolean           @default(false)
+  medicalTreatmentGiven    Boolean           @default(false)
+  // Free-text medical (ENCRYPTED at rest — AES-256-GCM, health-crypto.ts):
+  diagnosisEnc             String?
+  treatmentNotesEnc        String?
+  medicalHistoryNoteEnc    String?
+  // The login account (physician) who wrote this — plain uuid, never an FK.
+  createdByUserId          String?           @db.Uuid
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+
+  involvedPerson IncidentInvolvedPerson @relation(fields: [incidentInvolvedPersonId], references: [id], onDelete: Cascade)
 }
 
 // 1:1 structured cause analysis (§7.4 "5-Why / Ishikawa as structured fields").

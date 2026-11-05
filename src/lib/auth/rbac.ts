@@ -27,11 +27,13 @@ export function canAccessCompany(
     case "COMPANY_ADMIN":
       return user.companyId === companyId;
     case "SITE_ADMIN":
-    // P7d §B.2: none of the three new roles has company-wide scope — their
-    // access is per-site / per-org-unit / self (see canAccessSite).
+    // P7d §B.2 / P10c: none of the provisionable roles has company-wide scope —
+    // their access is per-site / per-org-unit / self (see canAccessSite).
     case "EHS_SPECIALIST":
     case "MANAGER":
     case "EMPLOYEE":
+    case "OCCUPATIONAL_PHYSICIAN":
+    case "WORKS_COUNCIL":
       return false;
     default:
       return unrecognizedRole(user.role);
@@ -62,11 +64,14 @@ export async function canAccessSite(
       });
       return assignment !== null;
     }
-    // P7d §B: the three new roles resolve site access from RoleAssignment
-    // scope (ehs_specialist SITE, manager ORG_UNIT→site, employee SELF→none).
+    // P7d §B / P10c: the provisionable roles resolve site access from
+    // RoleAssignment scope (ehs_specialist SITE, manager ORG_UNIT→site, employee
+    // SELF→none, physician/works_council per their assignment).
     case "EHS_SPECIALIST":
     case "MANAGER":
     case "EMPLOYEE":
+    case "OCCUPATIONAL_PHYSICIAN":
+    case "WORKS_COUNCIL":
       return canAccessSiteByAssignments(user, siteId);
     default:
       return unrecognizedRole(user.role);

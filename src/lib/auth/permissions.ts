@@ -93,6 +93,9 @@ export const ROLE_PERMISSIONS: Readonly<
     "inspections.read",
     "inspections.write",
     "incidents.read",
+    // P10c: the EHS specialist records and investigates events (still no
+    // health_data.* — the medical record is the physician's).
+    "incidents.write",
     "environment.read",
     "environment.write",
     "actions.read",
@@ -112,6 +115,10 @@ export const ROLE_PERMISSIONS: Readonly<
     "cockpit.read",
     "my-tasks.read",
     "risk.read",
+    // P10c: a line manager reports events for their own org units (scope in
+    // rbac/scope.ts). No health_data.*.
+    "incidents.read",
+    "incidents.write",
     "actions.read",
     "actions.write",
     "training.read",
@@ -123,6 +130,23 @@ export const ROLE_PERMISSIONS: Readonly<
   [PlatformRole.EMPLOYEE]: new Set<Permission>([
     "my-tasks.read",
     "training.read",
+  ]),
+  // P10c: the sole holder of health_data.* (§3.18(b)). Reads incidents to
+  // attach the medical record; no risk/people write, no settings.
+  [PlatformRole.OCCUPATIONAL_PHYSICIAN]: new Set<Permission>([
+    "cockpit.read",
+    "my-tasks.read",
+    "incidents.read",
+    "health_data.read",
+    "health_data.write",
+  ]),
+  // P10c: read-only co-determination surface (the §193 Abs. 5 SGB VII Unfall-
+  // anzeige co-sign, general co-determination read). No health, no write.
+  [PlatformRole.WORKS_COUNCIL]: new Set<Permission>([
+    "cockpit.read",
+    "risk.read",
+    "incidents.read",
+    "reports.read",
   ]),
 };
 
