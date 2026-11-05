@@ -1,0 +1,438 @@
+import { revalidatePath } from "next/cache";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import {
+  type IncidentInvestigationMethod,
+  RiskBand,
+} from "@/generated/prisma/enums";
+import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
+import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
+import { getLocale } from "@/lib/i18n/get-locale";
+import {
+  raiseActionFromIncident,
+  setIncidentInvestigation,
+  transitionIncident,
+  triageIncident,
+} from "@/lib/incidents/incident";
+import { prisma } from "@/lib/prisma";
+
+const RISK_BANDS = Object.values(RiskBand);
+const METHODS: IncidentInvestigationMethod[] = [
+  "FIVE_WHY",
+  "ISHIKAWA",
+  "NARRATIVE",
+];
+
+// P10a §7.4 incident case detail. Resource-first gate: fetch, then confirm the
+// incident belongs to this site (fail-closed 404, same as requireTaskAccess).
+export default async function IncidentDetailPage({
+  params,
+}: {
+  params: Promise<{ siteId: string; incidentId: string }>;
+}) {
+  const { siteId, incidentId } = await params;
+  await requireSiteAdministrationAccess(siteId);
+  const locale = await getLocale();
+  const dict = getAdministrationDictionary(locale).incidents;
+
+  const incident = await prisma.incident.findUnique({
+    where: { id: incidentId },
+    include: { investigation: true },
+  });
+  if (!incident || incident.siteId !== siteId) notFound();
+
+  const actions = await prisma.action.findMany({
+    where: { incidentId },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, title: true, status: true },
+  });
+
+  const open = incident.status !== "CLOSED";
+
+  async function triageAction(formData: FormData) {
+    "use server";
+    const { user } = await requireSiteAdministrationAccess(siteId);
+    const severity = formData.get("severity");
+    const workRelated = formData.get("workRelated");
+    await triageIncident({
+      incidentId,
+      siteId,
+      actorUserId: user.id,
+      severity:
+        typeof severity === "string" &&
+        (RISK_BANDS as string[]).includes(severity)
+          ? (severity as RiskBand)
+          : null,
+      isWorkRelated:
+        workRelated === "yes" ? true : workRelated === "no" ? false : null,
+      environmentalEventFlagged: formData.get("envFlag") === "on",
+      assessmentReviewFlagged: formData.get("reviewFlag") === "on",
+    });
+    revalidatePath(`/app/s/${siteId}/incidents/${incidentId}`);
+  }
+
+  async function statusAction(formData: FormData) {
+    "use server";
+    const { user } = await requireSiteAdministrationAccess(siteId);
+    const to = formData.get("to");
+    if (
+      to !== "UNDER_INVESTIGATION" &&
+      to !== "ACTIONS_PENDING" &&
+      to !== "CLOSED"
+    ) {
+      return;
+    }
+    await transitionIncident({ incidentId, siteId, to, actorUserId: user.id });
+    revalidatePath(`/app/s/${siteId}/incidents/${incidentId}`);
+  }
+
+  async function investigationAction(formData: FormData) {
+    "use server";
+    const { user } = await requireSiteAdministrationAccess(siteId);
+    const method = formData.get("method");
+    const get = (k: string) => {
+      const v = formData.get(k);
+      return typeof v === "string" && v.length > 0 ? v : null;
+    };
+    await setIncidentInvestigation({
+      incidentId,
+      siteId,
+      actorUserId: user.id,
+      method:
+        typeof method === "string" && (METHODS as string[]).includes(method)
+          ? (method as IncidentInvestigationMethod)
+          : "NARRATIVE",
+      sequenceOfEvents: get("sequenceOfEvents"),
+      directCauses: get("directCauses"),
+      rootCauses: get("rootCauses"),
+      contributingFactors: get("contributingFactors"),
+      investigatedByUserId: user.id,
+    });
+    revalidatePath(`/app/s/${siteId}/incidents/${incidentId}`);
+  }
+
+  async function raiseAction(formData: FormData) {
+    "use server";
+    const { user } = await requireSiteAdministrationAccess(siteId);
+    const title = formData.get("title");
+    const roleLabel = formData.get("roleLabel");
+    if (typeof title !== "string" || title.trim().length === 0) return;
+    await raiseActionFromIncident({
+      incidentId,
+      siteId,
+      actorUserId: user.id,
+      title,
+      responsibleRoleLabel: typeof roleLabel === "string" ? roleLabel : null,
+    });
+    revalidatePath(`/app/s/${siteId}/incidents/${incidentId}`);
+  }
+
+  const inv = incident.investigation;
+
+  return (
+    <div className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-10">
+      <div>
+        <Link
+          href={`/app/s/${siteId}/incidents/reports`}
+          className="text-sm text-accent hover:underline"
+        >
+          {dict.back}
+        </Link>
+        <h1 className="mt-2 font-[family-name:var(--font-heading)] text-2xl font-bold text-foreground">
+          {incident.title}
+        </h1>
+        <p className="mt-1 text-sm text-foreground-muted">
+          {dict.typeLabels[incident.type]} ·{" "}
+          {dict.statusLabels[incident.status]} ·{" "}
+          {incident.occurredAt.toISOString().slice(0, 16).replace("T", " ")}
+        </p>
+        <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
+          {incident.description}
+        </p>
+        {incident.locationText ? (
+          <p className="mt-1 text-xs text-foreground-subtle">
+            {dict.locationLabel}: {incident.locationText}
+          </p>
+        ) : null}
+      </div>
+
+      {/* Status transitions */}
+      <div className="flex flex-wrap gap-2">
+        {incident.status === "TRIAGED" && (
+          <form action={statusAction}>
+            <input type="hidden" name="to" value="UNDER_INVESTIGATION" />
+            <button
+              type="submit"
+              className="rounded-[var(--radius-md)] bg-accent px-4 py-2 text-sm font-medium text-background"
+            >
+              {dict.startInvestigation}
+            </button>
+          </form>
+        )}
+        {(incident.status === "TRIAGED" ||
+          incident.status === "UNDER_INVESTIGATION") && (
+          <form action={statusAction}>
+            <input type="hidden" name="to" value="ACTIONS_PENDING" />
+            <button
+              type="submit"
+              className="rounded border border-border px-4 py-2 text-sm hover:border-accent"
+            >
+              {dict.toActions}
+            </button>
+          </form>
+        )}
+        {open && incident.status !== "REPORTED" && (
+          <form action={statusAction}>
+            <input type="hidden" name="to" value="CLOSED" />
+            <button
+              type="submit"
+              className="rounded border border-border px-4 py-2 text-sm hover:border-accent"
+            >
+              {dict.close}
+            </button>
+          </form>
+        )}
+        {incident.status === "CLOSED" && (
+          <form action={statusAction}>
+            <input type="hidden" name="to" value="ACTIONS_PENDING" />
+            <button
+              type="submit"
+              className="rounded border border-border px-4 py-2 text-sm hover:border-accent"
+            >
+              {dict.reopen}
+            </button>
+          </form>
+        )}
+      </div>
+
+      {/* Triage */}
+      {open && (
+        <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+          <h2 className="font-heading text-sm font-bold">
+            {dict.triageHeading}
+          </h2>
+          <form
+            action={triageAction}
+            className="flex flex-wrap items-end gap-3 text-sm"
+          >
+            <label className="flex flex-col gap-1">
+              {dict.severityLabel}
+              <select
+                name="severity"
+                defaultValue={incident.severity ?? ""}
+                className="rounded border border-border bg-background px-2 py-1"
+              >
+                <option value="">{dict.choosePlaceholder}</option>
+                {RISK_BANDS.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              {dict.workRelatedLabel}
+              <select
+                name="workRelated"
+                defaultValue={
+                  incident.isWorkRelated === true
+                    ? "yes"
+                    : incident.isWorkRelated === false
+                      ? "no"
+                      : ""
+                }
+                className="rounded border border-border bg-background px-2 py-1"
+              >
+                <option value="">{dict.choosePlaceholder}</option>
+                <option value="yes">{dict.workRelatedYes}</option>
+                <option value="no">{dict.workRelatedNo}</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                name="envFlag"
+                defaultChecked={incident.environmentalEventFlagged}
+              />
+              {dict.envFlagLabel}
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                name="reviewFlag"
+                defaultChecked={incident.assessmentReviewFlagged}
+              />
+              {dict.reviewFlagLabel}
+            </label>
+            <button
+              type="submit"
+              className="rounded-[var(--radius-md)] bg-accent px-4 py-2 font-medium text-background"
+            >
+              {dict.triageButton}
+            </button>
+          </form>
+        </section>
+      )}
+
+      {/* Investigation */}
+      <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+        <h2 className="font-heading text-sm font-bold">
+          {dict.investigationHeading}
+        </h2>
+        {open ? (
+          <form
+            action={investigationAction}
+            className="flex flex-col gap-3 text-sm"
+          >
+            <label className="flex flex-col gap-1">
+              {dict.methodLabel}
+              <select
+                name="method"
+                defaultValue={inv?.method ?? "NARRATIVE"}
+                className="w-48 rounded border border-border bg-background px-2 py-1"
+              >
+                {METHODS.map((m) => (
+                  <option key={m} value={m}>
+                    {dict.methodLabels[m]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              {dict.sequenceLabel}
+              <textarea
+                name="sequenceOfEvents"
+                rows={2}
+                defaultValue={inv?.sequenceOfEvents ?? ""}
+                className="rounded border border-border bg-background px-2 py-1"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              {dict.directCausesLabel}
+              <textarea
+                name="directCauses"
+                rows={2}
+                defaultValue={inv?.directCauses ?? ""}
+                className="rounded border border-border bg-background px-2 py-1"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              {dict.rootCausesLabel}
+              <textarea
+                name="rootCauses"
+                rows={2}
+                defaultValue={inv?.rootCauses ?? ""}
+                className="rounded border border-border bg-background px-2 py-1"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              {dict.contributingLabel}
+              <textarea
+                name="contributingFactors"
+                rows={2}
+                defaultValue={inv?.contributingFactors ?? ""}
+                className="rounded border border-border bg-background px-2 py-1"
+              />
+            </label>
+            <div>
+              <button
+                type="submit"
+                className="rounded-[var(--radius-md)] bg-accent px-4 py-2 font-medium text-background"
+              >
+                {dict.saveInvestigation}
+              </button>
+            </div>
+          </form>
+        ) : inv ? (
+          <dl className="flex flex-col gap-2 text-sm">
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-foreground-subtle">
+                {dict.methodLabel}
+              </dt>
+              <dd className="text-foreground">
+                {dict.methodLabels[inv.method]}
+              </dd>
+            </div>
+            {inv.sequenceOfEvents ? (
+              <div>
+                <dt className="text-xs uppercase tracking-wide text-foreground-subtle">
+                  {dict.sequenceLabel}
+                </dt>
+                <dd className="whitespace-pre-wrap text-foreground">
+                  {inv.sequenceOfEvents}
+                </dd>
+              </div>
+            ) : null}
+            {inv.rootCauses ? (
+              <div>
+                <dt className="text-xs uppercase tracking-wide text-foreground-subtle">
+                  {dict.rootCausesLabel}
+                </dt>
+                <dd className="whitespace-pre-wrap text-foreground">
+                  {inv.rootCauses}
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+        ) : (
+          <p className="text-sm text-foreground-muted">{dict.none}</p>
+        )}
+      </section>
+
+      {/* Corrective actions */}
+      <section className="flex flex-col gap-3">
+        <h2 className="font-heading text-sm font-bold">
+          {dict.actionsHeading}
+        </h2>
+        {actions.length === 0 ? (
+          <p className="text-sm text-foreground-muted">{dict.actionsEmpty}</p>
+        ) : (
+          <ul className="flex flex-col gap-1 text-sm">
+            {actions.map((a) => (
+              <li
+                key={a.id}
+                className="flex items-center justify-between rounded border border-border bg-surface px-3 py-2"
+              >
+                <span className="text-foreground">{a.title}</span>
+                <Link
+                  href={`/app/s/${siteId}/actions/${a.id}`}
+                  className="text-xs text-accent hover:underline"
+                >
+                  {a.status}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        {open && (
+          <form
+            action={raiseAction}
+            className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-3 text-sm"
+          >
+            <label className="flex flex-1 flex-col gap-1">
+              {dict.actionTitleLabel}
+              <input
+                name="title"
+                required
+                className="rounded border border-border bg-background px-2 py-1"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              {dict.actionRoleLabel}
+              <input
+                name="roleLabel"
+                className="rounded border border-border bg-background px-2 py-1"
+              />
+            </label>
+            <button
+              type="submit"
+              className="rounded-[var(--radius-md)] bg-accent px-3 py-2 font-medium text-background"
+            >
+              {dict.raiseButton}
+            </button>
+          </form>
+        )}
+      </section>
+    </div>
+  );
+}

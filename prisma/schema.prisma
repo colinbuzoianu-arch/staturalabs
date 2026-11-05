@@ -33,6 +33,7 @@ model Company {
   persons              Person[]
   substances           Substance[]
   inspectionTemplates  InspectionTemplate[]
+  incidents            Incident[]
 }
 
 /// A physical location/department within a company (conversationally
@@ -78,6 +79,7 @@ model Site {
   operatingInstructions    OperatingInstruction[]
   inspectionTemplates      InspectionTemplate[]
   inspections              Inspection[]
+  incidents                Incident[]
 
   @@index([companyId])
 }
@@ -1417,6 +1419,7 @@ model Action {
   assessmentSessionId      String?
   environmentalFindingId   String?
   inspectionObservationId  String?
+  incidentId               String?
   title                    String
   description              String?
   hierarchyOfControl       HierarchyOfControl?
@@ -1443,6 +1446,7 @@ model Action {
   assessmentSession      AssessmentSession?     @relation(fields: [assessmentSessionId], references: [id], onDelete: Restrict)
   environmentalFinding   EnvironmentalFinding?  @relation(fields: [environmentalFindingId], references: [id], onDelete: Restrict)
   inspectionObservation  InspectionObservation? @relation(fields: [inspectionObservationId], references: [id], onDelete: Restrict)
+  incident               Incident?              @relation(fields: [incidentId], references: [id], onDelete: Restrict)
   verificationAssessment RiskAssessment?        @relation("ActionVerificationAssessment", fields: [verificationAssessmentId], references: [id], onDelete: Restrict)
   typicalMeasure         TypicalMeasure?        @relation(fields: [typicalMeasureId], references: [id], onDelete: Restrict)
   statusEvents           ActionStatusEvent[]
@@ -2789,4 +2793,106 @@ model InspectionObservation {
   actions    Action[]
 
   @@index([inspectionId])
+}
+
+// ---------------------------------------------------------------------------
+// P10 Ereignisse / incidents (SLD_RESTRUCTURE_PLAN_platform-modules.md §7.4,
+// SLD_P10_COMPARTMENT_DESIGN_NOTE.md). P10a is the person-free core: an
+// Incident describes an EVENT (where/what/when), never a person. Involved
+// people (P10b) and the health sub-compartment (P10c) are separate people-
+// compartment tables. The subject (workstation/org unit) is a plain id — like
+// Inspection's — so this never adds a back-relation into the assessment chain
+// (§3.18(a)). Corrective actions are raised through the one action engine
+// (§2.2): Action.incidentId is the FIFTH source. Statutory notifications and
+// the legal deadline/retention catalogues are P10d/P10e, founder-gated.
+// ---------------------------------------------------------------------------
+enum IncidentType {
+  ARBEITSUNFALL
+  WEGEUNFALL
+  BERUFSKRANKHEIT_VERDACHT
+  BEINAHEUNFALL
+  ERSTE_HILFE
+  BRAND
+  SACHSCHADEN
+  UMWELTEREIGNIS
+  FAHRZEUGEREIGNIS
+  SECURITY_VORFALL
+  GEWALT_UEBERGRIFF
+  BEHOERDE_BEANSTANDUNG
+  SONSTIGES
+}
+
+enum IncidentStatus {
+  REPORTED
+  TRIAGED
+  UNDER_INVESTIGATION
+  ACTIONS_PENDING
+  CLOSED
+}
+
+enum IncidentInvestigationMethod {
+  FIVE_WHY
+  ISHIKAWA
+  NARRATIVE
+}
+
+// The case record. Person-free in itself: the free-text `description` is the
+// event narrative and the UI tells the reporter NOT to put involved people's
+// names in it (those live in IncidentInvolvedPerson, P10b). reportedByUserId /
+// closedByUserId are PlatformUser ids (staff accounts, plain uuid like
+// Action.responsibleUserId), never a Person. subjectWorkstationId /
+// subjectOrgUnitId are plain ids (subject helper validates), never a relation.
+model Incident {
+  id                        String         @id @default(cuid())
+  companyId                 String
+  siteId                    String
+  type                      IncidentType
+  status                    IncidentStatus @default(REPORTED)
+  // Reuse the one risk vocabulary (as inspection observations do); null until
+  // triage assigns a severity band.
+  severity                  RiskBand?
+  occurredAt                DateTime
+  reportedAt                DateTime       @default(now())
+  reportedByUserId          String?        @db.Uuid
+  subjectWorkstationId      String?
+  subjectOrgUnitId          String?
+  locationText              String?
+  title                     String
+  description               String
+  isWorkRelated             Boolean?
+  // One-way signals (§7.4), never a join into another domain: a human resolves
+  // them into an environmental finding / an assessment review elsewhere (no FK).
+  environmentalEventFlagged Boolean        @default(false)
+  assessmentReviewFlagged   Boolean        @default(false)
+  closedAt                  DateTime?
+  closedByUserId            String?        @db.Uuid
+  createdAt                 DateTime       @default(now())
+  updatedAt                 DateTime       @updatedAt
+
+  company       Company                @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  site          Site                   @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  investigation IncidentInvestigation?
+  actions       Action[]
+
+  @@index([siteId, status])
+  @@index([companyId])
+}
+
+// 1:1 structured cause analysis (§7.4 "5-Why / Ishikawa as structured fields").
+// Person-free — describes the event, not a person. investigatedByUserId is a
+// PlatformUser id.
+model IncidentInvestigation {
+  id                   String                      @id @default(cuid())
+  incidentId           String                      @unique
+  method               IncidentInvestigationMethod @default(NARRATIVE)
+  sequenceOfEvents     String?
+  directCauses         String?
+  rootCauses           String?
+  contributingFactors  String?
+  investigatedByUserId String?                     @db.Uuid
+  investigatedAt       DateTime?
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
 }
