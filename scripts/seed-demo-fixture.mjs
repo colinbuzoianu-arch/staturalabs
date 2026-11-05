@@ -921,6 +921,136 @@ async function main() {
       console.log(`Reusing PlatformUser ${demoUserId} (COMPANY_ADMIN)`);
     }
 
+    // --- P11 Rechtskataster demo (idempotent, marker = an AT site link).
+    // AT + DE sites get a confirmed subset with a couple of evaluations (one
+    // compliant, one non-compliant, one overdue for review); the CH site is
+    // left empty on purpose (honest gap — CH has no seeded requirements).
+    await db.query(`UPDATE "Site" SET "employeeCount"=45 WHERE id=$1`, [
+      site.id,
+    ]);
+    await db.query(`UPDATE "Site" SET "employeeCount"=30 WHERE id=$1`, [
+      deSite.id,
+    ]);
+    const legalCat = (
+      await db.query(
+        `SELECT version FROM "LegalRequirementCatalogVersion" WHERE "isActive"=true LIMIT 1`,
+      )
+    ).rows[0]?.version;
+    const legalMarker = await db.query(
+      `SELECT id FROM "SiteLegalRequirement" WHERE "siteId"=$1 LIMIT 1`,
+      [site.id],
+    );
+    if (legalCat && legalMarker.rows.length === 0) {
+      const reqId = async (country, code) =>
+        (
+          await db.query(
+            `SELECT id FROM "LegalRequirement" WHERE "catalogVersion"=$1 AND country=$2 AND code=$3`,
+            [legalCat, country, code],
+          )
+        ).rows[0]?.id;
+      const confirm = async (siteId, rqId, status, rationale) => {
+        if (!rqId) return null;
+        const id = crypto.randomUUID();
+        await db.query(
+          `INSERT INTO "SiteLegalRequirement"(id,"siteId","legalRequirementId",status,rationale,"assignedByUserId","assignedAt","updatedAt") VALUES($1,$2,$3,$4,$5,$6,now(),now())`,
+          [id, siteId, rqId, status, rationale, demoUserId],
+        );
+        return id;
+      };
+      const evaluate = async (slrId, state, note, overdue) => {
+        const id = crypto.randomUUID();
+        const due = overdue
+          ? new Date(Date.now() - 30 * 86400000)
+          : new Date(Date.now() + 365 * 86400000);
+        await db.query(
+          `INSERT INTO "ComplianceEvaluation"(id,"siteLegalRequirementId",state,"evaluatedByUserId","evaluatedAt",note,"nextReviewDue","updatedAt") VALUES($1,$2,$3,$4,now(),$5,$6,now())`,
+          [id, slrId, state, demoUserId, note, due],
+        );
+        await db.query(
+          `INSERT INTO "ComplianceEvaluationEvent"(id,"siteLegalRequirementId","toState","byUserId",note) VALUES($1,$2,$3,$4,$5)`,
+          [crypto.randomUUID(), slrId, state, demoUserId, note],
+        );
+      };
+
+      const at01 = await confirm(
+        site.id,
+        await reqId("AT", "AT-OSH-01"),
+        "APPLICABLE",
+        null,
+      );
+      const at02 = await confirm(
+        site.id,
+        await reqId("AT", "AT-OSH-02"),
+        "APPLICABLE",
+        null,
+      );
+      const at09 = await confirm(
+        site.id,
+        await reqId("AT", "AT-OSH-09"),
+        "APPLICABLE",
+        null,
+      );
+      await confirm(
+        site.id,
+        await reqId("AT", "AT-ENV-01"),
+        "APPLICABLE",
+        null,
+      );
+      await confirm(
+        site.id,
+        await reqId("AT", "AT-OSH-13"),
+        "NOT_APPLICABLE",
+        "Keine Bildschirmarbeitsplätze an diesem Produktionsstandort.",
+      );
+      if (at01)
+        await evaluate(
+          at01,
+          "COMPLIANT",
+          "Evaluierung vorhanden und aktuell.",
+          false,
+        );
+      if (at09)
+        await evaluate(
+          at09,
+          "NON_COMPLIANT",
+          "Grenzwertmessung für einen Arbeitsstoff ausständig.",
+          false,
+        );
+      if (at02)
+        await evaluate(
+          at02,
+          "COMPLIANT",
+          "SGD dokumentiert — Überprüfung fällig.",
+          true,
+        );
+
+      const de01 = await confirm(
+        deSite.id,
+        await reqId("DE", "DE-OSH-01"),
+        "APPLICABLE",
+        null,
+      );
+      await confirm(
+        deSite.id,
+        await reqId("DE", "DE-OSH-10"),
+        "APPLICABLE",
+        null,
+      );
+      if (de01)
+        await evaluate(
+          de01,
+          "COMPLIANT",
+          "Gefährdungsbeurteilung dokumentiert.",
+          false,
+        );
+
+      console.log(
+        "P11 Rechtskataster: AT + DE site links with evaluations (1 overdue); CH left as honest gap",
+      );
+    } else {
+      console.log("P11 Rechtskataster already seeded — skipping.");
+    }
+
     // --- The historical demo narrative: seeded once, as a block ---
     const heroWorkstation = workstations["Montageplatz Paneele 1"];
     const alreadySeeded = await db.query(

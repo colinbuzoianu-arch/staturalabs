@@ -121,6 +121,27 @@ async function main() {
     await del(db, "Incident", `DELETE FROM "Incident" WHERE "companyId" = $1`, [
       company.id,
     ]);
+    // P11 Rechtskataster: evaluation events + evaluations + site links, scoped
+    // by the company's sites. Actions (deleted above) may reference a
+    // ComplianceEvaluation (Restrict), so they must be gone first — they are.
+    await del(
+      db,
+      "ComplianceEvaluationEvent",
+      `DELETE FROM "ComplianceEvaluationEvent" WHERE "siteLegalRequirementId" IN (SELECT id FROM "SiteLegalRequirement" WHERE "siteId" = ANY($1))`,
+      [siteIds],
+    );
+    await del(
+      db,
+      "ComplianceEvaluation",
+      `DELETE FROM "ComplianceEvaluation" WHERE "siteLegalRequirementId" IN (SELECT id FROM "SiteLegalRequirement" WHERE "siteId" = ANY($1))`,
+      [siteIds],
+    );
+    await del(
+      db,
+      "SiteLegalRequirement",
+      `DELETE FROM "SiteLegalRequirement" WHERE "siteId" = ANY($1)`,
+      [siteIds],
+    );
     // P8 Gefahrstoffe (SLD_P8_GEFAHRSTOFFE_APPROVED.md): every substance FK is
     // ON DELETE RESTRICT (§3.9), so these go leaf-to-root before Substance.
     // FindingSubstance also precedes the RiskFinding delete below. Substance,
