@@ -29,6 +29,7 @@ const BUILT_MODULES: ReadonlySet<ModuleKey> = new Set<ModuleKey>([
   "CHEMICALS",
   "INSPECTIONS",
   "INCIDENTS",
+  "LEGAL",
 ]);
 
 export default async function SiteShellLayout({

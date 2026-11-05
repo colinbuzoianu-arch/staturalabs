@@ -303,7 +303,10 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     permission: "legal.read",
     basePath: siteModulePath("legal"),
     icon: "scale",
-    children: [],
+    children: [
+      { labelKey: "modules.legal.children.register", slug: "register" },
+      { labelKey: "modules.legal.children.reviewDue", slug: "review-due" },
+    ],
   },
   {
     key: ModuleKey.DOCUMENTS,
