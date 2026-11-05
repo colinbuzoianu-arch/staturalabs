@@ -1244,8 +1244,9 @@ model LegalReference {
   notes               String?
   createdAt           DateTime    @default(now())
 
-  catalog         LegalReferenceCatalogVersion   @relation(fields: [catalogVersion], references: [version], onDelete: Restrict)
-  assessmentLinks RiskAssessmentLegalReference[]
+  catalog           LegalReferenceCatalogVersion   @relation(fields: [catalogVersion], references: [version], onDelete: Restrict)
+  assessmentLinks   RiskAssessmentLegalReference[]
+  notificationRules IncidentNotificationRule[]
 
   @@unique([catalogVersion, country, code])
   @@index([catalogVersion, country, topic])
@@ -2982,6 +2983,55 @@ model IncidentHealthDetail {
   updatedAt                DateTime          @updatedAt
 
   involvedPerson IncidentInvolvedPerson @relation(fields: [incidentInvolvedPersonId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// P10d statutory notification catalogue (SLD_P10_STATUTORY_NOTIFICATIONS_
+// APPROVED.md §A). Versioned, single-active (hand-added partial unique index on
+// isActive), the same fail-closed pattern as every other catalogue. One row per
+// (country × incident type × fatal-or-mass variant) with a statutory employer
+// notification duty. Exactly one of {deadline set, immediate, asSoonAsPossible}
+// is true (hand-added CHECK). legalReferenceId points into the P3 catalogue —
+// every legal value lives there, verified. No cross-country borrow (§3.15): a
+// (country, type) with no row is an honest "keine Meldepflicht hinterlegt".
+// ---------------------------------------------------------------------------
+model IncidentNotificationCatalogVersion {
+  version     String   @id
+  label       String
+  isActive    Boolean  @default(false)
+  activatedAt DateTime @default(now())
+
+  rules IncidentNotificationRule[]
+}
+
+model IncidentNotificationRule {
+  id                   String       @id @default(cuid())
+  catalogVersion       String
+  country              CountryCode
+  incidentType         IncidentType
+  // The DE fatal/mass "sofort" case is a second row with this true; the normal
+  // deadline row is false. The resolver prefers the matching variant.
+  appliesToFatalOrMass Boolean      @default(false)
+  // Exactly one of these three is "set" (CHECK): deadline is an ISO-8601
+  // duration (e.g. "P5D"), or immediate (sofort/unverzüglich), or
+  // asSoonAsPossible (so rasch wie möglich, no fixed count).
+  deadline             String?
+  immediate            Boolean      @default(false)
+  asSoonAsPossible     Boolean      @default(false)
+  thresholdText        String
+  clockStartsText      String?
+  legalReferenceId     String
+  verifiedBy           String
+  verifiedAt           DateTime
+  verificationMethod   String
+  createdAt            DateTime     @default(now())
+
+  catalog        IncidentNotificationCatalogVersion @relation(fields: [catalogVersion], references: [version], onDelete: Restrict)
+  legalReference LegalReference                     @relation(fields: [legalReferenceId], references: [id], onDelete: Restrict)
+
+  @@unique([catalogVersion, country, incidentType, appliesToFatalOrMass])
+  @@index([catalogVersion, country])
+  @@index([legalReferenceId])
 }
 
 // 1:1 structured cause analysis (§7.4 "5-Why / Ishikawa as structured fields").
