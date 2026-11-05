@@ -354,6 +354,38 @@ async function main() {
       `DE site: ${deSite.id} (ws ${deWorkstation.id}); CH site: ${chSite.id}`,
     );
 
+    // --- Module entitlement (P1 §2.4): enable every module for the demo
+    // company. The one-time migration backfill seeded this, but reset:demo
+    // deletes CompanyModule rows (FK Restrict), so without re-seeding here a
+    // reset+seed cycle would strip the demo company of every entitlement-gated
+    // module (chemicals, people, training, inspections, …) and hide them from
+    // the sidebar. Idempotent via selectOrInsert on (companyId, moduleKey). ---
+    const MODULE_KEYS = [
+      "COCKPIT",
+      "MY_TASKS",
+      "RISK",
+      "INSPECTIONS",
+      "INCIDENTS",
+      "ENVIRONMENT",
+      "ACTIONS",
+      "CHEMICALS",
+      "TRAINING",
+      "PEOPLE",
+      "LEGAL",
+      "DOCUMENTS",
+      "REPORTS",
+      "SETTINGS",
+    ];
+    for (const moduleKey of MODULE_KEYS) {
+      await selectOrInsert(
+        db,
+        "CompanyModule",
+        { companyId: company.id, moduleKey },
+        { id: crypto.randomUUID(), companyId: company.id, moduleKey },
+      );
+    }
+    console.log(`CompanyModule: ${MODULE_KEYS.length} modules enabled`);
+
     // --- Org structure: plant -> 4 departments -> 8 workstations -> tasks ---
     const { row: plant } = await selectOrInsert(
       db,

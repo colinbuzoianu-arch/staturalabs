@@ -32,15 +32,16 @@ model Company {
   companyModules       CompanyModule[]
   persons              Person[]
   substances           Substance[]
+  inspectionTemplates  InspectionTemplate[]
 }
 
 /// A physical location/department within a company (conversationally
 /// "workplace"). Belongs to exactly one company.
 model Site {
-  id        String      @id @default(cuid())
-  companyId String
-  name      String
-  address   String?
+  id             String      @id @default(cuid())
+  companyId      String
+  name           String
+  address        String?
   // Which legal/jurisdiction frame applies to this site's data (limit
   // catalog, SGD generator, exposure evaluation) — deliberately NOT on
   // Company: a company can have sites in more than one country, and the
@@ -49,15 +50,15 @@ model Site {
   // defaulted or inferred (ERGO_COMPLIANCE_BY_DESIGN.md §3.15) — every
   // existing row was backfilled explicitly in the migration that added this
   // column, same discipline as AssessmentSession.mode.
-  country   CountryCode
+  country        CountryCode
   // E4 (SLD_IMPLEMENTATION_PLAN_hazards-and-environment.md §6): a site with
   // a valid EMAS environmental statement is exempt from the separate AWK —
   // the statement counts in lieu (§10 Abs. 1 AWG 2002). Default false (a
   // site is not EMAS-registered unless explicitly marked — a safe, correct
   // default, unlike the semantically-required country/mode fields).
-  emasRegistered Boolean  @default(false)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  emasRegistered Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   // Restrict: forces explicit offboarding of a company's sites rather than
   // an accidental cascade wipe of everything under it.
@@ -75,6 +76,8 @@ model Site {
   documents                Document[]
   substanceUses            SubstanceUse[]
   operatingInstructions    OperatingInstruction[]
+  inspectionTemplates      InspectionTemplate[]
+  inspections              Inspection[]
 
   @@index([companyId])
 }
@@ -821,11 +824,11 @@ model OrgUnit {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
-  site         Site          @relation(fields: [siteId], references: [id], onDelete: Restrict)
-  parent       OrgUnit?      @relation("OrgUnitTree", fields: [parentId], references: [id], onDelete: Restrict)
-  children     OrgUnit[]     @relation("OrgUnitTree")
-  workstations Workstation[]
-  processes    Process[]
+  site          Site           @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  parent        OrgUnit?       @relation("OrgUnitTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children      OrgUnit[]      @relation("OrgUnitTree")
+  workstations  Workstation[]
+  processes     Process[]
   substanceUses SubstanceUse[]
 
   @@index([siteId])
@@ -970,18 +973,18 @@ enum RiskAssessmentStatus {
 /// audit metadata (§3.6) marking demo/pilot rows so they stay separable
 /// from real customer data.
 model RiskAssessment {
-  id               String               @id @default(cuid())
-  siteId           String
-  workstationId    String?
-  processId        String?
-  matrixVersion    String
-  status           RiskAssessmentStatus @default(DRAFT)
-  assessorUserId   String               @db.Uuid
-  approvedByUserId String?              @db.Uuid
-  assessedAt       DateTime
-  approvedAt       DateTime?
-  pilotContext     String?
-  notes            String?
+  id                   String               @id @default(cuid())
+  siteId               String
+  workstationId        String?
+  processId            String?
+  matrixVersion        String
+  status               RiskAssessmentStatus @default(DRAFT)
+  assessorUserId       String               @db.Uuid
+  approvedByUserId     String?              @db.Uuid
+  assessedAt           DateTime
+  approvedAt           DateTime?
+  pilotContext         String?
+  notes                String?
   // P6 §6 header attributes (additive): the context an inspector / the
   // statutory document expects on an assessment. personsExposedCount is a
   // COUNT only — never an identity (§3.1). Applicable legal references are a
@@ -999,16 +1002,16 @@ model RiskAssessment {
   nextReviewDate       DateTime?
   reviewRequired       Boolean              @default(false)
   reviewRequiredReason String?
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
 
-  site                Site                  @relation(fields: [siteId], references: [id], onDelete: Restrict)
-  workstation         Workstation?          @relation(fields: [workstationId], references: [id], onDelete: Restrict)
-  process             Process?              @relation(fields: [processId], references: [id], onDelete: Restrict)
-  matrix              RiskMatrixVersion     @relation(fields: [matrixVersion], references: [version], onDelete: Restrict)
+  site                Site                           @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  workstation         Workstation?                   @relation(fields: [workstationId], references: [id], onDelete: Restrict)
+  process             Process?                       @relation(fields: [processId], references: [id], onDelete: Restrict)
+  matrix              RiskMatrixVersion              @relation(fields: [matrixVersion], references: [version], onDelete: Restrict)
   findings            RiskFinding[]
   categoryChecks      HazardCategoryCheck[]
-  verifiedActions     Action[]              @relation("ActionVerificationAssessment")
+  verifiedActions     Action[]                       @relation("ActionVerificationAssessment")
   legalReferenceLinks RiskAssessmentLegalReference[]
 
   @@index([siteId])
@@ -1234,7 +1237,7 @@ model LegalReference {
   notes               String?
   createdAt           DateTime    @default(now())
 
-  catalog LegalReferenceCatalogVersion @relation(fields: [catalogVersion], references: [version], onDelete: Restrict)
+  catalog         LegalReferenceCatalogVersion   @relation(fields: [catalogVersion], references: [version], onDelete: Restrict)
   assessmentLinks RiskAssessmentLegalReference[]
 
   @@unique([catalogVersion, country, code])
@@ -1413,6 +1416,7 @@ model Action {
   riskFindingId            String?
   assessmentSessionId      String?
   environmentalFindingId   String?
+  inspectionObservationId  String?
   title                    String
   description              String?
   hierarchyOfControl       HierarchyOfControl?
@@ -1434,12 +1438,13 @@ model Action {
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
 
-  site                   Site                  @relation(fields: [siteId], references: [id], onDelete: Restrict)
-  riskFinding            RiskFinding?          @relation(fields: [riskFindingId], references: [id], onDelete: Restrict)
-  assessmentSession      AssessmentSession?    @relation(fields: [assessmentSessionId], references: [id], onDelete: Restrict)
-  environmentalFinding   EnvironmentalFinding? @relation(fields: [environmentalFindingId], references: [id], onDelete: Restrict)
-  verificationAssessment RiskAssessment?       @relation("ActionVerificationAssessment", fields: [verificationAssessmentId], references: [id], onDelete: Restrict)
-  typicalMeasure         TypicalMeasure?       @relation(fields: [typicalMeasureId], references: [id], onDelete: Restrict)
+  site                   Site                   @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  riskFinding            RiskFinding?           @relation(fields: [riskFindingId], references: [id], onDelete: Restrict)
+  assessmentSession      AssessmentSession?     @relation(fields: [assessmentSessionId], references: [id], onDelete: Restrict)
+  environmentalFinding   EnvironmentalFinding?  @relation(fields: [environmentalFindingId], references: [id], onDelete: Restrict)
+  inspectionObservation  InspectionObservation? @relation(fields: [inspectionObservationId], references: [id], onDelete: Restrict)
+  verificationAssessment RiskAssessment?        @relation("ActionVerificationAssessment", fields: [verificationAssessmentId], references: [id], onDelete: Restrict)
+  typicalMeasure         TypicalMeasure?        @relation(fields: [typicalMeasureId], references: [id], onDelete: Restrict)
   statusEvents           ActionStatusEvent[]
 
   @@index([siteId, status])
@@ -1604,7 +1609,7 @@ model EnvironmentalAspect {
   createdAt   DateTime                    @default(now())
   updatedAt   DateTime                    @updatedAt
 
-  company  Company?               @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  company    Company?               @relation(fields: [companyId], references: [id], onDelete: Restrict)
   findings   EnvironmentalFinding[]
   substances Substance[]
 
@@ -1620,22 +1625,22 @@ model EnvironmentalAspect {
 /// flow. assessorUserId/approvedByUserId reference PlatformUser only
 /// (@db.Uuid, no DB-level FK), same as RiskAssessment.
 model EnvironmentalAssessment {
-  id               String               @id @default(cuid())
-  siteId           String
-  workstationId    String?
-  matrixVersion    String
-  status           RiskAssessmentStatus @default(DRAFT)
-  assessorUserId   String               @db.Uuid
-  approvedByUserId String?              @db.Uuid
-  assessedAt       DateTime
-  approvedAt       DateTime?
-  pilotContext     String?
-  notes            String?
+  id                String               @id @default(cuid())
+  siteId            String
+  workstationId     String?
+  matrixVersion     String
+  status            RiskAssessmentStatus @default(DRAFT)
+  assessorUserId    String               @db.Uuid
+  approvedByUserId  String?              @db.Uuid
+  assessedAt        DateTime
+  approvedAt        DateTime?
+  pilotContext      String?
+  notes             String?
   // E4 (§6): AWG 2002 §10 Abs. 3 Z5 — "estimate of future development." Free
   // text the assessor maintains; rendered as the AWK's item-5 section.
   futureDevelopment String?
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
 
   site           Site                         @relation(fields: [siteId], references: [id], onDelete: Restrict)
   workstation    Workstation?                 @relation(fields: [workstationId], references: [id], onDelete: Restrict)
@@ -1804,11 +1809,11 @@ enum ModuleKey {
 /// plain @db.Uuid column not a DB-level FK — same pattern as
 /// RiskAssessment.assessorUserId (§3.13).
 model CompanyModule {
-  id             String    @id @default(cuid())
-  companyId      String
-  moduleKey      ModuleKey
-  enabledAt      DateTime  @default(now())
-  enabledByUserId String?  @db.Uuid
+  id              String    @id @default(cuid())
+  companyId       String
+  moduleKey       ModuleKey
+  enabledAt       DateTime  @default(now())
+  enabledByUserId String?   @db.Uuid
 
   // Restrict: entitlement rows can't be wiped out from under a company by an
   // accidental cascade — offboarding is a deliberate, logged action (§3.9).
@@ -1932,8 +1937,8 @@ model Document {
 
   // Restrict: a document library can't be wiped out by deleting its site —
   // offboarding is deliberate (§3.9).
-  site     Site              @relation(fields: [siteId], references: [id], onDelete: Restrict)
-  versions DocumentVersion[]
+  site             Site              @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  versions         DocumentVersion[]
   safetyDataSheets SafetyDataSheet[]
 
   @@index([siteId, category])
@@ -2006,19 +2011,19 @@ model Notification {
   siteId          String?
   // What it points at (e.g. "Action", "Document", "RiskAssessment") + id,
   // plain columns, and the in-app deep link the inbox renders.
-  subjectType String?
-  subjectId   String?
-  href        String
-  title       String
-  body        String
+  subjectType     String?
+  subjectId       String?
+  href            String
+  title           String
+  body            String
   // The due date the event is about (for sorting the inbox); null for
   // events with no date dimension.
-  dueAt     DateTime?
-  dedupeKey String
-  readAt    DateTime?
+  dueAt           DateTime?
+  dedupeKey       String
+  readAt          DateTime?
   // Best-effort email dispatch stamp (null = not sent / no provider).
-  emailedAt DateTime?
-  createdAt DateTime  @default(now())
+  emailedAt       DateTime?
+  createdAt       DateTime              @default(now())
 
   @@unique([recipientUserId, dedupeKey])
   @@index([recipientUserId, readAt])
@@ -2071,29 +2076,29 @@ model TypicalMeasure {
 // health or performance data — never add one without a documented statutory
 // reason (ERGO §3.18 never-build).
 model Person {
-  id              String    @id @default(cuid())
-  companyId       String
-  firstName       String
-  lastName        String
-  personnelNumber String?
+  id                   String    @id @default(cuid())
+  companyId            String
+  firstName            String
+  lastName             String
+  personnelNumber      String?
   // Home org unit — plain column, validated via the subject helper, never a FK.
-  orgUnitId       String?
-  employmentStart DateTime?
-  employmentEnd   DateTime?
-  active          Boolean   @default(true)
+  orgUnitId            String?
+  employmentStart      DateTime?
+  employmentEnd        DateTime?
+  active               Boolean   @default(true)
   // Optional one-way self-service link to a login account (§3 note) — plain
   // @db.Uuid, never a FK, same as Action.responsibleUserId.
-  platformUserId  String?   @db.Uuid
+  platformUserId       String?   @db.Uuid
   // Set by the anonymisation workflow (§3.2 / §6 of the design note); name and
   // personnel number are scrubbed, the row (and any proof rows) survive.
-  anonymisedAt    DateTime?
+  anonymisedAt         DateTime?
   // P7d §C.4 legal hold: excludes the person and all linked records from every
   // retention/anonymisation batch until cleared.
-  legalHold            Boolean  @default(false)
+  legalHold            Boolean   @default(false)
   legalHoldReason      String?
-  legalHoldSetByUserId String?  @db.Uuid
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  legalHoldSetByUserId String?   @db.Uuid
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   company         Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
   assignments     PersonAssignment[]
@@ -2137,21 +2142,21 @@ enum TrainingConfirmation {
 }
 
 model TrainingRequirementType {
-  id              String                 @id @default(cuid())
-  companyId       String?
-  title           String
-  contentOutline  String?
+  id               String                 @id @default(cuid())
+  companyId        String?
+  title            String
+  contentOutline   String?
   recurrenceMonths Int?
   // Plain column (no FK) into the P3 LegalReference catalogue — keeps the
   // training compartment FK-light, same discipline as Person.orgUnitId.
   legalReferenceId String?
-  deliveryMethod  TrainingDeliveryMethod
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
+  deliveryMethod   TrainingDeliveryMethod
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
 
-  sessions TrainingSession[]
-  records  TrainingRecord[]
-  sources  TrainingRequirementSource[]
+  sessions                 TrainingSession[]
+  records                  TrainingRecord[]
+  sources                  TrainingRequirementSource[]
   retentionOverride        String?
   retentionOverrideTrigger RetentionTrigger?
 
@@ -2231,11 +2236,11 @@ enum RequirementSourceType {
 }
 
 model TrainingRequirementSource {
-  id                String                 @id @default(cuid())
+  id                String                @id @default(cuid())
   requirementTypeId String
   subjectType       RequirementSourceType
   subjectId         String
-  createdAt         DateTime               @default(now())
+  createdAt         DateTime              @default(now())
 
   requirementType TrainingRequirementType @relation(fields: [requirementTypeId], references: [id], onDelete: Restrict)
 
@@ -2335,12 +2340,12 @@ enum RetentionBatchStatus {
 }
 
 model RetentionBatch {
-  id              String               @id @default(cuid())
-  companyId       String
-  status          RetentionBatchStatus @default(PROPOSED)
-  createdAt       DateTime             @default(now())
-  approvedByUserId String?             @db.Uuid
-  approvedAt      DateTime?
+  id               String               @id @default(cuid())
+  companyId        String
+  status           RetentionBatchStatus @default(PROPOSED)
+  createdAt        DateTime             @default(now())
+  approvedByUserId String?              @db.Uuid
+  approvedAt       DateTime?
 
   items RetentionBatchItem[]
 
@@ -2348,12 +2353,12 @@ model RetentionBatch {
 }
 
 model RetentionBatchItem {
-  id        String    @id @default(cuid())
-  batchId   String
+  id           String    @id @default(cuid())
+  batchId      String
   // Plain personId (the batch outlives naming; the audit stores ids, not
   // names). maturedAt = when the retention matured, for traceability.
-  personId    String
-  maturedAt   DateTime
+  personId     String
+  maturedAt    DateTime
   anonymisedAt DateTime?
 
   batch RetentionBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
@@ -2366,7 +2371,7 @@ model CompanyRetentionConfig {
   companyId       String   @unique
   autoExecute     Boolean  @default(false)
   updatedByUserId String?  @db.Uuid
-  updatedAt       DateTime @updatedAt @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
 }
 
 // P8 §3.4: non-person substance-record deletion batches. Deliberately separate
@@ -2461,35 +2466,35 @@ enum ExposureRoute {
 }
 
 model Substance {
-  id                   String              @id @default(cuid())
-  companyId            String
-  tradeName            String
-  manufacturer         String?
-  casNumber            String?
-  ecNumber             String?
-  physicalState        PhysicalState
-  signalWord           SubstanceSignalWord @default(NONE)
-  carcinogenicCategory CmrCategory         @default(NONE)
-  mutagenicCategory    CmrCategory         @default(NONE)
-  reprotoxicCategory   CmrCategory         @default(NONE)
-  substitutionCheckDone Boolean            @default(false)
-  substitutionCheckNote String?
-  substitutionCheckedAt DateTime?
-  excludedLowHazard     Boolean            @default(false)
+  id                         String              @id @default(cuid())
+  companyId                  String
+  tradeName                  String
+  manufacturer               String?
+  casNumber                  String?
+  ecNumber                   String?
+  physicalState              PhysicalState
+  signalWord                 SubstanceSignalWord @default(NONE)
+  carcinogenicCategory       CmrCategory         @default(NONE)
+  mutagenicCategory          CmrCategory         @default(NONE)
+  reprotoxicCategory         CmrCategory         @default(NONE)
+  substitutionCheckDone      Boolean             @default(false)
+  substitutionCheckNote      String?
+  substitutionCheckedAt      DateTime?
+  excludedLowHazard          Boolean             @default(false)
   excludedLowHazardRationale String?
-  environmentalAspectId String?
-  wasteStreamId         String?
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
+  environmentalAspectId      String?
+  wasteStreamId              String?
+  createdAt                  DateTime            @default(now())
+  updatedAt                  DateTime            @updatedAt
 
-  company           Company              @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  environmentalAspect EnvironmentalAspect? @relation(fields: [environmentalAspectId], references: [id], onDelete: Restrict)
-  wasteStream       WasteStream?         @relation(fields: [wasteStreamId], references: [id], onDelete: Restrict)
-  pictograms        SubstancePictogram[]
-  statements        SubstanceStatement[]
-  safetyDataSheets  SafetyDataSheet[]
-  uses              SubstanceUse[]
-  findingLinks      FindingSubstance[]
+  company               Company                @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  environmentalAspect   EnvironmentalAspect?   @relation(fields: [environmentalAspectId], references: [id], onDelete: Restrict)
+  wasteStream           WasteStream?           @relation(fields: [wasteStreamId], references: [id], onDelete: Restrict)
+  pictograms            SubstancePictogram[]
+  statements            SubstanceStatement[]
+  safetyDataSheets      SafetyDataSheet[]
+  uses                  SubstanceUse[]
+  findingLinks          FindingSubstance[]
   operatingInstructions OperatingInstruction[]
 
   @@index([companyId])
@@ -2519,16 +2524,16 @@ model SubstanceStatement {
 }
 
 model SafetyDataSheet {
-  id          String    @id @default(cuid())
-  substanceId String
-  version     String?
+  id           String    @id @default(cuid())
+  substanceId  String
+  version      String?
   revisionDate DateTime
-  language    String
-  supplier    String?
-  documentId  String?
+  language     String
+  supplier     String?
+  documentId   String?
   supersededAt DateTime?
-  lastUsedAt  DateTime?
-  createdAt   DateTime  @default(now())
+  lastUsedAt   DateTime?
+  createdAt    DateTime  @default(now())
 
   substance Substance @relation(fields: [substanceId], references: [id], onDelete: Restrict)
   document  Document? @relation(fields: [documentId], references: [id], onDelete: Restrict)
@@ -2537,19 +2542,19 @@ model SafetyDataSheet {
 }
 
 model SubstanceUse {
-  id            String                 @id @default(cuid())
-  substanceId   String
-  siteId        String
-  workstationId String?
-  processId     String?
-  orgUnitId     String?
-  purpose       String
-  quantityClass SubstanceQuantityClass
+  id              String                 @id @default(cuid())
+  substanceId     String
+  siteId          String
+  workstationId   String?
+  processId       String?
+  orgUnitId       String?
+  purpose         String
+  quantityClass   SubstanceQuantityClass
   storageLocation String?
-  exposureRoutes ExposureRoute[]
-  activeFrom    DateTime
-  activeTo      DateTime?
-  createdAt     DateTime               @default(now())
+  exposureRoutes  ExposureRoute[]
+  activeFrom      DateTime
+  activeTo        DateTime?
+  createdAt       DateTime               @default(now())
 
   substance   Substance    @relation(fields: [substanceId], references: [id], onDelete: Restrict)
   site        Site         @relation(fields: [siteId], references: [id], onDelete: Restrict)
@@ -2598,4 +2603,190 @@ model OperatingInstruction {
 
   @@index([substanceId])
   @@index([siteId])
+}
+
+// ---------------------------------------------------------------------------
+// P9 Begehungen & Audits (SLD_RESTRUCTURE_PLAN_platform-modules.md §7.3).
+// Configurable inspections/audits/checklists; observations become Actions via
+// the one action engine (§2.2). Person-free: inspections assess CONDITIONS,
+// never a worker (§3.1); the team is PlatformUsers (staff accounts, plain uuid
+// like Action.responsibleUserId, §3.13), and photos document conditions with a
+// "do not photograph people" UI notice (§7.3). Legal reference per question is
+// a loose code into the existing legal catalogue, left null in system seeds so
+// no legal text is invented here (country-scoped legal content lives elsewhere).
+// ---------------------------------------------------------------------------
+enum InspectionDomain {
+  OSH
+  ENVIRONMENT
+}
+
+enum InspectionType {
+  WALKTHROUGH
+  AUDIT
+  EQUIPMENT_INSPECTION
+  COMPLIANCE_CHECKLIST
+  ISO_INTERNAL_AUDIT
+}
+
+enum InspectionStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CLOSED
+}
+
+enum InspectionAnswerType {
+  YES_NO_NA
+  SCALE
+  NUMBER
+  TEXT
+  CHOICE
+  FILE
+}
+
+enum YesNoNa {
+  YES
+  NO
+  NA
+}
+
+// A template is system (companyId null), company-wide (companyId set, siteId
+// null) or site-specific (both set). Versioned by a plain int + isActive, so a
+// company can revise a checklist without losing past inspections (which snapshot
+// their questions onto InspectionAnswer rows at creation, §H1 pattern).
+model InspectionTemplate {
+  id          String           @id @default(cuid())
+  companyId   String?
+  siteId      String?
+  domain      InspectionDomain @default(OSH)
+  type        InspectionType
+  title       String
+  description String?
+  version     Int              @default(1)
+  isActive    Boolean          @default(true)
+  isSystem    Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  company  Company?                    @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  site     Site?                       @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  sections InspectionTemplateSection[]
+
+  @@index([companyId])
+  @@index([siteId])
+}
+
+model InspectionTemplateSection {
+  id         String @id @default(cuid())
+  templateId String
+  title      String
+  order      Int    @default(0)
+
+  template  InspectionTemplate           @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  questions InspectionTemplateQuestion[]
+
+  @@index([templateId])
+}
+
+model InspectionTemplateQuestion {
+  id                 String               @id @default(cuid())
+  sectionId          String
+  prompt             String
+  answerType         InspectionAnswerType @default(YES_NO_NA)
+  required           Boolean              @default(true)
+  order              Int                  @default(0)
+  legalReferenceCode String?
+  unit               String?
+  choiceOptions      String[]
+
+  section InspectionTemplateSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([sectionId])
+}
+
+// An inspection instance. Subject (workstation/org unit) is a plain id — like
+// the team's platformUserId — so this never adds a back-relation into the
+// assessment chain. Title/type/domain are snapshotted from the template.
+model Inspection {
+  id                   String           @id @default(cuid())
+  siteId               String
+  templateId           String?
+  templateVersion      Int?
+  title                String
+  type                 InspectionType
+  domain               InspectionDomain @default(OSH)
+  status               InspectionStatus @default(PLANNED)
+  subjectWorkstationId String?
+  subjectOrgUnitId     String?
+  plannedDate          DateTime?
+  performedDate        DateTime?
+  performedByUserId    String?          @db.Uuid
+  notes                String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  site         Site                    @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  team         InspectionTeamMember[]
+  answers      InspectionAnswer[]
+  observations InspectionObservation[]
+
+  @@index([siteId, status])
+}
+
+model InspectionTeamMember {
+  id             String @id @default(cuid())
+  inspectionId   String
+  platformUserId String @db.Uuid
+
+  inspection Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  @@unique([inspectionId, platformUserId])
+  @@index([inspectionId])
+}
+
+// One row per template question, snapshotted at inspection creation so a later
+// template edit never changes a past inspection. Exactly one value column is
+// meaningful per answerType; "answered" = the relevant column is non-null (or
+// YES_NO_NA set). A hand-added CHECK is not used here — the shape is enforced
+// in the lib gate, same as the zone/manual-input read paths.
+model InspectionAnswer {
+  id                 String               @id @default(cuid())
+  inspectionId       String
+  questionId         String
+  sectionTitle       String
+  prompt             String
+  answerType         InspectionAnswerType
+  required           Boolean              @default(true)
+  order              Int                  @default(0)
+  legalReferenceCode String?
+  unit               String?
+  choiceOptions      String[]
+  valueYesNoNa       YesNoNa?
+  valueNumber        Float?
+  valueText          String?
+  valueChoice        String?
+  documentId         String?
+  answeredAt         DateTime?
+
+  inspection Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  @@index([inspectionId])
+}
+
+// A deviation noted during the walk. Promotion to an Action is the one action
+// engine (§2.2): Action.inspectionObservationId is the fourth source. Promotion
+// to a RiskFinding needs a target assessment + hazard mapping and is deferred
+// (recorded) — observations carry severity so that promotion can resolve a band.
+model InspectionObservation {
+  id           String    @id @default(cuid())
+  inspectionId String
+  answerId     String?
+  description  String
+  severity     RiskBand?
+  createdAt    DateTime  @default(now())
+
+  inspection Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  actions    Action[]
+
+  @@index([inspectionId])
 }
