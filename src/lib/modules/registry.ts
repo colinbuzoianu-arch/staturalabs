@@ -333,9 +333,8 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     permission: "reports.read",
     basePath: siteModulePath("reports"),
     icon: "bar-chart",
-    // The site risk overview is the reports landing today; KPIs/exports are
-    // later additions (§7.10), so no sidebar children yet.
-    children: [],
+    // The site risk overview is the reports landing; P12 adds the KPI cockpit.
+    children: [{ labelKey: "modules.reports.children.kpis", slug: "kpis" }],
   },
   {
     key: ModuleKey.SETTINGS,
