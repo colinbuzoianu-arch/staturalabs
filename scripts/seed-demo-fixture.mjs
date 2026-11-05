@@ -1051,6 +1051,22 @@ async function main() {
       console.log("P11 Rechtskataster already seeded — skipping.");
     }
 
+    // --- P12 KPI period figures (headcount + hours) for the current year, so
+    // the accident-rate KPIs compute on the demo. Idempotent (ON CONFLICT).
+    const kpiYear = new Date().getUTCFullYear();
+    for (const [sId, hc, hrs] of [
+      [site.id, 45, 81000],
+      [deSite.id, 30, 54000],
+    ]) {
+      await db.query(
+        `INSERT INTO "SitePeriodFigures"(id,"siteId",year,headcount,"hoursWorked","setByUserId","updatedAt")
+         VALUES($1,$2,$3,$4,$5,$6,now())
+         ON CONFLICT ("siteId",year) DO UPDATE SET headcount=EXCLUDED.headcount, "hoursWorked"=EXCLUDED."hoursWorked", "updatedAt"=now()`,
+        [crypto.randomUUID(), sId, kpiYear, hc, hrs, demoUserId],
+      );
+    }
+    console.log(`P12 KPI: period figures set for AT + DE sites (${kpiYear})`);
+
     // --- The historical demo narrative: seeded once, as a block ---
     const heroWorkstation = workstations["Montageplatz Paneele 1"];
     const alreadySeeded = await db.query(

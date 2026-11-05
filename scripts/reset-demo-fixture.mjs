@@ -142,6 +142,13 @@ async function main() {
       `DELETE FROM "SiteLegalRequirement" WHERE "siteId" = ANY($1)`,
       [siteIds],
     );
+    // P12: per-site KPI period figures.
+    await del(
+      db,
+      "SitePeriodFigures",
+      `DELETE FROM "SitePeriodFigures" WHERE "siteId" = ANY($1)`,
+      [siteIds],
+    );
     // P8 Gefahrstoffe (SLD_P8_GEFAHRSTOFFE_APPROVED.md): every substance FK is
     // ON DELETE RESTRICT (§3.9), so these go leaf-to-root before Substance.
     // FindingSubstance also precedes the RiskFinding delete below. Substance,
