@@ -2104,9 +2104,10 @@ model Person {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  company         Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  assignments     PersonAssignment[]
-  trainingRecords TrainingRecord[]
+  company             Company                  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  assignments         PersonAssignment[]
+  trainingRecords     TrainingRecord[]
+  involvedInIncidents IncidentInvolvedPerson[]
 
   @@index([companyId])
 }
@@ -2869,13 +2870,42 @@ model Incident {
   createdAt                 DateTime       @default(now())
   updatedAt                 DateTime       @updatedAt
 
-  company       Company                @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  site          Site                   @relation(fields: [siteId], references: [id], onDelete: Restrict)
-  investigation IncidentInvestigation?
-  actions       Action[]
+  company         Company                  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  site            Site                     @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  investigation   IncidentInvestigation?
+  involvedPersons IncidentInvolvedPerson[]
+  actions         Action[]
 
   @@index([siteId, status])
   @@index([companyId])
+}
+
+// P10b: the ONLY place a Person attaches to an incident. people→people FK
+// (allowed, §3.18): personId → Person Restrict (a Person can't be deleted while
+// involved — the record of who was involved survives), incidentId → Incident
+// Cascade (a composed child of its case). Holds NO health data — it is the
+// link, not the medical record (that is IncidentHealthDetail, P10c, behind
+// health_data.*). No assessment-chain FK.
+enum IncidentInvolvedRole {
+  INJURED
+  WITNESS
+  FIRST_AIDER
+  OTHER
+}
+
+model IncidentInvolvedPerson {
+  id         String               @id @default(cuid())
+  incidentId String
+  personId   String
+  role       IncidentInvolvedRole @default(INJURED)
+  createdAt  DateTime             @default(now())
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  person   Person   @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@unique([incidentId, personId])
+  @@index([incidentId])
+  @@index([personId])
 }
 
 // 1:1 structured cause analysis (§7.4 "5-Why / Ishikawa as structured fields").

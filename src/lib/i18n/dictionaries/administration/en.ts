@@ -977,6 +977,22 @@ export const en = {
       ISHIKAWA: "Ishikawa",
       NARRATIVE: "Narrative",
     },
+    involvedHeading: "Involved persons",
+    involvedNotice:
+      "Involved persons are person data, held only for the statutory incident record. Health details are separate and restricted.",
+    involvedEmpty: "No persons linked to this event.",
+    addPersonLabel: "Person",
+    roleLabel: "Role",
+    addPersonButton: "Add person",
+    removePersonButton: "Remove",
+    noPersons:
+      "No persons registered for this company yet (add them in People).",
+    roleLabels: {
+      INJURED: "Injured",
+      WITNESS: "Witness",
+      FIRST_AIDER: "First aider",
+      OTHER: "Other",
+    },
     choosePlaceholder: "—",
     none: "—",
   },

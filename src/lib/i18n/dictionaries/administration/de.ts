@@ -962,6 +962,22 @@ export const de: typeof en = {
       ISHIKAWA: "Ishikawa",
       NARRATIVE: "Beschreibung",
     },
+    involvedHeading: "Beteiligte Personen",
+    involvedNotice:
+      "Beteiligte Personen sind Personendaten und werden nur für die gesetzliche Ereignisdokumentation gespeichert. Gesundheitsdaten sind getrennt und zugriffsbeschränkt.",
+    involvedEmpty: "Keine Personen mit diesem Ereignis verknüpft.",
+    addPersonLabel: "Person",
+    roleLabel: "Rolle",
+    addPersonButton: "Person hinzufügen",
+    removePersonButton: "Entfernen",
+    noPersons:
+      "Für dieses Unternehmen sind noch keine Personen erfasst (unter Personen anlegen).",
+    roleLabels: {
+      INJURED: "Verletzt",
+      WITNESS: "Zeuge/Zeugin",
+      FIRST_AIDER: "Ersthelfer/in",
+      OTHER: "Sonstige",
+    },
     choosePlaceholder: "—",
     none: "—",
   },

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   type IncidentInvestigationMethod,
+  type IncidentInvolvedRole,
   RiskBand,
 } from "@/generated/prisma/enums";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
@@ -14,6 +15,10 @@ import {
   transitionIncident,
   triageIncident,
 } from "@/lib/incidents/incident";
+import {
+  addInvolvedPerson,
+  removeInvolvedPerson,
+} from "@/lib/incidents/involved-person";
 import { prisma } from "@/lib/prisma";
 
 const RISK_BANDS = Object.values(RiskBand);
@@ -21,6 +26,12 @@ const METHODS: IncidentInvestigationMethod[] = [
   "FIVE_WHY",
   "ISHIKAWA",
   "NARRATIVE",
+];
+const INVOLVED_ROLES: IncidentInvolvedRole[] = [
+  "INJURED",
+  "WITNESS",
+  "FIRST_AIDER",
+  "OTHER",
 ];
 
 // P10a §7.4 incident case detail. Resource-first gate: fetch, then confirm the
@@ -37,7 +48,15 @@ export default async function IncidentDetailPage({
 
   const incident = await prisma.incident.findUnique({
     where: { id: incidentId },
-    include: { investigation: true },
+    include: {
+      investigation: true,
+      involvedPersons: {
+        orderBy: { createdAt: "asc" },
+        include: {
+          person: { select: { firstName: true, lastName: true } },
+        },
+      },
+    },
   });
   if (!incident || incident.siteId !== siteId) notFound();
 
@@ -46,6 +65,19 @@ export default async function IncidentDetailPage({
     orderBy: { createdAt: "asc" },
     select: { id: true, title: true, status: true },
   });
+
+  // Company's persons to pick from (people compartment, company-scoped). Only
+  // ids/names — no health data. Excludes those already linked.
+  const linkedPersonIds = new Set(
+    incident.involvedPersons.map((ip) => ip.personId),
+  );
+  const persons = (
+    await prisma.person.findMany({
+      where: { companyId: incident.companyId, active: true },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      select: { id: true, firstName: true, lastName: true },
+    })
+  ).filter((p) => !linkedPersonIds.has(p.id));
 
   const open = incident.status !== "CLOSED";
 
@@ -123,6 +155,44 @@ export default async function IncidentDetailPage({
       actorUserId: user.id,
       title,
       responsibleRoleLabel: typeof roleLabel === "string" ? roleLabel : null,
+    });
+    revalidatePath(`/app/s/${siteId}/incidents/${incidentId}`);
+  }
+
+  async function addPersonAction(formData: FormData) {
+    "use server";
+    const { user } = await requireSiteAdministrationAccess(siteId);
+    const personId = formData.get("personId");
+    const role = formData.get("role");
+    if (
+      typeof personId !== "string" ||
+      personId.length === 0 ||
+      typeof role !== "string" ||
+      !(INVOLVED_ROLES as string[]).includes(role)
+    ) {
+      return;
+    }
+    await addInvolvedPerson({
+      incidentId,
+      siteId,
+      personId,
+      role: role as IncidentInvolvedRole,
+      actorUserId: user.id,
+    });
+    revalidatePath(`/app/s/${siteId}/incidents/${incidentId}`);
+  }
+
+  async function removePersonAction(formData: FormData) {
+    "use server";
+    const { user } = await requireSiteAdministrationAccess(siteId);
+    const involvedPersonId = formData.get("involvedPersonId");
+    if (typeof involvedPersonId !== "string" || involvedPersonId.length === 0) {
+      return;
+    }
+    await removeInvolvedPerson({
+      involvedPersonId,
+      siteId,
+      actorUserId: user.id,
     });
     revalidatePath(`/app/s/${siteId}/incidents/${incidentId}`);
   }
@@ -377,6 +447,92 @@ export default async function IncidentDetailPage({
         ) : (
           <p className="text-sm text-foreground-muted">{dict.none}</p>
         )}
+      </section>
+
+      {/* Involved persons (people compartment, no health data here) */}
+      <section className="flex flex-col gap-3">
+        <h2 className="font-heading text-sm font-bold">
+          {dict.involvedHeading}
+        </h2>
+        <p className="text-xs text-foreground-subtle">{dict.involvedNotice}</p>
+        {incident.involvedPersons.length === 0 ? (
+          <p className="text-sm text-foreground-muted">{dict.involvedEmpty}</p>
+        ) : (
+          <ul className="flex flex-col gap-1 text-sm">
+            {incident.involvedPersons.map((ip) => (
+              <li
+                key={ip.id}
+                className="flex items-center justify-between rounded border border-border bg-surface px-3 py-2"
+              >
+                <span className="text-foreground">
+                  {ip.person.firstName} {ip.person.lastName}
+                  <span className="ml-2 text-xs text-foreground-subtle">
+                    {dict.roleLabels[ip.role]}
+                  </span>
+                </span>
+                {open && (
+                  <form action={removePersonAction}>
+                    <input
+                      type="hidden"
+                      name="involvedPersonId"
+                      value={ip.id}
+                    />
+                    <button
+                      type="submit"
+                      className="text-xs text-foreground-subtle hover:text-status-high"
+                    >
+                      {dict.removePersonButton}
+                    </button>
+                  </form>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        {open &&
+          (persons.length === 0 ? (
+            <p className="text-xs text-foreground-subtle">{dict.noPersons}</p>
+          ) : (
+            <form
+              action={addPersonAction}
+              className="flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-3 text-sm"
+            >
+              <label className="flex flex-1 flex-col gap-1">
+                {dict.addPersonLabel}
+                <select
+                  name="personId"
+                  required
+                  className="rounded border border-border bg-background px-2 py-1"
+                >
+                  {persons.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.lastName}, {p.firstName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                {dict.roleLabel}
+                <select
+                  name="role"
+                  defaultValue="INJURED"
+                  className="rounded border border-border bg-background px-2 py-1"
+                >
+                  {INVOLVED_ROLES.map((r) => (
+                    <option key={r} value={r}>
+                      {dict.roleLabels[r]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="submit"
+                className="rounded-[var(--radius-md)] bg-accent px-3 py-2 font-medium text-background"
+              >
+                {dict.addPersonButton}
+              </button>
+            </form>
+          ))}
       </section>
 
       {/* Corrective actions */}

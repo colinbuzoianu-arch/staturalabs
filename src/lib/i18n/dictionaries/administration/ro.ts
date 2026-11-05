@@ -960,6 +960,22 @@ export const ro: typeof en = {
       ISHIKAWA: "Ishikawa",
       NARRATIVE: "Descriere",
     },
+    involvedHeading: "Persoane implicate",
+    involvedNotice:
+      "Persoanele implicate sunt date cu caracter personal, păstrate doar pentru documentarea legală a evenimentului. Datele de sănătate sunt separate și cu acces restricționat.",
+    involvedEmpty: "Nicio persoană asociată acestui eveniment.",
+    addPersonLabel: "Persoană",
+    roleLabel: "Rol",
+    addPersonButton: "Adăugați persoană",
+    removePersonButton: "Eliminați",
+    noPersons:
+      "Nicio persoană înregistrată pentru această companie încă (adăugați în Persoane).",
+    roleLabels: {
+      INJURED: "Rănit(ă)",
+      WITNESS: "Martor(ă)",
+      FIRST_AIDER: "Prim-ajutor",
+      OTHER: "Altul",
+    },
     choosePlaceholder: "—",
     none: "—",
   },
