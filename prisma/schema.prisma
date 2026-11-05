@@ -2276,6 +2276,10 @@ enum RetentionRecordType {
   // Reserved for P10 (no rules seeded yet): per-person exposure registers.
   SUBSTANCE_EXPOSURE_KM
   SUBSTANCE_EXPOSURE_R
+  // P10e §B: incident records.
+  INCIDENT
+  INCIDENT_HEALTH
+  FIRST_AID_RECORD
 }
 
 enum RetentionBasis {
@@ -2413,6 +2417,41 @@ model SubstanceRetentionItem {
   deletedAt  DateTime?
 
   batch SubstanceRetentionBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
+}
+
+// P10e §B/§D.3: incident-record deletion batches (INCIDENT / FIRST_AID_RECORD /
+// INCIDENT_HEALTH). Deliberately SEPARATE from RetentionBatch (person
+// anonymisation) and from SubstanceRetentionBatch — INCIDENT_HEALTH deletion is
+// never co-approved in the same batch as person anonymisation (§3.18). Approval
+// HARD-DELETES the matured rows (the retention period has passed). recordId is a
+// plain id (no FK), so the batch outlives the row and no FK reaches a specific
+// health detail from here.
+model IncidentRetentionBatch {
+  id               String               @id @default(cuid())
+  companyId        String
+  status           RetentionBatchStatus @default(PROPOSED)
+  createdAt        DateTime             @default(now())
+  approvedByUserId String?              @db.Uuid
+  approvedAt       DateTime?
+
+  items IncidentRetentionItem[]
+
+  @@index([companyId, status])
+}
+
+model IncidentRetentionItem {
+  id         String              @id @default(cuid())
+  batchId    String
+  // recordType is INCIDENT / FIRST_AID_RECORD / INCIDENT_HEALTH; recordId is
+  // the plain id of the Incident or IncidentHealthDetail row.
+  recordType RetentionRecordType
+  recordId   String
+  maturedAt  DateTime
+  deletedAt  DateTime?
+
+  batch IncidentRetentionBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
 
   @@index([batchId])
 }
