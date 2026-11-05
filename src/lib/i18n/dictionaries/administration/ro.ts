@@ -512,6 +512,15 @@ export const ro: typeof en = {
     substanceBatchesHeading: "Loturi de ștergere",
     substanceRecords: "înregistrări",
     substanceApprove: "Aprobă și șterge",
+    incidentHeading: "Înregistrări de evenimente",
+    incidentIntro:
+      "Evenimentele închise, intrările de prim ajutor și datele medicale ale evenimentelor pot fi șterse după expirarea perioadei de păstrare (5 ani pentru evenimente/prim ajutor; 10 ani după încetarea raportului de muncă pentru datele medicale). Aprobarea șterge înregistrările scadente; o persoană în legal hold nu este niciodată inclusă.",
+    incidentRunCheck: "Verifică înregistrările de eveniment ștergibile",
+    incidentNoCandidates:
+      "Nicio înregistrare de eveniment scadentă pentru ștergere.",
+    incidentBatchesHeading: "Loturi de ștergere",
+    incidentRecords: "înregistrări",
+    incidentApprove: "Aprobă și șterge",
   },
   peopleImport: {
     eyebrow: "Persoane",
@@ -1050,6 +1059,11 @@ export const ro: typeof en = {
       OTHER: "Altele",
       UNKNOWN: "Necunoscut",
     },
+    verbandbuchHeading: "Registru de prim ajutor (Verbandbuch)",
+    verbandbuchIntro:
+      "Cazuri de prim ajutor la acest sit, păstrate 5 ani (DGUV V1 §24 Abs.6 / §16 ASchG). Detaliile medicale rămân restricționate și nu sunt afișate aici.",
+    verbandbuchEmpty: "Niciun caz de prim ajutor înregistrat.",
+    verbandbuchPersons: "Persoane",
     choosePlaceholder: "—",
     none: "—",
   },

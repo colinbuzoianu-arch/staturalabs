@@ -21,6 +21,7 @@ export const MODULE_LABELS_DE: Record<string, string> = {
   "modules.incidents.children.reports": "Meldungen",
   "modules.incidents.children.investigations": "Untersuchungen",
   "modules.incidents.children.notifications": "Behördenmeldungen",
+  "modules.incidents.children.verbandbuch": "Verbandbuch",
   "modules.environment.label": "Umwelt",
   "modules.environment.children.aspects": "Umweltaspekte",
   "modules.environment.children.quantities": "Mengen & Abfall",

@@ -101,6 +101,26 @@ async function main() {
     await del(db, "Action", `DELETE FROM "Action" WHERE "siteId" = ANY($1)`, [
       siteIds,
     ]);
+    // P10 Ereignisse: the incident-retention batch (company-scoped, not
+    // cascaded) first; then Incident, whose composed children (investigation,
+    // involved persons, their health details, the statutory notification) all
+    // Cascade with it. Incident is deleted BEFORE Person below, since
+    // IncidentInvolvedPerson.personId is ON DELETE RESTRICT.
+    await del(
+      db,
+      "IncidentRetentionItem",
+      `DELETE FROM "IncidentRetentionItem" WHERE "batchId" IN (SELECT id FROM "IncidentRetentionBatch" WHERE "companyId" = $1)`,
+      [company.id],
+    );
+    await del(
+      db,
+      "IncidentRetentionBatch",
+      `DELETE FROM "IncidentRetentionBatch" WHERE "companyId" = $1`,
+      [company.id],
+    );
+    await del(db, "Incident", `DELETE FROM "Incident" WHERE "companyId" = $1`, [
+      company.id,
+    ]);
     // P8 Gefahrstoffe (SLD_P8_GEFAHRSTOFFE_APPROVED.md): every substance FK is
     // ON DELETE RESTRICT (§3.9), so these go leaf-to-root before Substance.
     // FindingSubstance also precedes the RiskFinding delete below. Substance,

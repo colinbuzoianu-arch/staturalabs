@@ -536,6 +536,14 @@ export const en = {
     substanceBatchesHeading: "Deletion batches",
     substanceRecords: "records",
     substanceApprove: "Approve & delete",
+    incidentHeading: "Incident records",
+    incidentIntro:
+      "Closed events, first-aid entries and incident medical records may be deleted once their retention period has passed (5 years for events/first aid; 10 years after end of employment for medical records). Approval deletes the matured records; a person on legal hold is never included.",
+    incidentRunCheck: "Check for deletable incident records",
+    incidentNoCandidates: "No incident records are due for deletion.",
+    incidentBatchesHeading: "Deletion batches",
+    incidentRecords: "records",
+    incidentApprove: "Approve & delete",
   },
   peopleImport: {
     eyebrow: "People",
@@ -1067,6 +1075,11 @@ export const en = {
       OTHER: "Other",
       UNKNOWN: "Unknown",
     },
+    verbandbuchHeading: "First-aid book (Verbandbuch)",
+    verbandbuchIntro:
+      "First-aid events at this site, kept 5 years (DGUV V1 §24 Abs.6 / §16 ASchG). Medical details stay restricted and are not shown here.",
+    verbandbuchEmpty: "No first-aid events recorded.",
+    verbandbuchPersons: "Persons",
     choosePlaceholder: "—",
     none: "—",
   },

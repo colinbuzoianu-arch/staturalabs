@@ -513,6 +513,14 @@ export const de: typeof en = {
     substanceBatchesHeading: "Löschstapel",
     substanceRecords: "Datensätze",
     substanceApprove: "Freigeben & löschen",
+    incidentHeading: "Ereignisaufzeichnungen",
+    incidentIntro:
+      "Abgeschlossene Ereignisse, Erste-Hilfe-Einträge und medizinische Ereignisdaten können gelöscht werden, sobald ihre Aufbewahrungsfrist abgelaufen ist (5 Jahre für Ereignisse/Erste Hilfe; 10 Jahre nach Ende des Beschäftigungsverhältnisses für medizinische Daten). Die Freigabe löscht die fälligen Aufzeichnungen; eine Person mit Legal Hold wird nie einbezogen.",
+    incidentRunCheck: "Auf löschbare Ereignisaufzeichnungen prüfen",
+    incidentNoCandidates: "Keine Ereignisaufzeichnungen zur Löschung fällig.",
+    incidentBatchesHeading: "Löschstapel",
+    incidentRecords: "Aufzeichnungen",
+    incidentApprove: "Freigeben & löschen",
   },
   peopleImport: {
     eyebrow: "Personen",
@@ -1052,6 +1060,11 @@ export const de: typeof en = {
       OTHER: "Sonstige",
       UNKNOWN: "Unbekannt",
     },
+    verbandbuchHeading: "Verbandbuch",
+    verbandbuchIntro:
+      "Erste-Hilfe-Fälle an dieser Arbeitsstätte, 5 Jahre aufzubewahren (DGUV V1 §24 Abs.6 / §16 ASchG). Medizinische Details bleiben zugriffsbeschränkt und werden hier nicht angezeigt.",
+    verbandbuchEmpty: "Keine Erste-Hilfe-Fälle erfasst.",
+    verbandbuchPersons: "Personen",
     choosePlaceholder: "—",
     none: "—",
   },

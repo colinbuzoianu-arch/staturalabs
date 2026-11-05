@@ -194,6 +194,10 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
         labelKey: "modules.incidents.children.notifications",
         slug: "notifications",
       },
+      {
+        labelKey: "modules.incidents.children.verbandbuch",
+        slug: "verbandbuch",
+      },
     ],
     badge: "open-incidents",
   },

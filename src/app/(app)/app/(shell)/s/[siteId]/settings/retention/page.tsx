@@ -10,6 +10,11 @@ import {
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
 import {
+  approveIncidentRetentionBatch,
+  cancelIncidentRetentionBatch,
+  generateIncidentRetentionProposal,
+} from "@/lib/incidents/incident-retention-batch";
+import {
   approveRetentionBatch,
   cancelRetentionBatch,
   generateRetentionProposal,
@@ -25,10 +30,14 @@ export default async function RetentionPage({
   searchParams,
 }: {
   params: Promise<{ siteId: string }>;
-  searchParams: Promise<{ proposed?: string; subProposed?: string }>;
+  searchParams: Promise<{
+    proposed?: string;
+    subProposed?: string;
+    incProposed?: string;
+  }>;
 }) {
   const { siteId } = await params;
-  const { proposed, subProposed } = await searchParams;
+  const { proposed, subProposed, incProposed } = await searchParams;
   const { user, site } = await requireSiteAdministrationAccess(siteId);
   const locale = await getLocale();
   const dict = getAdministrationDictionary(locale).retentionPage;
@@ -121,22 +130,67 @@ export default async function RetentionPage({
     revalidatePath(`/app/s/${siteId}/settings/retention`);
   }
 
-  const [settings, config, batches, substanceBatches] = await Promise.all([
-    prisma.companyRetentionSetting.findMany({ where: { companyId } }),
-    prisma.companyRetentionConfig.findUnique({ where: { companyId } }),
-    prisma.retentionBatch.findMany({
-      where: { companyId },
-      include: { _count: { select: { items: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-    }),
-    prisma.substanceRetentionBatch.findMany({
-      where: { companyId },
-      include: { _count: { select: { items: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-    }),
-  ]);
+  async function runIncidentCheckAction() {
+    "use server";
+    const { user: actor, site: s } =
+      await requireSiteAdministrationAccess(siteId);
+    if (!canAccessCompany(actor, s.companyId)) return;
+    const batch = await generateIncidentRetentionProposal(
+      s.companyId,
+      actor.id,
+    );
+    redirect(
+      `/app/s/${siteId}/settings/retention?incProposed=${batch ? "1" : "0"}`,
+    );
+  }
+
+  async function approveIncidentAction(formData: FormData) {
+    "use server";
+    const { user: actor, site: s } =
+      await requireSiteAdministrationAccess(siteId);
+    if (!canAccessCompany(actor, s.companyId)) return;
+    const id = formData.get("batchId");
+    if (typeof id === "string" && id.length > 0) {
+      await approveIncidentRetentionBatch(id, s.companyId, actor.id);
+    }
+    revalidatePath(`/app/s/${siteId}/settings/retention`);
+  }
+
+  async function cancelIncidentAction(formData: FormData) {
+    "use server";
+    const { user: actor, site: s } =
+      await requireSiteAdministrationAccess(siteId);
+    if (!canAccessCompany(actor, s.companyId)) return;
+    const id = formData.get("batchId");
+    if (typeof id === "string" && id.length > 0) {
+      await cancelIncidentRetentionBatch(id, s.companyId, actor.id);
+    }
+    revalidatePath(`/app/s/${siteId}/settings/retention`);
+  }
+
+  const [settings, config, batches, substanceBatches, incidentBatches] =
+    await Promise.all([
+      prisma.companyRetentionSetting.findMany({ where: { companyId } }),
+      prisma.companyRetentionConfig.findUnique({ where: { companyId } }),
+      prisma.retentionBatch.findMany({
+        where: { companyId },
+        include: { _count: { select: { items: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      }),
+      prisma.substanceRetentionBatch.findMany({
+        where: { companyId },
+        include: { _count: { select: { items: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      }),
+      prisma.incidentRetentionBatch.findMany({
+        where: { companyId },
+        include: { _count: { select: { items: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      }),
+    ]);
   const autoExecute = config?.autoExecute ?? false;
 
   return (
@@ -338,6 +392,79 @@ export default async function RetentionPage({
                       </button>
                     </form>
                     <form action={cancelSubstanceAction}>
+                      <input type="hidden" name="batchId" value={b.id} />
+                      <button
+                        type="submit"
+                        className="text-xs text-foreground-subtle hover:text-accent hover:underline"
+                      >
+                        {dict.cancel}
+                      </button>
+                    </form>
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+        <h2 className="font-heading text-sm font-bold">
+          {dict.incidentHeading}
+        </h2>
+        <p className="text-sm text-foreground-muted">{dict.incidentIntro}</p>
+        {incProposed === "0" && (
+          <p className="text-sm text-foreground-muted">
+            {dict.incidentNoCandidates}
+          </p>
+        )}
+        {canManage && (
+          <form action={runIncidentCheckAction}>
+            <button
+              type="submit"
+              className="self-start rounded-[var(--radius-md)] bg-accent px-4 py-2 text-sm font-medium text-background"
+            >
+              {dict.incidentRunCheck}
+            </button>
+          </form>
+        )}
+        <h3 className="font-heading text-xs font-bold text-foreground-muted">
+          {dict.incidentBatchesHeading}
+        </h3>
+        {incidentBatches.length === 0 ? (
+          <p className="text-sm text-foreground-muted">{dict.batchesEmpty}</p>
+        ) : (
+          <ul className="flex flex-col gap-2 text-sm">
+            {incidentBatches.map((b) => (
+              <li
+                key={b.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded border border-border bg-surface p-3"
+              >
+                <span>
+                  <span className="font-medium text-foreground">
+                    {b.status === "PROPOSED"
+                      ? dict.batchProposed
+                      : b.status === "APPROVED"
+                        ? dict.batchApproved
+                        : dict.batchCancelled}
+                  </span>{" "}
+                  <span className="text-foreground-muted">
+                    · {b._count.items} {dict.incidentRecords} ·{" "}
+                    {b.createdAt.toISOString().slice(0, 10)}
+                  </span>
+                </span>
+                {canManage && b.status === "PROPOSED" && (
+                  <span className="flex gap-2">
+                    <form action={approveIncidentAction}>
+                      <input type="hidden" name="batchId" value={b.id} />
+                      <button
+                        type="submit"
+                        className="rounded bg-accent px-2 py-1 text-xs font-medium text-background"
+                      >
+                        {dict.incidentApprove}
+                      </button>
+                    </form>
+                    <form action={cancelIncidentAction}>
                       <input type="hidden" name="batchId" value={b.id} />
                       <button
                         type="submit"

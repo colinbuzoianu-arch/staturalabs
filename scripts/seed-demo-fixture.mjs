@@ -474,6 +474,117 @@ async function main() {
     }
     console.log(`Persons: ${personDefs.length} demo persons`);
 
+    // --- P10 demo incidents (idempotent, marker = the AT Arbeitsunfall title).
+    // One notifiable AT Arbeitsunfall (live 5-day countdown), one DE
+    // Arbeitsunfall (live 3-day countdown), one first-aid entry (Verbandbuch),
+    // and one person on legal hold with a coarse health record (shows the
+    // retention batch would skip them). Coarse health fields only — no
+    // encrypted free-text in the seed (no key needed).
+    const personByNr = {};
+    for (const p of personDefs) {
+      const r = await db.query(
+        `SELECT id FROM "Person" WHERE "companyId"=$1 AND "personnelNumber"=$2 LIMIT 1`,
+        [company.id, p.personnelNumber],
+      );
+      personByNr[p.personnelNumber] = r.rows[0]?.id;
+    }
+    const AT_INCIDENT_TITLE = "Sturz an der Abkantpresse";
+    const incidentMarker = await db.query(
+      `SELECT id FROM "Incident" WHERE "companyId"=$1 AND title=$2 LIMIT 1`,
+      [company.id, AT_INCIDENT_TITLE],
+    );
+    if (incidentMarker.rows.length === 0) {
+      const daysAgo = (n) => new Date(Date.now() - n * 86400000);
+      // AT Arbeitsunfall — recent, triaged, injured person D-1001.
+      const atInc = await insertRow(db, "Incident", {
+        id: crypto.randomUUID(),
+        companyId: company.id,
+        siteId: site.id,
+        type: "ARBEITSUNFALL",
+        status: "TRIAGED",
+        severity: "ELEVATED",
+        occurredAt: daysAgo(2),
+        isWorkRelated: true,
+        title: AT_INCIDENT_TITLE,
+        description:
+          "Mitarbeiter stürzte beim Absteigen von der Abkantpresse; Prellung und Schnittwunde.",
+        updatedAt: new Date(),
+      });
+      await insertRow(db, "IncidentInvolvedPerson", {
+        id: crypto.randomUUID(),
+        incidentId: atInc.id,
+        personId: personByNr["D-1001"],
+        role: "INJURED",
+      });
+      // DE Arbeitsunfall — recent, reported, injured person D-1002.
+      const deInc = await insertRow(db, "Incident", {
+        id: crypto.randomUUID(),
+        companyId: company.id,
+        siteId: deSite.id,
+        type: "ARBEITSUNFALL",
+        status: "REPORTED",
+        occurredAt: daysAgo(1),
+        isWorkRelated: true,
+        title: "Schnittverletzung an der Montagelinie",
+        description:
+          "Beschäftigter verletzte sich beim Hantieren mit einem Bauteil an der Hand.",
+        updatedAt: new Date(),
+      });
+      await insertRow(db, "IncidentInvolvedPerson", {
+        id: crypto.randomUUID(),
+        incidentId: deInc.id,
+        personId: personByNr["D-1002"],
+        role: "INJURED",
+      });
+      // AT first-aid entry (Verbandbuch), closed, person D-1003.
+      const faInc = await insertRow(db, "Incident", {
+        id: crypto.randomUUID(),
+        companyId: company.id,
+        siteId: site.id,
+        type: "ERSTE_HILFE",
+        status: "CLOSED",
+        occurredAt: daysAgo(10),
+        closedAt: daysAgo(10),
+        title: "Pflasterverband nach kleiner Schnittwunde",
+        description:
+          "Kleine Schnittwunde am Finger, Erstversorgung im Betrieb.",
+        updatedAt: new Date(),
+      });
+      await insertRow(db, "IncidentInvolvedPerson", {
+        id: crypto.randomUUID(),
+        incidentId: faInc.id,
+        personId: personByNr["D-1003"],
+        role: "INJURED",
+      });
+      // Legal hold: D-1004 on legal hold, involved in the AT Arbeitsunfall with
+      // a coarse health record (retention batch would skip this health row).
+      await db.query(
+        `UPDATE "Person" SET "legalHold"=true, "legalHoldReason"=$2 WHERE id=$1`,
+        [personByNr["D-1004"], "Laufendes Verfahren — Aufbewahrung ausgesetzt"],
+      );
+      const holdLink = await insertRow(db, "IncidentInvolvedPerson", {
+        id: crypto.randomUUID(),
+        incidentId: atInc.id,
+        personId: personByNr["D-1004"],
+        role: "WITNESS",
+      });
+      await insertRow(db, "IncidentHealthDetail", {
+        id: crypto.randomUUID(),
+        incidentInvolvedPersonId: holdLink.id,
+        injuryType: "BRUISE_CONTUSION",
+        bodyRegion: "SHOULDER_ARM",
+        incapacityDays: 3,
+        fatal: false,
+        medicalTreatmentGiven: true,
+        updatedAt: new Date(),
+      });
+      console.log(
+        "P10 incidents: 1 AT Arbeitsunfall, 1 DE Arbeitsunfall, 1 Verbandbuch entry, 1 legal-hold health record",
+      );
+    } else {
+      console.log("P10 incidents already seeded — skipping.");
+    }
+
     // P7c: one demo training requirement type (idempotent by companyId+title).
     await selectOrInsert(
       db,
