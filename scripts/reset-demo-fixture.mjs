@@ -101,6 +101,65 @@ async function main() {
     await del(db, "Action", `DELETE FROM "Action" WHERE "siteId" = ANY($1)`, [
       siteIds,
     ]);
+    // P8 Gefahrstoffe (SLD_P8_GEFAHRSTOFFE_APPROVED.md): every substance FK is
+    // ON DELETE RESTRICT (§3.9), so these go leaf-to-root before Substance.
+    // FindingSubstance also precedes the RiskFinding delete below. Substance,
+    // SDS, pictograms, statements and the retention batch are company-scoped;
+    // uses and operating instructions are site-scoped.
+    await del(
+      db,
+      "FindingSubstance",
+      `DELETE FROM "FindingSubstance" WHERE "substanceId" IN (SELECT id FROM "Substance" WHERE "companyId" = $1)`,
+      [company.id],
+    );
+    await del(
+      db,
+      "OperatingInstruction",
+      `DELETE FROM "OperatingInstruction" WHERE "substanceId" IN (SELECT id FROM "Substance" WHERE "companyId" = $1)`,
+      [company.id],
+    );
+    await del(
+      db,
+      "SafetyDataSheet",
+      `DELETE FROM "SafetyDataSheet" WHERE "substanceId" IN (SELECT id FROM "Substance" WHERE "companyId" = $1)`,
+      [company.id],
+    );
+    await del(
+      db,
+      "SubstancePictogram",
+      `DELETE FROM "SubstancePictogram" WHERE "substanceId" IN (SELECT id FROM "Substance" WHERE "companyId" = $1)`,
+      [company.id],
+    );
+    await del(
+      db,
+      "SubstanceStatement",
+      `DELETE FROM "SubstanceStatement" WHERE "substanceId" IN (SELECT id FROM "Substance" WHERE "companyId" = $1)`,
+      [company.id],
+    );
+    await del(
+      db,
+      "SubstanceUse",
+      `DELETE FROM "SubstanceUse" WHERE "substanceId" IN (SELECT id FROM "Substance" WHERE "companyId" = $1)`,
+      [company.id],
+    );
+    await del(
+      db,
+      "SubstanceRetentionItem",
+      `DELETE FROM "SubstanceRetentionItem" WHERE "batchId" IN (SELECT id FROM "SubstanceRetentionBatch" WHERE "companyId" = $1)`,
+      [company.id],
+    );
+    await del(
+      db,
+      "SubstanceRetentionBatch",
+      `DELETE FROM "SubstanceRetentionBatch" WHERE "companyId" = $1`,
+      [company.id],
+    );
+    await del(
+      db,
+      "Substance",
+      `DELETE FROM "Substance" WHERE "companyId" = $1`,
+      [company.id],
+    );
     await del(
       db,
       "ExposureMeasurement",

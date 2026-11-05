@@ -1350,6 +1350,240 @@ async function main() {
       );
     }
 
+    // --- P8 Gefahrstoffe (SLD_P8_GEFAHRSTOFFE_APPROVED.md §5 slice 7):
+    // ~8 substances incl. one CMR 1B (Trichlorethylen) and one low-hazard
+    // excluded (Schmierfett), each with a current SDS, uses at AT/DE
+    // workstations, and one approved Betriebsanweisung per AT and DE site.
+    // Idempotent via selectOrInsert on each natural key, so this runs outside
+    // the historical-narrative gate (reference data, not one-shot history). ---
+    const substanceDefs = [
+      {
+        tradeName: "Isopropanol 99,9 %",
+        manufacturer: "CleanChem GmbH",
+        casNumber: "67-63-0",
+        physicalState: "LIQUID",
+        signalWord: "GEFAHR",
+        pictograms: ["GHS02", "GHS07"],
+        statements: [
+          ["H", "H225"],
+          ["H", "H319"],
+          ["H", "H336"],
+        ],
+        uses: [
+          { ws: "Montageplatz Paneele 1", site: "AT" },
+          { ws: "DE", site: "DE" },
+        ],
+        approvedBa: ["AT", "DE"],
+      },
+      {
+        tradeName: "Aceton technisch",
+        manufacturer: "CleanChem GmbH",
+        casNumber: "67-64-1",
+        physicalState: "LIQUID",
+        signalWord: "GEFAHR",
+        pictograms: ["GHS02", "GHS07"],
+        statements: [
+          ["H", "H225"],
+          ["H", "H319"],
+          ["H", "H336"],
+        ],
+        uses: [{ ws: "Lackierkabine", site: "AT" }],
+      },
+      {
+        tradeName: "2K-Epoxidharz Härter B",
+        manufacturer: "AdheTec AG",
+        physicalState: "LIQUID",
+        signalWord: "ACHTUNG",
+        pictograms: ["GHS07", "GHS08", "GHS09"],
+        statements: [
+          ["H", "H317"],
+          ["H", "H319"],
+          ["H", "H411"],
+        ],
+        uses: [{ ws: "Montageplatz Paneele 2", site: "AT" }],
+      },
+      {
+        tradeName: "Natronlauge 32 %",
+        manufacturer: "CleanChem GmbH",
+        casNumber: "1310-73-2",
+        physicalState: "LIQUID",
+        signalWord: "GEFAHR",
+        pictograms: ["GHS05"],
+        statements: [["H", "H314"]],
+        uses: [{ ws: "Schweißzelle A", site: "AT" }],
+      },
+      {
+        tradeName: "Trichlorethylen",
+        manufacturer: "SolvTec GmbH",
+        casNumber: "79-01-6",
+        physicalState: "LIQUID",
+        signalWord: "GEFAHR",
+        carcinogenicCategory: "CAT_1B",
+        mutagenicCategory: "CAT_2",
+        pictograms: ["GHS06", "GHS08"],
+        statements: [
+          ["H", "H350"],
+          ["H", "H341"],
+          ["H", "H319"],
+          ["H", "H315"],
+        ],
+        substitutionCheckDone: true,
+        substitutionCheckNote:
+          "Substitution durch wässriges Reinigungsverfahren wird geprüft (TRGS 600).",
+        uses: [{ ws: "Schleif- und Finishplatz", site: "AT" }],
+      },
+      {
+        tradeName: "Silikon-Dichtstoff neutral",
+        manufacturer: "AdheTec AG",
+        physicalState: "PASTE",
+        signalWord: "ACHTUNG",
+        pictograms: ["GHS07"],
+        statements: [["H", "H317"]],
+        uses: [{ ws: "Bauteilregal", site: "AT" }],
+      },
+      {
+        tradeName: "Bremsenreiniger Spray",
+        manufacturer: "SolvTec GmbH",
+        physicalState: "AEROSOL",
+        signalWord: "GEFAHR",
+        pictograms: ["GHS02", "GHS07"],
+        statements: [
+          ["H", "H222"],
+          ["H", "H315"],
+          ["H", "H336"],
+        ],
+        uses: [{ ws: "DE", site: "DE" }],
+      },
+      {
+        tradeName: "Mehrzweckfett MP2",
+        manufacturer: "LubriPro GmbH",
+        physicalState: "PASTE",
+        signalWord: "NONE",
+        excludedLowHazard: true,
+        excludedLowHazardRationale:
+          "Nicht als gefährlich eingestuft (kein Signalwort, keine H-Sätze); nach § 6 Abs. 13 GefStoffV nur nachrichtlich geführt.",
+        uses: [{ ws: "Abkantpresse", site: "AT" }],
+      },
+    ];
+
+    const sdsRevisionDate = new Date("2025-03-15T00:00:00Z");
+    let substanceCount = 0;
+    let baCount = 0;
+    for (const def of substanceDefs) {
+      const { row: substance } = await selectOrInsert(
+        db,
+        "Substance",
+        { companyId: company.id, tradeName: def.tradeName },
+        {
+          id: crypto.randomUUID(),
+          companyId: company.id,
+          tradeName: def.tradeName,
+          manufacturer: def.manufacturer ?? null,
+          casNumber: def.casNumber ?? null,
+          physicalState: def.physicalState,
+          signalWord: def.signalWord,
+          carcinogenicCategory: def.carcinogenicCategory ?? "NONE",
+          mutagenicCategory: def.mutagenicCategory ?? "NONE",
+          reprotoxicCategory: def.reprotoxicCategory ?? "NONE",
+          substitutionCheckDone: def.substitutionCheckDone ?? false,
+          substitutionCheckNote: def.substitutionCheckNote ?? null,
+          excludedLowHazard: def.excludedLowHazard ?? false,
+          excludedLowHazardRationale: def.excludedLowHazardRationale ?? null,
+          updatedAt: new Date(),
+        },
+      );
+      substanceCount++;
+
+      for (const picto of def.pictograms ?? []) {
+        await selectOrInsert(
+          db,
+          "SubstancePictogram",
+          { substanceId: substance.id, pictogram: picto },
+          {
+            id: crypto.randomUUID(),
+            substanceId: substance.id,
+            pictogram: picto,
+          },
+        );
+      }
+      for (const [kind, code] of def.statements ?? []) {
+        await selectOrInsert(
+          db,
+          "SubstanceStatement",
+          { substanceId: substance.id, code },
+          {
+            id: crypto.randomUUID(),
+            substanceId: substance.id,
+            kind,
+            code,
+          },
+        );
+      }
+
+      // A current SDS (German), unless the substance is the excluded low-hazard
+      // one — kept nachrichtlich with no SDS, which the register appendix shows.
+      if (!def.excludedLowHazard) {
+        await selectOrInsert(
+          db,
+          "SafetyDataSheet",
+          { substanceId: substance.id, revisionDate: sdsRevisionDate },
+          {
+            id: crypto.randomUUID(),
+            substanceId: substance.id,
+            revisionDate: sdsRevisionDate,
+            language: "de",
+            supplier: def.manufacturer ?? null,
+          },
+        );
+      }
+
+      for (const use of def.uses ?? []) {
+        const workstationId =
+          use.ws === "DE" ? deWorkstation.id : workstations[use.ws]?.id;
+        const useSiteId = use.site === "DE" ? deSite.id : site.id;
+        if (!workstationId) continue;
+        await selectOrInsert(
+          db,
+          "SubstanceUse",
+          { substanceId: substance.id, workstationId },
+          {
+            id: crypto.randomUUID(),
+            substanceId: substance.id,
+            siteId: useSiteId,
+            workstationId,
+            purpose: "Reinigung / Verarbeitung im Arbeitsbereich",
+            quantityClass: "S",
+            activeFrom: new Date("2024-01-01T00:00:00Z"),
+          },
+        );
+      }
+
+      // One approved Betriebsanweisung per named site, snapshotting the SDS
+      // revision date (mirrors createOperatingInstructionDraft + approval).
+      for (const baSiteKey of def.approvedBa ?? []) {
+        const baSiteId = baSiteKey === "DE" ? deSite.id : site.id;
+        const { row: oi, created } = await selectOrInsert(
+          db,
+          "OperatingInstruction",
+          { substanceId: substance.id, siteId: baSiteId },
+          {
+            id: crypto.randomUUID(),
+            substanceId: substance.id,
+            siteId: baSiteId,
+            status: "APPROVED",
+            approvedByUserId: demoUserId,
+            approvedAt: new Date(),
+            basedOnSdsRevisionDate: sdsRevisionDate,
+            updatedAt: new Date(),
+          },
+        );
+        if (created || oi.status === "APPROVED") baCount++;
+      }
+    }
+    console.log(
+      `Gefahrstoffe: ${substanceCount} substances (1 CMR 1B, 1 low-hazard excluded), SDS + uses seeded, ${baCount} approved Betriebsanweisungen.`,
+    );
+
     console.log("\nDemo fixture ready:");
     console.log(
       JSON.stringify(
