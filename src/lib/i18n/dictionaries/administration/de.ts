@@ -422,6 +422,7 @@ export const de: typeof en = {
       AWK: "AWK",
       BETRIEBSANWEISUNG: "Betriebsanweisung",
       GEFAHRSTOFFVERZEICHNIS: "Gefahrstoffverzeichnis",
+      INCIDENT_NOTIFICATION: "Datenblatt Unfallmeldung",
     },
   },
   usersPage: {
@@ -936,7 +937,27 @@ export const de: typeof en = {
     reopen: "Wieder öffnen",
     notificationsHeading: "Gesetzliche Meldungen",
     notificationsPlaceholder:
-      "Die Unterstützung gesetzlicher Meldungen (Fristenlauf und vorausgefülltes Datenblatt je Land) folgt in einem späteren Meilenstein, sobald die Meldefristen gegen die amtlichen Quellen bestätigt sind.",
+      "Keine Ereignisse mit gesetzlicher Meldepflicht für das Land dieser Arbeitsstätte.",
+    dutyDeadline: "Meldung fällig bis {date} ({days} Tage)",
+    dutyImmediate: "Meldung sofort/unverzüglich fällig",
+    dutyAsap: "Meldung so rasch wie möglich fällig",
+    clockStartsLabel: "Fristbeginn",
+    worksCouncilReminder:
+      "Die Meldung ist vom Betriebs-/Personalrat mitzuzeichnen (§ 193 Abs. 5 SGB VII).",
+    notificationStatusLabel: "Status",
+    notifSubmitted: "gemeldet am {date}, Aktenzeichen {ref}",
+    notifWaived: "als nicht meldepflichtig vermerkt",
+    notifOpen: "offen",
+    downloadDataSheet: "Vorausgefülltes Datenblatt herunterladen (PDF)",
+    submittedAtLabel: "Gemeldet am",
+    referenceNumberLabel: "Aktenzeichen",
+    markSubmitted: "Als gemeldet markieren",
+    waiveReasonLabel: "Grund",
+    markWaived: "Als nicht meldepflichtig markieren",
+    noDutyForType:
+      "Keine gesetzliche Meldepflicht für diese Ereignisart hinterlegt.",
+    noDutyForCountry:
+      "Für das Land dieser Arbeitsstätte ist keine Meldeunterstützung verfügbar.",
     flagsHeading: "Kennzeichnungen",
     envFlagged: "Als Umweltereignis gekennzeichnet",
     reviewFlagged: "Evaluierung zur Überprüfung gekennzeichnet",

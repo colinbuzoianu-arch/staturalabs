@@ -21,6 +21,12 @@ import {
   addInvolvedPerson,
   removeInvolvedPerson,
 } from "@/lib/incidents/involved-person";
+import { resolveNotificationCountryPack } from "@/lib/incidents/notification-availability";
+import {
+  recordNotificationSubmission,
+  resolveIncidentNotification,
+  waiveNotification,
+} from "@/lib/incidents/statutory-notification";
 import { prisma } from "@/lib/prisma";
 
 const RISK_BANDS = Object.values(RiskBand);
@@ -44,7 +50,7 @@ export default async function IncidentDetailPage({
   params: Promise<{ siteId: string; incidentId: string }>;
 }) {
   const { siteId, incidentId } = await params;
-  const { user } = await requireSiteAdministrationAccess(siteId);
+  const { user, site } = await requireSiteAdministrationAccess(siteId);
   const locale = await getLocale();
   const dict = getAdministrationDictionary(locale).incidents;
   const canReadHealth = hasPermission(user, "health_data.read");
@@ -53,15 +59,32 @@ export default async function IncidentDetailPage({
     where: { id: incidentId },
     include: {
       investigation: true,
+      statutoryNotification: true,
       involvedPersons: {
         orderBy: { createdAt: "asc" },
         include: {
           person: { select: { firstName: true, lastName: true } },
+          healthDetail: { select: { fatal: true } },
         },
       },
     },
   });
   if (!incident || incident.siteId !== siteId) notFound();
+
+  // Statutory notification duty — resolved live from the catalogue, only for a
+  // verified country pack (AT/DE); CH/RO show nothing (honest gap, §3.15).
+  const notificationAvailable = resolveNotificationCountryPack(site.country);
+  const anyFatal = incident.involvedPersons.some(
+    (ip) => ip.healthDetail?.fatal,
+  );
+  const notificationDuty = notificationAvailable
+    ? await resolveIncidentNotification({
+        country: site.country,
+        type: incident.type,
+        occurredAt: incident.occurredAt,
+        fatal: anyFatal,
+      })
+    : null;
 
   const actions = await prisma.action.findMany({
     where: { incidentId },
@@ -208,7 +231,39 @@ export default async function IncidentDetailPage({
     revalidatePath(`/app/s/${siteId}/incidents/${incidentId}`);
   }
 
+  async function submitNotificationAction(formData: FormData) {
+    "use server";
+    const { user: actor } = await requireSiteAdministrationAccess(siteId);
+    const dateRaw = formData.get("submittedAt");
+    const ref = formData.get("referenceNumber");
+    await recordNotificationSubmission({
+      incidentId,
+      siteId,
+      actorUserId: actor.id,
+      submittedAt:
+        typeof dateRaw === "string" && dateRaw.length > 0
+          ? new Date(dateRaw)
+          : new Date(),
+      referenceNumber: typeof ref === "string" ? ref : null,
+    });
+    revalidatePath(`/app/s/${siteId}/incidents/${incidentId}`);
+  }
+
+  async function waiveNotificationAction(formData: FormData) {
+    "use server";
+    const { user: actor } = await requireSiteAdministrationAccess(siteId);
+    const note = formData.get("note");
+    await waiveNotification({
+      incidentId,
+      siteId,
+      actorUserId: actor.id,
+      note: typeof note === "string" ? note : null,
+    });
+    revalidatePath(`/app/s/${siteId}/incidents/${incidentId}`);
+  }
+
   const inv = incident.investigation;
+  const notif = incident.statutoryNotification;
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-10">
@@ -613,6 +668,121 @@ export default async function IncidentDetailPage({
               {dict.raiseButton}
             </button>
           </form>
+        )}
+      </section>
+
+      {/* Statutory notification duty (country-gated) */}
+      <section className="flex flex-col gap-3">
+        <h2 className="font-heading text-sm font-bold">
+          {dict.notificationsHeading}
+        </h2>
+        {notificationDuty && notificationDuty.duty.kind !== "none" ? (
+          <div className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4 text-sm">
+            <p className="font-medium text-foreground">
+              {notificationDuty.duty.kind === "deadline"
+                ? dict.dutyDeadline
+                    .replace(
+                      "{date}",
+                      notificationDuty.duty.dueAt.toISOString().slice(0, 10),
+                    )
+                    .replace(
+                      "{days}",
+                      String(notificationDuty.duty.durationDays),
+                    )
+                : notificationDuty.duty.kind === "immediate"
+                  ? dict.dutyImmediate
+                  : dict.dutyAsap}
+            </p>
+            {notificationDuty.clockStartsText ? (
+              <p className="text-xs text-foreground-subtle">
+                {dict.clockStartsLabel}: {notificationDuty.clockStartsText}
+              </p>
+            ) : null}
+            {notificationDuty.legalReference ? (
+              <p className="text-xs text-foreground-subtle">
+                {notificationDuty.legalReference.code} —{" "}
+                {notificationDuty.legalReference.obligation}
+              </p>
+            ) : null}
+            {notificationDuty.worksCouncilCoSign ? (
+              <p className="text-xs text-info">{dict.worksCouncilReminder}</p>
+            ) : null}
+            <p className="text-sm">
+              {dict.notificationStatusLabel}:{" "}
+              <span className="font-medium">
+                {notif?.status === "SUBMITTED"
+                  ? dict.notifSubmitted
+                      .replace(
+                        "{date}",
+                        notif.submittedAt
+                          ? notif.submittedAt.toISOString().slice(0, 10)
+                          : "—",
+                      )
+                      .replace("{ref}", notif.referenceNumber ?? "—")
+                  : notif?.status === "WAIVED"
+                    ? dict.notifWaived
+                    : dict.notifOpen}
+              </span>
+            </p>
+            <a
+              href={`/api/incidents/${incidentId}/notification`}
+              className="text-sm text-accent hover:underline"
+            >
+              {dict.downloadDataSheet}
+            </a>
+            {open && (
+              <div className="mt-2 flex flex-wrap gap-4">
+                <form
+                  action={submitNotificationAction}
+                  className="flex flex-wrap items-end gap-2"
+                >
+                  <label className="flex flex-col gap-1">
+                    {dict.submittedAtLabel}
+                    <input
+                      type="date"
+                      name="submittedAt"
+                      className="rounded border border-border bg-background px-2 py-1"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    {dict.referenceNumberLabel}
+                    <input
+                      name="referenceNumber"
+                      className="rounded border border-border bg-background px-2 py-1"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    className="rounded-[var(--radius-md)] bg-accent px-3 py-2 font-medium text-background"
+                  >
+                    {dict.markSubmitted}
+                  </button>
+                </form>
+                <form
+                  action={waiveNotificationAction}
+                  className="flex items-end gap-2"
+                >
+                  <label className="flex flex-col gap-1">
+                    {dict.waiveReasonLabel}
+                    <input
+                      name="note"
+                      className="rounded border border-border bg-background px-2 py-1"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    className="rounded border border-border px-3 py-2 hover:border-accent"
+                  >
+                    {dict.markWaived}
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="rounded-lg border border-dashed border-border bg-surface p-4 text-sm text-foreground-muted">
+            {notificationAvailable ? dict.noDutyForType : dict.noDutyForCountry}
+          </p>
         )}
       </section>
     </div>

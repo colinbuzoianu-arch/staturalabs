@@ -447,6 +447,7 @@ export const en = {
       AWK: "AWK",
       BETRIEBSANWEISUNG: "Operating instruction",
       GEFAHRSTOFFVERZEICHNIS: "Hazardous substance register",
+      INCIDENT_NOTIFICATION: "Statutory notification data sheet",
     },
   },
   usersPage: {
@@ -951,7 +952,27 @@ export const en = {
     reopen: "Reopen",
     notificationsHeading: "Statutory notifications",
     notificationsPlaceholder:
-      "Statutory notification support (deadline clock and pre-filled data sheet per country) arrives in a later milestone, once the notification deadlines are confirmed against the official sources.",
+      "No incidents with a statutory notification duty for this site's country.",
+    dutyDeadline: "Notification due by {date} ({days} days)",
+    dutyImmediate: "Notification due immediately (sofort/unverzüglich)",
+    dutyAsap: "Notification due as soon as possible",
+    clockStartsLabel: "Deadline starts",
+    worksCouncilReminder:
+      "The notification is co-signed by the works council (§ 193 Abs. 5 SGB VII).",
+    notificationStatusLabel: "Status",
+    notifSubmitted: "submitted on {date}, reference {ref}",
+    notifWaived: "marked not notifiable",
+    notifOpen: "open",
+    downloadDataSheet: "Download pre-filled data sheet (PDF)",
+    submittedAtLabel: "Submitted on",
+    referenceNumberLabel: "Reference number",
+    markSubmitted: "Mark submitted",
+    waiveReasonLabel: "Reason",
+    markWaived: "Mark not notifiable",
+    noDutyForType:
+      "No statutory notification duty on file for this event type.",
+    noDutyForCountry:
+      "Statutory notification support is not available for this site's country.",
     flagsHeading: "Flags",
     envFlagged: "Flagged as an environmental event",
     reviewFlagged: "Assessment flagged for review",

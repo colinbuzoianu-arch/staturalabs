@@ -420,6 +420,7 @@ export const ro: typeof en = {
       AWK: "AWK",
       BETRIEBSANWEISUNG: "Instrucțiune de lucru",
       GEFAHRSTOFFVERZEICHNIS: "Registru de substanțe",
+      INCIDENT_NOTIFICATION: "Fișă notificare legală",
     },
   },
   usersPage: {
@@ -934,7 +935,27 @@ export const ro: typeof en = {
     reopen: "Redeschideți",
     notificationsHeading: "Notificări legale",
     notificationsPlaceholder:
-      "Suportul pentru notificările legale (calculul termenelor și fișa precompletată per țară) va fi disponibil într-o etapă ulterioară, după confirmarea termenelor de notificare față de sursele oficiale.",
+      "Niciun eveniment cu obligație legală de notificare pentru țara acestui sit.",
+    dutyDeadline: "Notificare scadentă până la {date} ({days} zile)",
+    dutyImmediate: "Notificare scadentă imediat (sofort/unverzüglich)",
+    dutyAsap: "Notificare scadentă cât mai curând posibil",
+    clockStartsLabel: "Începutul termenului",
+    worksCouncilReminder:
+      "Notificarea este cosemnată de comitetul de întreprindere (§ 193 Abs. 5 SGB VII).",
+    notificationStatusLabel: "Status",
+    notifSubmitted: "notificat la {date}, referință {ref}",
+    notifWaived: "marcat ca nenotificabil",
+    notifOpen: "deschis",
+    downloadDataSheet: "Descărcați fișa precompletată (PDF)",
+    submittedAtLabel: "Notificat la",
+    referenceNumberLabel: "Număr de referință",
+    markSubmitted: "Marcați ca notificat",
+    waiveReasonLabel: "Motiv",
+    markWaived: "Marcați ca nenotificabil",
+    noDutyForType:
+      "Nicio obligație legală de notificare pentru acest tip de eveniment.",
+    noDutyForCountry:
+      "Suportul pentru notificări nu este disponibil pentru țara acestui sit.",
     flagsHeading: "Marcaje",
     envFlagged: "Marcat ca eveniment de mediu",
     reviewFlagged: "Evaluare marcată pentru revizuire",

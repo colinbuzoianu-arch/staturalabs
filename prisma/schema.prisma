@@ -1881,6 +1881,7 @@ enum GeneratedDocumentType {
   AWK
   BETRIEBSANWEISUNG
   GEFAHRSTOFFVERZEICHNIS
+  INCIDENT_NOTIFICATION
 }
 
 model GeneratedDocument {
@@ -2915,14 +2916,40 @@ model Incident {
   createdAt                 DateTime       @default(now())
   updatedAt                 DateTime       @updatedAt
 
-  company         Company                  @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  site            Site                     @relation(fields: [siteId], references: [id], onDelete: Restrict)
-  investigation   IncidentInvestigation?
-  involvedPersons IncidentInvolvedPerson[]
-  actions         Action[]
+  company               Company                  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  site                  Site                     @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  investigation         IncidentInvestigation?
+  involvedPersons       IncidentInvolvedPerson[]
+  actions               Action[]
+  statutoryNotification StatutoryNotification?
 
   @@index([siteId, status])
   @@index([companyId])
+}
+
+// P10d §D.4: the record that a statutory notification duty was acted on — the
+// "submitted on / reference number" fact. The DUTY itself (deadline / immediate
+// / so rasch wie möglich) is resolved live from the IncidentNotificationRule
+// catalogue per the incident's country; this persists only what a human did.
+// Composed child of the incident (Cascade). submittedByUserId is a plain uuid.
+enum IncidentNotificationStatus {
+  REQUIRED
+  SUBMITTED
+  WAIVED
+}
+
+model StatutoryNotification {
+  id                String                     @id @default(cuid())
+  incidentId        String                     @unique
+  status            IncidentNotificationStatus @default(REQUIRED)
+  submittedAt       DateTime?
+  referenceNumber   String?
+  submittedByUserId String?                    @db.Uuid
+  note              String?
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
 }
 
 // P10b: the ONLY place a Person attaches to an incident. people→people FK
