@@ -6,6 +6,7 @@ import {
 } from "@/generated/prisma/enums";
 import { recordAuditEvent } from "@/lib/audit/audit-event";
 import { prisma } from "@/lib/prisma";
+import { createAdminClient } from "@/lib/supabase/server";
 
 // P13 §2.4 super-admin user/role management. Cross-tenant by design; audited.
 // Role changes are restricted to the company-scoped roles (keeping companyId);
@@ -45,6 +46,18 @@ export async function setUserDisabled(input: {
       disabledByUserId: input.disabled ? input.actorUserId : null,
     },
   });
+  // §6 "immediate and complete": the disabledAt block in getCurrentPlatformUser
+  // already stops the account on its next request. Best-effort, also ban/unban
+  // the Supabase auth user so a still-valid JWT can't keep a session alive —
+  // non-fatal if the admin API is unavailable (the app-layer block is the
+  // reliable guarantee).
+  try {
+    await createAdminClient().auth.admin.updateUserById(input.userId, {
+      ban_duration: input.disabled ? "876000h" : "none",
+    });
+  } catch (error) {
+    console.error("Supabase ban/unban (best-effort) failed:", error);
+  }
   await recordAuditEvent({
     actorUserId: input.actorUserId,
     action: input.disabled ? "user.disable" : "user.enable",
