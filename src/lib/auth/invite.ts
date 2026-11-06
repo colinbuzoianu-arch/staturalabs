@@ -64,8 +64,12 @@ function assertRoleCompanyInvariant(
   role: PlatformRole,
   companyId: string | null,
 ) {
+  // Matches the widened PlatformUser_role_companyId_check (P10c): only
+  // SUPER_ADMIN / L3_SUPPORT are company-less; every provisionable role —
+  // company_admin, site_admin, ehs_specialist, manager, employee,
+  // occupational_physician, works_council — requires a companyId.
   const requiresCompany =
-    role === PlatformRole.COMPANY_ADMIN || role === PlatformRole.SITE_ADMIN;
+    role !== PlatformRole.SUPER_ADMIN && role !== PlatformRole.L3_SUPPORT;
 
   if (requiresCompany && !companyId) {
     throw new Error(`Role ${role} requires a companyId`);

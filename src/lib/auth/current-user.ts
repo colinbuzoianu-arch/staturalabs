@@ -24,6 +24,23 @@ export const getCurrentPlatformUser = cache(
 
     if (!user) return null;
 
-    return prisma.platformUser.findUnique({ where: { id: user.id } });
+    const platformUser = await prisma.platformUser.findUnique({
+      where: { id: user.id },
+    });
+    if (!platformUser) return null;
+
+    // P13 §2.1: a user whose company is ARCHIVED cannot sign in — treat them as
+    // not-a-platform-user (the require* gates then redirect to /login). Scoped
+    // roles only; super_admin/l3_support have a null companyId and are never
+    // blocked (they operate the platform, including un-archiving).
+    if (platformUser.companyId) {
+      const company = await prisma.company.findUnique({
+        where: { id: platformUser.companyId },
+        select: { status: true },
+      });
+      if (company?.status === "ARCHIVED") return null;
+    }
+
+    return platformUser;
   },
 );
