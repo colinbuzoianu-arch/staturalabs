@@ -29,6 +29,10 @@ export const getCurrentPlatformUser = cache(
     });
     if (!platformUser) return null;
 
+    // P13 §2.4/§6: a disabled account cannot sign in — immediate, regardless of
+    // a still-valid JWT (checked every request). Treated as not-a-platform-user.
+    if (platformUser.disabledAt) return null;
+
     // P13 §2.1: a user whose company is ARCHIVED cannot sign in — treat them as
     // not-a-platform-user (the require* gates then redirect to /login). Scoped
     // roles only; super_admin/l3_support have a null companyId and are never

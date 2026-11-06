@@ -165,13 +165,18 @@ enum ScopeType {
 /// either: review any future auto-generated migration touching this table
 /// for an accidental `DROP CONSTRAINT` before applying it.
 model PlatformUser {
-  id        String       @id @db.Uuid
-  role      PlatformRole
-  companyId String?
-  name      String
-  email     String       @unique
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id               String       @id @db.Uuid
+  role             PlatformRole
+  companyId        String?
+  name             String
+  email            String       @unique
+  // P13 §2.4/§6: immediate account disable. A disabled user cannot sign in
+  // (blocked in getCurrentPlatformUser, so it takes effect on the next
+  // request regardless of a still-valid JWT). Reversible; keeps the row.
+  disabledAt       DateTime?
+  disabledByUserId String?      @db.Uuid
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   // Restrict: a company with an active admin account can't be deleted out
   // from under them.
