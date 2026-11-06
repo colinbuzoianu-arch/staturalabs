@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import {
   type PlatformRole,
   PlatformRole as Role,
@@ -8,6 +9,7 @@ import {
   changeUserRole,
   setUserDisabled,
 } from "@/lib/admin/user-admin";
+import { startImpersonation } from "@/lib/auth/impersonation";
 import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 import { getAdminDictionary } from "@/lib/i18n/dictionaries/admin";
 import { getLocale } from "@/lib/i18n/get-locale";
@@ -19,6 +21,7 @@ export default async function UsersPage() {
   await requireSuperAdmin();
   const locale = await getLocale();
   const dict = getAdminDictionary(locale).usersPage;
+  const impDict = getAdminDictionary(locale).impersonation;
 
   async function disableAction(formData: FormData) {
     "use server";
@@ -48,6 +51,23 @@ export default async function UsersPage() {
       actorUserId: actor.id,
     });
     revalidatePath("/admin/users");
+  }
+
+  async function viewAsAction(formData: FormData) {
+    "use server";
+    const actor = await requireSuperAdmin();
+    const userId = formData.get("userId");
+    const companyId = formData.get("companyId");
+    if (typeof userId !== "string") return;
+    await startImpersonation({
+      targetUserId: userId,
+      companyId:
+        typeof companyId === "string" && companyId.length > 0
+          ? companyId
+          : null,
+      actorUserId: actor.id,
+    });
+    redirect("/app/sites");
   }
 
   const [users, companies] = await Promise.all([
@@ -140,6 +160,19 @@ export default async function UsersPage() {
                               className="rounded border px-2 py-0.5"
                             >
                               {dict.changeRole}
+                            </button>
+                          </form>
+                        )}
+                        {u.companyId && u.role === Role.COMPANY_ADMIN && (
+                          <form action={viewAsAction}>
+                            <input type="hidden" name="userId" value={u.id} />
+                            <input
+                              type="hidden"
+                              name="companyId"
+                              value={u.companyId}
+                            />
+                            <button type="submit" className="underline">
+                              {impDict.viewAs}
                             </button>
                           </form>
                         )}

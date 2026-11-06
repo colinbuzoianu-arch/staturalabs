@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { requireAuthenticatedUser } from "@/lib/auth/require-access";
 
 // Authenticated-app gate (SLD_RESTRUCTURE_PLAN_platform-modules.md §5). This
@@ -10,5 +11,10 @@ import { requireAuthenticatedUser } from "@/lib/auth/require-access";
 // Both groups are path-transparent, so URLs are unaffected by the grouping.
 export default async function AppLayout({ children }: { children: ReactNode }) {
   await requireAuthenticatedUser();
-  return children;
+  return (
+    <>
+      <ImpersonationBanner />
+      {children}
+    </>
+  );
 }

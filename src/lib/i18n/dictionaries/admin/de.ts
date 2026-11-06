@@ -42,6 +42,11 @@ export const de: typeof en = {
     assessment: "Evaluierung",
     session: "Sitzung",
   },
+  impersonation: {
+    banner: "Ansicht als {name} ({email}) — schreibgeschützte Impersonation.",
+    stop: "Impersonation beenden",
+    viewAs: "Ansicht als",
+  },
   auditPage: {
     heading: "Audit-Log",
     intro:

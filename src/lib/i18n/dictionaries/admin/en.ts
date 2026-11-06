@@ -50,6 +50,11 @@ export const en = {
     assessment: "Assessment",
     session: "Session",
   },
+  impersonation: {
+    banner: "Viewing as {name} ({email}) — read-only impersonation.",
+    stop: "Stop impersonating",
+    viewAs: "View as",
+  },
   auditPage: {
     heading: "Audit log",
     intro:

@@ -42,6 +42,11 @@ export const ro: typeof en = {
     assessment: "Evaluare",
     session: "Sesiune",
   },
+  impersonation: {
+    banner: "Vizualizare ca {name} ({email}) — impersonare doar pentru citire.",
+    stop: "Opriți impersonarea",
+    viewAs: "Vizualizează ca",
+  },
   auditPage: {
     heading: "Jurnal de audit",
     intro:

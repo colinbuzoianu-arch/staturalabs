@@ -1,9 +1,11 @@
 import "server-only";
 
 import { cache } from "react";
+import { PlatformRole } from "@/generated/prisma/enums";
 import type { PlatformUserModel } from "@/generated/prisma/models";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
+import { getImpersonationTargetId } from "./impersonation";
 
 // Data Access Layer entry point: the one place that turns a Supabase auth
 // session into a platform_user row. `cache()` memoizes it for the lifetime
@@ -15,36 +17,60 @@ import { createClient } from "@/lib/supabase/server";
 // created the auth account but was interrupted before provisioning
 // finished). No session and no row both mean "not a platform user"; treat
 // them identically rather than special-casing either.
-export const getCurrentPlatformUser = cache(
+async function loadActivePlatformUser(
+  id: string,
+): Promise<PlatformUserModel | null> {
+  const platformUser = await prisma.platformUser.findUnique({ where: { id } });
+  if (!platformUser) return null;
+
+  // P13 §2.4/§6: a disabled account cannot sign in — immediate, regardless of
+  // a still-valid JWT (checked every request). Treated as not-a-platform-user.
+  if (platformUser.disabledAt) return null;
+
+  // P13 §2.1: a user whose company is ARCHIVED cannot sign in — treat them as
+  // not-a-platform-user (the require* gates then redirect to /login). Scoped
+  // roles only; super_admin/l3_support have a null companyId and are never
+  // blocked (they operate the platform, including un-archiving).
+  if (platformUser.companyId) {
+    const company = await prisma.company.findUnique({
+      where: { id: platformUser.companyId },
+      select: { status: true },
+    });
+    if (company?.status === "ARCHIVED") return null;
+  }
+
+  return platformUser;
+}
+
+// The REAL signed-in platform user, ignoring any impersonation cookie. Use this
+// for the impersonation controls themselves and the banner.
+export const getRealPlatformUser = cache(
   async (): Promise<PlatformUserModel | null> => {
     const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
-
     if (!user) return null;
+    return loadActivePlatformUser(user.id);
+  },
+);
 
-    const platformUser = await prisma.platformUser.findUnique({
-      where: { id: user.id },
-    });
-    if (!platformUser) return null;
-
-    // P13 §2.4/§6: a disabled account cannot sign in — immediate, regardless of
-    // a still-valid JWT (checked every request). Treated as not-a-platform-user.
-    if (platformUser.disabledAt) return null;
-
-    // P13 §2.1: a user whose company is ARCHIVED cannot sign in — treat them as
-    // not-a-platform-user (the require* gates then redirect to /login). Scoped
-    // roles only; super_admin/l3_support have a null companyId and are never
-    // blocked (they operate the platform, including un-archiving).
-    if (platformUser.companyId) {
-      const company = await prisma.company.findUnique({
-        where: { id: platformUser.companyId },
-        select: { status: true },
-      });
-      if (company?.status === "ARCHIVED") return null;
+// The EFFECTIVE platform user. When the real user is a super_admin and an
+// impersonation cookie names an active target (P13 §2.4), returns that target
+// so the (app) surface renders as them (read-only — writes are blocked by the
+// middleware). Otherwise returns the real user. Honouring the cookie is gated
+// on the real user being super_admin, so it can never elevate anyone.
+export const getCurrentPlatformUser = cache(
+  async (): Promise<PlatformUserModel | null> => {
+    const real = await getRealPlatformUser();
+    if (!real) return null;
+    if (real.role === PlatformRole.SUPER_ADMIN) {
+      const targetId = await getImpersonationTargetId();
+      if (targetId && targetId !== real.id) {
+        const target = await loadActivePlatformUser(targetId);
+        if (target) return target;
+      }
     }
-
-    return platformUser;
+    return real;
   },
 );
