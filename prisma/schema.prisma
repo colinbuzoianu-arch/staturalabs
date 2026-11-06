@@ -3322,6 +3322,15 @@ model KpiDefinition {
 
 // Configurable per-site, per-year headcount + hours worked — the denominators
 // for accident rates (§7.10). A plain figure (not a count of Person rows).
+// P13 §2.2: the editable default entitlement template applied to a new tenant
+// (and bulk-appliable afterwards). Each row = an entitlement-requiring module
+// that is ON by default. Baseline modules (requiresEntitlement=false) are
+// always on and never listed here.
+model DefaultEntitlementModule {
+  moduleKey ModuleKey @id
+  createdAt DateTime  @default(now())
+}
+
 model SitePeriodFigures {
   id          String   @id @default(cuid())
   siteId      String

@@ -99,6 +99,16 @@ export interface ModuleDefinition {
   icon: IconName;
   children: readonly SubItem[];
   badge?: BadgeSource;
+  // P13 §2.2 lifecycle: `planned` modules can never be unlocked for a tenant;
+  // `beta` can be unlocked per tenant and shows a "Beta" badge in its nav;
+  // `stable` is the default. Omitted ⇒ stable (every built module today).
+  status?: ModuleStatus;
+}
+
+export type ModuleStatus = "planned" | "beta" | "stable";
+
+export function moduleStatus(def: ModuleDefinition): ModuleStatus {
+  return def.status ?? "stable";
 }
 
 // Route segment for a module under /app/s/[siteId]. my-tasks and settings are

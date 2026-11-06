@@ -4,6 +4,7 @@ import type { CountryCode } from "@/generated/prisma/enums";
 import { recordAuditEvent } from "@/lib/audit/audit-event";
 import { invitePlatformUser } from "@/lib/auth/invite";
 import { prisma } from "@/lib/prisma";
+import { applyTemplateToCompany } from "./entitlement-admin";
 
 // P13 §2.1 super-admin tenant management. These actions cross tenants by design
 // (that is the whole point of the super_admin role); the AuditEvent trail is
@@ -31,6 +32,11 @@ export async function createTenant(input: {
       },
     });
     return { companyId: company.id, siteId: site.id };
+  });
+  // Apply the default entitlement template to the new tenant (§2.2).
+  await applyTemplateToCompany({
+    companyId: result.companyId,
+    actorUserId: input.actorUserId,
   });
   await recordAuditEvent({
     actorUserId: input.actorUserId,

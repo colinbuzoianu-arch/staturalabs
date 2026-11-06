@@ -3,8 +3,23 @@ import type { en } from "./en";
 // Meaning-based translation, not word-for-word — see CLAUDE.md i18n notes.
 export const de: typeof en = {
   layout: {
-    companiesNav: "Unternehmen",
+    companiesNav: "Mandanten",
     demoResetNav: "Demo zurücksetzen",
+    entitlementsNav: "Berechtigungen",
+  },
+  entitlementsPage: {
+    heading: "Modul-Berechtigungen",
+    templateHeading: "Standardvorlage (für neue Mandanten)",
+    matrixHeading: "Mandant × Modul-Matrix",
+    moduleCol: "Modul",
+    inTemplate: "In Vorlage",
+    applyTemplate: "Vorlage anwenden",
+    enabled: "an",
+    disabled: "aus",
+    planned: "geplant",
+    beta: "Beta",
+    empty: "Noch keine Mandanten vorhanden.",
+    toggledBy: "geschaltet",
   },
   demoResetPage: {
     heading: "Demo-Fixture zurücksetzen",

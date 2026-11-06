@@ -3,8 +3,23 @@ import type { en } from "./en";
 // Meaning-based translation, not word-for-word — see CLAUDE.md i18n notes.
 export const ro: typeof en = {
   layout: {
-    companiesNav: "Companii",
+    companiesNav: "Tenanți",
     demoResetNav: "Resetare demo",
+    entitlementsNav: "Drepturi module",
+  },
+  entitlementsPage: {
+    heading: "Drepturi de acces la module",
+    templateHeading: "Șablon implicit (aplicat tenanților noi)",
+    matrixHeading: "Matrice tenant × modul",
+    moduleCol: "Modul",
+    inTemplate: "În șablon",
+    applyTemplate: "Aplică șablonul",
+    enabled: "activ",
+    disabled: "inactiv",
+    planned: "planificat",
+    beta: "beta",
+    empty: "Nu există încă niciun tenant.",
+    toggledBy: "comutat",
   },
   demoResetPage: {
     heading: "Resetare date demo",

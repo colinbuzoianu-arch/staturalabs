@@ -11,8 +11,23 @@
 // tool's copy (this file) stays deliberately plain/no-polish.
 export const en = {
   layout: {
-    companiesNav: "Companies",
+    companiesNav: "Tenants",
     demoResetNav: "Demo reset",
+    entitlementsNav: "Entitlements",
+  },
+  entitlementsPage: {
+    heading: "Module entitlements",
+    templateHeading: "Default template (applied to new tenants)",
+    matrixHeading: "Tenant × module matrix",
+    moduleCol: "Module",
+    inTemplate: "In template",
+    applyTemplate: "Apply template",
+    enabled: "on",
+    disabled: "off",
+    planned: "planned",
+    beta: "beta",
+    empty: "No tenants yet.",
+    toggledBy: "toggled",
   },
   demoResetPage: {
     heading: "Reset demo fixture",
