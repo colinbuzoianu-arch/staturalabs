@@ -25,15 +25,18 @@ enum CompanyStatus {
 }
 
 model Company {
-  id               String        @id @default(cuid())
-  name             String
+  id                    String        @id @default(cuid())
+  name                  String
   // P13 §2.1: soft archive (never physical delete — ERGO §3.9). Archived
   // tenants' users cannot sign in; their data is retained.
-  status           CompanyStatus @default(ACTIVE)
-  archivedAt       DateTime?
-  archivedByUserId String?       @db.Uuid
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  status                CompanyStatus @default(ACTIVE)
+  archivedAt            DateTime?
+  archivedByUserId      String?       @db.Uuid
+  // P13 §3: onboarding wizard done/skipped once set. Step progress is otherwise
+  // derived from the tenant's own data (resumable).
+  onboardingCompletedAt DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   sites                Site[]
   platformUsers        PlatformUser[]

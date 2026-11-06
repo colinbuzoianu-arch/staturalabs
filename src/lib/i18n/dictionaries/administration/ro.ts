@@ -1168,6 +1168,33 @@ export const ro: typeof en = {
     },
     none: "—",
   },
+  onboarding: {
+    heading: "Primii pași",
+    intro:
+      "Câțiva pași pentru configurarea spațiului de lucru. Îi puteți face în orice ordine, îi puteți sări deocamdată și reveni — nimic nu este ireversibil.",
+    getStarted: "Configurați spațiul de lucru",
+    done: "Gata",
+    todo: "De făcut",
+    open: "Deschide",
+    finish: "Finalizați configurarea",
+    skip: "Sari deocamdată",
+    stepCompanySite: "Companie & prima locație",
+    stepCompanySiteDesc:
+      "Compania dvs. și prima locație (cu țara ei) sunt configurate.",
+    stepOrganisation: "Organizație & posturi de lucru",
+    stepOrganisationDesc:
+      "Construiți arborele organizațional și adăugați primele posturi de lucru.",
+    stepPeople: "Persoane (opțional)",
+    stepPeopleDesc: "Importați registrul de persoane sau faceți-o mai târziu.",
+    stepAssessment: "Prima evaluare",
+    stepAssessmentDesc: "Începeți prima evaluare la un post de lucru.",
+    stepSample: "Date exemplu",
+    stepSampleDesc:
+      "Încărcați date exemplu clar marcate pentru explorare — eliminabile cu un clic și niciodată numărate ca date reale.",
+    loadSample: "Încărcați date exemplu",
+    removeSample: "Eliminați datele exemplu",
+    sampleLoaded: "Date exemplu încărcate (marcate [BEISPIEL]).",
+  },
   myTasks: {
     eyebrow: "Sarcinile mele",
     heading: "Sarcinile mele",

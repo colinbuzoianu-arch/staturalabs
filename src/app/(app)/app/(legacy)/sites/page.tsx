@@ -4,8 +4,10 @@ import { redirect } from "next/navigation";
 import { PlatformRole } from "@/generated/prisma/enums";
 import { getAccessibleSites } from "@/lib/auth/accessible-sites";
 import { requireAuthenticatedUser } from "@/lib/auth/require-access";
+import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getDashboardDictionary } from "@/lib/i18n/dictionaries/dashboard";
 import { getLocale } from "@/lib/i18n/get-locale";
+import { prisma } from "@/lib/prisma";
 
 // Landing view of the read-only dashboard: every site the signed-in user
 // can access (one for most site_admins, potentially many for a
@@ -30,6 +32,17 @@ export default async function DashboardHome() {
   const sites = await getAccessibleSites(user);
   const locale = await getLocale();
   const dict = getDashboardDictionary(locale).sitesPage;
+
+  // P13 §3: offer the onboarding wizard until the tenant marks it done.
+  const onboardingDict = getAdministrationDictionary(locale).onboarding;
+  const showOnboarding = user.companyId
+    ? (
+        await prisma.company.findUnique({
+          where: { id: user.companyId },
+          select: { onboardingCompletedAt: true },
+        })
+      )?.onboardingCompletedAt == null
+    : false;
 
   return (
     <div className="relative">
@@ -60,6 +73,18 @@ export default async function DashboardHome() {
           </p>
           <h1 className="font-heading text-2xl font-bold">{dict.heading}</h1>
         </div>
+
+        {showOnboarding && (
+          <Link
+            href="/app/onboarding"
+            className="flex items-center justify-between gap-4 rounded-lg border border-accent bg-surface p-4 transition-colors hover:bg-accent/5"
+          >
+            <span className="font-heading text-sm font-bold text-foreground">
+              {onboardingDict.getStarted}
+            </span>
+            <span className="text-sm text-accent">{onboardingDict.open}</span>
+          </Link>
+        )}
 
         {sites.length === 0 && (
           <p className="text-sm text-border">{dict.empty}</p>

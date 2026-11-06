@@ -1184,6 +1184,32 @@ export const en = {
     },
     none: "—",
   },
+  onboarding: {
+    heading: "Get started",
+    intro:
+      "A few steps to set up your workspace. You can do them in any order, skip for now, and come back — nothing here is irreversible.",
+    getStarted: "Set up your workspace",
+    done: "Done",
+    todo: "To do",
+    open: "Open",
+    finish: "Finish setup",
+    skip: "Skip for now",
+    stepCompanySite: "Company & first site",
+    stepCompanySiteDesc:
+      "Your company and its first site (with its country) are set up.",
+    stepOrganisation: "Organisation & workstations",
+    stepOrganisationDesc: "Build your org tree and add the first workstations.",
+    stepPeople: "People (optional)",
+    stepPeopleDesc: "Import your person register, or skip and do it later.",
+    stepAssessment: "First assessment",
+    stepAssessmentDesc: "Start your first Evaluierung on a workstation.",
+    stepSample: "Sample data",
+    stepSampleDesc:
+      "Load a clearly-marked sample to explore — removable in one click, and never counted as real data.",
+    loadSample: "Load sample data",
+    removeSample: "Remove sample data",
+    sampleLoaded: "Sample data loaded (marked [BEISPIEL]).",
+  },
   myTasks: {
     eyebrow: "My tasks",
     heading: "My tasks",

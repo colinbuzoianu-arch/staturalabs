@@ -1169,6 +1169,34 @@ export const de: typeof en = {
     },
     none: "—",
   },
+  onboarding: {
+    heading: "Erste Schritte",
+    intro:
+      "Einige Schritte zur Einrichtung Ihres Arbeitsbereichs. Reihenfolge beliebig, vorerst überspringbar und jederzeit fortsetzbar — nichts davon ist unumkehrbar.",
+    getStarted: "Arbeitsbereich einrichten",
+    done: "Erledigt",
+    todo: "Offen",
+    open: "Öffnen",
+    finish: "Einrichtung abschließen",
+    skip: "Vorerst überspringen",
+    stepCompanySite: "Unternehmen & erster Standort",
+    stepCompanySiteDesc:
+      "Ihr Unternehmen und sein erster Standort (mit Land) sind angelegt.",
+    stepOrganisation: "Organisation & Arbeitsplätze",
+    stepOrganisationDesc:
+      "Bauen Sie Ihren Organisationsbaum auf und legen Sie die ersten Arbeitsplätze an.",
+    stepPeople: "Personen (optional)",
+    stepPeopleDesc: "Personenregister importieren oder später erledigen.",
+    stepAssessment: "Erste Evaluierung",
+    stepAssessmentDesc:
+      "Starten Sie Ihre erste Evaluierung an einem Arbeitsplatz.",
+    stepSample: "Beispieldaten",
+    stepSampleDesc:
+      "Laden Sie klar gekennzeichnete Beispieldaten zum Erkunden — mit einem Klick entfernbar und nie als echte Daten gezählt.",
+    loadSample: "Beispieldaten laden",
+    removeSample: "Beispieldaten entfernen",
+    sampleLoaded: "Beispieldaten geladen (gekennzeichnet mit [BEISPIEL]).",
+  },
   myTasks: {
     eyebrow: "Meine Aufgaben",
     heading: "Meine Aufgaben",
