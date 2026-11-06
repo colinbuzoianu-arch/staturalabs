@@ -3336,6 +3336,22 @@ model DefaultEntitlementModule {
   createdAt DateTime  @default(now())
 }
 
+// P13 §2.5: a lightweight super-admin feature-flag store. companyId null = a
+// global default; a per-company row overrides it. On/off per key per tenant,
+// audited. Not an experimentation platform.
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  key         String
+  companyId   String?
+  enabled     Boolean  @default(false)
+  setByUserId String?  @db.Uuid
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([key, companyId])
+  @@index([companyId])
+}
+
 model SitePeriodFigures {
   id          String   @id @default(cuid())
   siteId      String

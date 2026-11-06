@@ -37,6 +37,12 @@ export default async function AdminLayout({
           <a href="/admin/audit" className="underline">
             {dict.layout.auditNav}
           </a>
+          <a href="/admin/flags" className="underline">
+            {dict.layout.flagsNav}
+          </a>
+          <a href="/admin/pilot-data" className="underline">
+            {dict.layout.pilotNav}
+          </a>
           <a href="/admin/demo-reset" className="underline">
             {dict.layout.demoResetNav}
           </a>
