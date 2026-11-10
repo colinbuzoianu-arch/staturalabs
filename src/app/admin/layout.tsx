@@ -1,5 +1,7 @@
+import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { mfaRedirectTarget } from "@/lib/auth/mfa";
 import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 import { getAdminDictionary } from "@/lib/i18n/dictionaries/admin";
 import { getLocale } from "@/lib/i18n/get-locale";
@@ -14,7 +16,11 @@ export default async function AdminLayout({
 }: {
   children: ReactNode;
 }) {
-  await requireSuperAdmin();
+  const user = await requireSuperAdmin();
+  // P13 §4: super_admin is the most powerful account — enforce MFA step-up here
+  // too (the /security/mfa page lives outside this layout, so no redirect loop).
+  const mfaTarget = await mfaRedirectTarget(user);
+  if (mfaTarget) redirect(mfaTarget);
   const locale = await getLocale();
   const dict = getAdminDictionary(locale);
 

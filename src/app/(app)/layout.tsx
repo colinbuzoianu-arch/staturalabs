@@ -1,5 +1,7 @@
+import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
+import { mfaRedirectTarget } from "@/lib/auth/mfa";
 import { requireAuthenticatedUser } from "@/lib/auth/require-access";
 
 // Authenticated-app gate (SLD_RESTRUCTURE_PLAN_platform-modules.md §5). This
@@ -10,7 +12,11 @@ import { requireAuthenticatedUser } from "@/lib/auth/require-access";
 //   - (app)/app/(shell)/   → the registry-driven sidebar shell (migrated pages)
 // Both groups are path-transparent, so URLs are unaffected by the grouping.
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  await requireAuthenticatedUser();
+  const user = await requireAuthenticatedUser();
+  // P13 §4: once MFA is enforced, a high-privilege/health role without a
+  // completed second factor is sent to enrol/step up before any app surface.
+  const mfaTarget = await mfaRedirectTarget(user);
+  if (mfaTarget) redirect(mfaTarget);
   return (
     <>
       <ImpersonationBanner />
