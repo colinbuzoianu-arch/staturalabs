@@ -165,6 +165,10 @@ export const en = {
     inviteEmail: "Admin email",
     inviteButton: "Invite admin",
     inviteDone: "Invite sent.",
+    exportButton: "Export JSON",
+    deleteHint: "Type the exact name to delete",
+    deleteButton: "Delete permanently",
+    deleteArchivedFirst: "Archive first",
   },
   companySitesPage: {
     companiesBreadcrumb: "Companies",

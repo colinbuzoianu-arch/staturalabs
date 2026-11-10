@@ -157,6 +157,10 @@ export const de: typeof en = {
     inviteEmail: "E-Mail des Admins",
     inviteButton: "Admin einladen",
     inviteDone: "Einladung gesendet.",
+    exportButton: "JSON-Export",
+    deleteHint: "Zum Löschen den genauen Namen eingeben",
+    deleteButton: "Endgültig löschen",
+    deleteArchivedFirst: "Zuerst archivieren",
   },
   companySitesPage: {
     companiesBreadcrumb: "Unternehmen",

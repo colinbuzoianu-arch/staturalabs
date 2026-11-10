@@ -6,6 +6,7 @@ import {
   inviteCompanyAdmin,
   setCompanyArchived,
 } from "@/lib/admin/tenant";
+import { deleteTenant } from "@/lib/admin/tenant-delete";
 import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 import { getAdminDictionary } from "@/lib/i18n/dictionaries/admin";
 import { getLocale } from "@/lib/i18n/get-locale";
@@ -67,6 +68,24 @@ export default async function CompaniesPage() {
       return;
     }
     await inviteCompanyAdmin({ companyId, name, email, actorUserId: actor.id });
+    revalidatePath("/admin/companies");
+  }
+
+  async function deleteAction(formData: FormData) {
+    "use server";
+    const actor = await requireSuperAdmin();
+    const companyId = formData.get("companyId");
+    const confirmName = formData.get("confirmName");
+    if (typeof companyId !== "string" || typeof confirmName !== "string")
+      return;
+    // Double confirm: the typed name must exactly match, and the lib enforces
+    // the tenant is ARCHIVED. A permanent, leaf-to-root hard delete.
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { name: true },
+    });
+    if (!company || company.name !== confirmName) return;
+    await deleteTenant({ companyId, actorUserId: actor.id });
     revalidatePath("/admin/companies");
   }
 
@@ -197,6 +216,35 @@ export default async function CompaniesPage() {
                         {dict.inviteButton}
                       </button>
                     </form>
+                    <a
+                      href={`/api/admin/companies/${c.id}/export`}
+                      className="text-xs underline"
+                    >
+                      {dict.exportButton}
+                    </a>
+                    {c.status === "ARCHIVED" ? (
+                      <form
+                        action={deleteAction}
+                        className="flex flex-wrap items-end gap-1"
+                      >
+                        <input type="hidden" name="companyId" value={c.id} />
+                        <input
+                          name="confirmName"
+                          placeholder={dict.deleteHint}
+                          className="w-40 rounded border px-1 py-0.5 text-xs"
+                        />
+                        <button
+                          type="submit"
+                          className="rounded border border-red-500 px-2 py-0.5 text-xs text-red-600"
+                        >
+                          {dict.deleteButton}
+                        </button>
+                      </form>
+                    ) : (
+                      <span className="text-xs text-neutral-500">
+                        {dict.deleteArchivedFirst}
+                      </span>
+                    )}
                   </div>
                 </td>
               </tr>

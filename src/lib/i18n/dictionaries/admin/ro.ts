@@ -158,6 +158,10 @@ export const ro: typeof en = {
     inviteEmail: "E-mailul adminului",
     inviteButton: "Invitați admin",
     inviteDone: "Invitație trimisă.",
+    exportButton: "Export JSON",
+    deleteHint: "Introduceți numele exact pentru ștergere",
+    deleteButton: "Ștergere definitivă",
+    deleteArchivedFirst: "Arhivați mai întâi",
   },
   companySitesPage: {
     companiesBreadcrumb: "Companii",
