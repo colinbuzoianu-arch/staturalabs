@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # `npm ci` runs the `postinstall` → `prisma generate`, which only reads the
+      # schema (no DB connection needed), so the generated client is available to
+      # typecheck and tests without a database.
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint & format (Biome)
+        run: npx biome check .
+
+      - name: Unit tests
+        run: npm test
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      # P13 §4: fail the build on a high/critical vulnerability in production
+      # dependencies. Dev-only advisories don't ship to users, so scope to
+      # runtime deps to keep the signal actionable.
+      - name: Dependency vulnerability scan
+        run: npm audit --audit-level=high --omit=dev
