@@ -2,6 +2,7 @@ import "server-only";
 
 import { setSiteWorkforcePeriod } from "@/lib/analytics/workforce-period";
 import { recordAuditEvent } from "@/lib/audit/audit-event";
+import { createVehicle } from "@/lib/fleet/vehicle";
 import { createIncident } from "@/lib/incidents/incident";
 import { prisma } from "@/lib/prisma";
 import {
@@ -11,6 +12,7 @@ import {
   parseCsv,
 } from "./framework";
 import { incidentImporter } from "./importers/incident";
+import { vehicleImporter } from "./importers/vehicle";
 import { workforcePeriodImporter } from "./importers/workforce-period";
 import { getImportEntityMeta, type ImportEntityKey } from "./registry";
 
@@ -38,11 +40,24 @@ async function workstationIdByName(
   return new Map(ws.map((w) => [w.name.trim().toLowerCase(), w.id]));
 }
 
+async function vehicleIdByIdentifier(
+  companyId: string,
+): Promise<Map<string, string>> {
+  const vehicles = await prisma.vehicle.findMany({
+    where: { companyId, activeTo: null },
+    select: { id: true, identifier: true },
+  });
+  return new Map(
+    vehicles.map((v) => [v.identifier.trim().toLowerCase(), v.id]),
+  );
+}
+
 type AnyPlan = ImportPlan<unknown>;
 
 async function planFor(
   entity: ImportEntityKey,
   siteId: string,
+  companyId: string,
   csvText: string,
 ): Promise<AnyPlan> {
   const rows = parseCsv(csvText);
@@ -56,13 +71,26 @@ async function planFor(
     const ctx = { orgUnitIdByName: await orgUnitIdByName(siteId) };
     return buildPlan(dataRows, mapping, workforcePeriodImporter, ctx);
   }
+  if (entity === "vehicle") {
+    const mapping = autoDetectMapping(header, vehicleImporter.fields);
+    return buildPlan(dataRows, mapping, vehicleImporter, {});
+  }
   // incident
   const mapping = autoDetectMapping(header, incidentImporter.fields);
   const ctx = {
     workstationIdByName: await workstationIdByName(siteId),
     orgUnitIdByName: await orgUnitIdByName(siteId),
+    vehicleIdByIdentifier: await vehicleIdByIdentifier(companyId),
   };
   return buildPlan(dataRows, mapping, incidentImporter, ctx);
+}
+
+async function companyIdForSite(siteId: string): Promise<string> {
+  const site = await prisma.site.findUniqueOrThrow({
+    where: { id: siteId },
+    select: { companyId: true },
+  });
+  return site.companyId;
 }
 
 export async function runImportDryRun(input: {
@@ -70,7 +98,8 @@ export async function runImportDryRun(input: {
   siteId: string;
   csvText: string;
 }): Promise<AnyPlan> {
-  return planFor(input.entity, input.siteId, input.csvText);
+  const companyId = await companyIdForSite(input.siteId);
+  return planFor(input.entity, input.siteId, companyId, input.csvText);
 }
 
 export type CommitResult = {
@@ -89,7 +118,12 @@ export async function commitImport(input: {
   const meta = getImportEntityMeta(input.entity);
   if (!meta) throw new Error(`Unknown import entity: ${input.entity}`);
 
-  const plan = await planFor(input.entity, input.siteId, input.csvText);
+  const plan = await planFor(
+    input.entity,
+    input.siteId,
+    input.companyId,
+    input.csvText,
+  );
   let committed = 0;
 
   for (const row of plan.rows) {
@@ -114,6 +148,21 @@ export async function commitImport(input: {
         hoursWorked: v.hoursWorked,
         actorUserId: input.actorUserId,
       });
+    } else if (input.entity === "vehicle") {
+      const v = row.value as {
+        identifier: string;
+        type: string;
+        notes: string | null;
+      };
+      await createVehicle({
+        companyId: input.companyId,
+        siteId: null,
+        orgUnitId: null,
+        identifier: v.identifier,
+        type: v.type,
+        notes: v.notes,
+        actorUserId: input.actorUserId,
+      });
     } else {
       const v = row.value as {
         type: Parameters<typeof createIncident>[0]["type"];
@@ -122,8 +171,9 @@ export async function commitImport(input: {
         occurredAt: Date;
         subjectWorkstationId: string | null;
         subjectOrgUnitId: string | null;
+        vehicleId: string | null;
       };
-      await createIncident({
+      const { id } = await createIncident({
         companyId: input.companyId,
         siteId: input.siteId,
         type: v.type,
@@ -134,6 +184,12 @@ export async function commitImport(input: {
         subjectWorkstationId: v.subjectWorkstationId,
         subjectOrgUnitId: v.subjectOrgUnitId,
       });
+      if (v.vehicleId) {
+        await prisma.incident.update({
+          where: { id },
+          data: { vehicleId: v.vehicleId },
+        });
+      }
     }
     committed++;
   }

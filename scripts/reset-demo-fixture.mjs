@@ -121,6 +121,11 @@ async function main() {
     await del(db, "Incident", `DELETE FROM "Incident" WHERE "companyId" = $1`, [
       company.id,
     ]);
+    // P14 G4 Fuhrpark: vehicles are referenced by Incident.vehicleId (Restrict),
+    // so they go AFTER incidents are gone.
+    await del(db, "Vehicle", `DELETE FROM "Vehicle" WHERE "companyId" = $1`, [
+      company.id,
+    ]);
     // P11 Rechtskataster: evaluation events + evaluations + site links, scoped
     // by the company's sites. Actions (deleted above) may reference a
     // ComplianceEvaluation (Restrict), so they must be gone first — they are.

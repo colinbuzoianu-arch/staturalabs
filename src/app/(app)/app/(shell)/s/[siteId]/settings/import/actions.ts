@@ -34,6 +34,9 @@ function displayFor(
     const idx = raw.periodIndex ? ` #${raw.periodIndex}` : "";
     return `${raw.period || "?"} ${raw.year || "?"}${idx} · ${raw.headcount || "–"} MA / ${raw.hoursWorked || "–"} h`;
   }
+  if (entity === "vehicle") {
+    return `${raw.identifier || "?"} · ${raw.type || ""}`;
+  }
   return `${raw.type || "?"}: ${raw.title || ""} (${raw.occurredAt || "?"})`;
 }
 

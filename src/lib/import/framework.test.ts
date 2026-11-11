@@ -6,6 +6,7 @@ import {
   parseCsv,
 } from "./framework";
 import { incidentImporter } from "./importers/incident";
+import { vehicleImporter } from "./importers/vehicle";
 import { workforcePeriodImporter } from "./importers/workforce-period";
 
 describe("parseCsv", () => {
@@ -67,6 +68,7 @@ describe("incidentImporter", () => {
   const ctx = {
     workstationIdByName: new Map([["presse 1", "ws-1"]]),
     orgUnitIdByName: new Map<string, string>(),
+    vehicleIdByIdentifier: new Map([["w-12345a", "veh-1"]]),
   };
   const run = (csv: string) => {
     const rows = parseCsv(csv);
@@ -93,5 +95,33 @@ describe("incidentImporter", () => {
     expect(plan.summary.error).toBe(2);
     expect(plan.rows[0].reason).toBe("invalid-type");
     expect(plan.rows[1].reason).toBe("invalid-date");
+  });
+
+  it("links a Fahrzeugereignis to a known vehicle and errors an unknown one", () => {
+    const ok = run(
+      "type,title,description,occurredAt,vehicle\nFAHRZEUGEREIGNIS,Kollision,Hergang,2026-04-01,W-12345A",
+    );
+    expect(ok.rows[0].value).toMatchObject({ vehicleId: "veh-1" });
+    const bad = run(
+      "type,title,description,occurredAt,vehicle\nFAHRZEUGEREIGNIS,Kollision,Hergang,2026-04-01,UNKNOWN",
+    );
+    expect(bad.rows[0].reason).toBe("unknown-vehicle");
+  });
+});
+
+describe("vehicleImporter", () => {
+  it("creates a person-free vehicle row and errors a missing type", () => {
+    const rows = parseCsv(
+      "identifier,type,notes\nW-999,Gabelstapler,Halle 2\nW-998,,",
+    );
+    const [header, ...data] = rows;
+    const mapping = autoDetectMapping(header, vehicleImporter.fields);
+    const plan = buildPlan(data, mapping, vehicleImporter, {});
+    expect(plan.summary.create).toBe(1);
+    expect(plan.rows[0].value).toMatchObject({
+      identifier: "W-999",
+      type: "Gabelstapler",
+    });
+    expect(plan.rows[1].reason).toBe("missing-vehicle-type");
   });
 });

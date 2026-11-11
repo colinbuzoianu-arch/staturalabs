@@ -3,6 +3,7 @@ import { hasPermission } from "@/lib/auth/permissions";
 import { requireSiteAccess } from "@/lib/auth/require-access";
 import { buildTemplateCsv } from "@/lib/import/framework";
 import { incidentImporter } from "@/lib/import/importers/incident";
+import { vehicleImporter } from "@/lib/import/importers/vehicle";
 import { workforcePeriodImporter } from "@/lib/import/importers/workforce-period";
 import { getImportEntityMeta } from "@/lib/import/registry";
 
@@ -21,7 +22,11 @@ export async function GET(
   if (!hasPermission(user, meta.permission)) notFound();
 
   const def =
-    entity === "workforce-period" ? workforcePeriodImporter : incidentImporter;
+    entity === "workforce-period"
+      ? workforcePeriodImporter
+      : entity === "vehicle"
+        ? vehicleImporter
+        : incidentImporter;
   const csv = buildTemplateCsv(def);
 
   return new Response(csv, {

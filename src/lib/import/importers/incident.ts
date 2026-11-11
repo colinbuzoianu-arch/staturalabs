@@ -15,11 +15,15 @@ export type IncidentImportValue = {
   // Optional subject references resolved by name within the site.
   subjectWorkstationId: string | null;
   subjectOrgUnitId: string | null;
+  // P14 G4: optional fleet-vehicle link (by identifier) for a Fahrzeugereignis.
+  vehicleId: string | null;
 };
 
 export type IncidentImportContext = {
   workstationIdByName: Map<string, string>;
   orgUnitIdByName: Map<string, string>;
+  // Company-scoped: active vehicle identifier (lower-cased) -> id.
+  vehicleIdByIdentifier: Map<string, string>;
 };
 
 const FIELDS: readonly ImportFieldSpec[] = [
@@ -65,6 +69,12 @@ const FIELDS: readonly ImportFieldSpec[] = [
     ],
     example: "",
   },
+  {
+    key: "vehicle",
+    required: false,
+    aliases: ["vehicle", "fahrzeug", "kennzeichen", "vehicul"],
+    example: "",
+  },
 ];
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -101,6 +111,12 @@ export const incidentImporter: ImporterDefinition<
       if (!id) return { status: "error", reason: "unknown-org-unit" };
       subjectOrgUnitId = id;
     }
+    let vehicleId: string | null = null;
+    if (cells.vehicle) {
+      const id = ctx.vehicleIdByIdentifier.get(cells.vehicle.toLowerCase());
+      if (!id) return { status: "error", reason: "unknown-vehicle" };
+      vehicleId = id;
+    }
 
     return {
       status: "create",
@@ -111,6 +127,7 @@ export const incidentImporter: ImporterDefinition<
         occurredAt,
         subjectWorkstationId,
         subjectOrgUnitId,
+        vehicleId,
       },
     };
   },

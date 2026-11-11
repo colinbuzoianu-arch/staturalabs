@@ -1,4 +1,5 @@
 import { incidentImporter } from "./importers/incident";
+import { vehicleImporter } from "./importers/vehicle";
 import { workforcePeriodImporter } from "./importers/workforce-period";
 
 // P14 G3: the catalogue of importable entities. Pure (no `server-only`): the
@@ -8,14 +9,14 @@ import { workforcePeriodImporter } from "./importers/workforce-period";
 // Person-safe entities only; nothing here imports into the people/health
 // compartment.
 
-export type ImportEntityKey = "workforce-period" | "incident";
+export type ImportEntityKey = "workforce-period" | "incident" | "vehicle";
 
 export type ImportEntityMeta = {
   key: ImportEntityKey;
   // i18n key suffix (settingsImport.entities.<key>).
   labelKey: ImportEntityKey;
   // Permission required to run this importer.
-  permission: "reports.read" | "incidents.write";
+  permission: "reports.read" | "incidents.write" | "settings.write";
   fieldKeys: string[];
 };
 
@@ -31,6 +32,12 @@ export const IMPORT_ENTITIES: readonly ImportEntityMeta[] = [
     labelKey: "incident",
     permission: "incidents.write",
     fieldKeys: incidentImporter.fields.map((f) => f.key),
+  },
+  {
+    key: "vehicle",
+    labelKey: "vehicle",
+    permission: "settings.write",
+    fieldKeys: vehicleImporter.fields.map((f) => f.key),
   },
 ];
 

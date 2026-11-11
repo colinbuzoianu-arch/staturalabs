@@ -8,6 +8,7 @@ import {
 } from "@/generated/prisma/enums";
 import { hasPermission } from "@/lib/auth/permissions";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
+import { setIncidentVehicle } from "@/lib/fleet/vehicle";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { hasHealthDetail } from "@/lib/incidents/health";
@@ -113,6 +114,23 @@ export default async function IncidentDetailPage({
     healthOnFile.set(ip.id, await hasHealthDetail(ip.id));
   }
 
+  // P14 G4: fleet-vehicle link for a Fahrzeugereignis. Active vehicles + the
+  // currently-linked one (even if retired) to pick from.
+  const isVehicleEvent = incident.type === "FAHRZEUGEREIGNIS";
+  const vehicles = isVehicleEvent
+    ? await prisma.vehicle.findMany({
+        where: {
+          companyId: incident.companyId,
+          OR: [
+            { activeTo: null },
+            ...(incident.vehicleId ? [{ id: incident.vehicleId }] : []),
+          ],
+        },
+        orderBy: { identifier: "asc" },
+        select: { id: true, identifier: true, type: true },
+      })
+    : [];
+
   const open = incident.status !== "CLOSED";
 
   async function triageAction(formData: FormData) {
@@ -189,6 +207,19 @@ export default async function IncidentDetailPage({
       actorUserId: user.id,
       title,
       responsibleRoleLabel: typeof roleLabel === "string" ? roleLabel : null,
+    });
+    revalidatePath(`/app/s/${siteId}/incidents/${incidentId}`);
+  }
+
+  async function setVehicleAction(formData: FormData) {
+    "use server";
+    const { user, site: s } = await requireSiteAdministrationAccess(siteId);
+    const vid = formData.get("vehicleId");
+    await setIncidentVehicle({
+      incidentId,
+      vehicleId: typeof vid === "string" && vid.length > 0 ? vid : null,
+      companyId: s.companyId,
+      actorUserId: user.id,
     });
     revalidatePath(`/app/s/${siteId}/incidents/${incidentId}`);
   }
@@ -615,6 +646,38 @@ export default async function IncidentDetailPage({
             </form>
           ))}
       </section>
+
+      {/* P14 G4: fleet-vehicle link (Fahrzeugereignis only) */}
+      {isVehicleEvent && (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-heading text-sm font-bold">
+            {dict.vehicleHeading}
+          </h2>
+          <form action={setVehicleAction} className="flex items-end gap-3">
+            <label className="flex flex-col gap-1 text-sm">
+              {dict.vehicleLabel}
+              <select
+                name="vehicleId"
+                defaultValue={incident.vehicleId ?? ""}
+                className="rounded border border-border bg-background px-2 py-1"
+              >
+                <option value="">{dict.vehicleNone}</option>
+                {vehicles.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.identifier} · {v.type}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="submit"
+              className="rounded-[var(--radius-md)] border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-surface-raised"
+            >
+              {dict.vehicleSave}
+            </button>
+          </form>
+        </section>
+      )}
 
       {/* Corrective actions */}
       <section className="flex flex-col gap-3">

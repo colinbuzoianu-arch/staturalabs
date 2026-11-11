@@ -47,6 +47,7 @@ model Company {
   substances           Substance[]
   inspectionTemplates  InspectionTemplate[]
   incidents            Incident[]
+  vehicles             Vehicle[]
 }
 
 /// A physical location/department within a company (conversationally
@@ -101,6 +102,7 @@ model Site {
   inspectionTemplates      InspectionTemplate[]
   inspections              Inspection[]
   incidents                Incident[]
+  vehicles                 Vehicle[]
 
   @@index([companyId])
 }
@@ -864,6 +866,7 @@ model OrgUnit {
   processes        Process[]
   substanceUses    SubstanceUse[]
   workforcePeriods SiteWorkforcePeriod[]
+  vehicles         Vehicle[]
 
   @@index([siteId])
   @@index([parentId])
@@ -2947,8 +2950,13 @@ model Incident {
   createdAt                 DateTime       @default(now())
   updatedAt                 DateTime       @updatedAt
 
+  // P14 G4: optional link to a fleet vehicle (for a Fahrzeugereignis). Person-
+  // free — the vehicle master holds no driver.
+  vehicleId                 String?
+
   company               Company                  @relation(fields: [companyId], references: [id], onDelete: Restrict)
   site                  Site                     @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  vehicle               Vehicle?                 @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
   investigation         IncidentInvestigation?
   involvedPersons       IncidentInvolvedPerson[]
   actions               Action[]
@@ -2956,6 +2964,35 @@ model Incident {
 
   @@index([siteId, status])
   @@index([companyId])
+  @@index([vehicleId])
+}
+
+// P14 G4: Fuhrpark / fleet master. PERSON-FREE — no driver on the record (a
+// driver involved in an incident stays in the incident compartment, §3.18).
+// Company-scoped; optional site + org-unit placement. `type` is free text
+// (Gabelstapler, LKW, PKW, …). A unique partial index enforces one ACTIVE
+// (activeTo IS NULL) identifier per company (hand-added, not in Prisma).
+model Vehicle {
+  id         String    @id @default(cuid())
+  companyId  String
+  siteId     String?
+  orgUnitId  String?
+  identifier String
+  type       String
+  notes      String?
+  activeFrom DateTime  @default(now())
+  activeTo   DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  site      Site?      @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  orgUnit   OrgUnit?   @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
+  incidents Incident[]
+
+  @@index([companyId])
+  @@index([siteId])
+  @@index([orgUnitId])
 }
 
 // P10d §D.4: the record that a statutory notification duty was acted on — the

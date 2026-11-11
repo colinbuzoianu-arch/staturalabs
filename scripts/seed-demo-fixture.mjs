@@ -495,6 +495,38 @@ async function main() {
     );
     if (incidentMarker.rows.length === 0) {
       const daysAgo = (n) => new Date(Date.now() - n * 86400000);
+      // P14 G4 Fuhrpark: two fleet vehicles (AT + DE), person-free. One
+      // Fahrzeugereignis is linked to the AT forklift below.
+      const atVehicle = await insertRow(db, "Vehicle", {
+        id: crypto.randomUUID(),
+        companyId: company.id,
+        siteId: site.id,
+        identifier: "W-4021 ST",
+        type: "Gabelstapler",
+        updatedAt: new Date(),
+      });
+      await insertRow(db, "Vehicle", {
+        id: crypto.randomUUID(),
+        companyId: company.id,
+        siteId: deSite.id,
+        identifier: "M-LK 772",
+        type: "LKW",
+        updatedAt: new Date(),
+      });
+      // AT Fahrzeugereignis — person-free, linked to the forklift.
+      await insertRow(db, "Incident", {
+        id: crypto.randomUUID(),
+        companyId: company.id,
+        siteId: site.id,
+        type: "FAHRZEUGEREIGNIS",
+        status: "REPORTED",
+        occurredAt: daysAgo(5),
+        title: "Gabelstapler-Rangierschaden am Tor 2",
+        description:
+          "Beim Rückwärtsrangieren Streifschaden am Hallentor; keine Personen betroffen.",
+        vehicleId: atVehicle.id,
+        updatedAt: new Date(),
+      });
       // AT Arbeitsunfall — recent, triaged, injured person D-1001.
       const atInc = await insertRow(db, "Incident", {
         id: crypto.randomUUID(),
