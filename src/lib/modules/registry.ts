@@ -391,6 +391,7 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
         labelKey: "modules.settings.children.data-retention",
         slug: "retention",
       },
+      { labelKey: "modules.settings.children.import", slug: "import" },
       { labelKey: "modules.settings.children.catalogues", slug: "hazards" },
     ],
   },
