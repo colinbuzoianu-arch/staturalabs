@@ -18,6 +18,7 @@ import { MODULE_REGISTRY, type ModuleKey } from "@/lib/modules/registry";
 const BUILT_MODULES: ReadonlySet<ModuleKey> = new Set<ModuleKey>([
   "COCKPIT",
   "MY_TASKS",
+  "CALENDAR",
   "RISK",
   "ENVIRONMENT",
   "ACTIONS",

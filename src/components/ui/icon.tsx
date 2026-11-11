@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   BarChart3,
+  CalendarDays,
   ClipboardCheck,
   FlaskConical,
   Folder,
@@ -25,6 +26,7 @@ import type { IconName } from "@/lib/modules/registry";
 const ICONS: Record<IconName, LucideIcon> = {
   cockpit: LayoutDashboard,
   inbox: Inbox,
+  calendar: CalendarDays,
   "clipboard-check": ClipboardCheck,
   search: Search,
   "alert-triangle": AlertTriangle,

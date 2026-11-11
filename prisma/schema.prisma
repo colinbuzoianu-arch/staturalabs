@@ -1825,6 +1825,7 @@ model WasteStream {
 enum ModuleKey {
   COCKPIT
   MY_TASKS
+  CALENDAR
   RISK
   INSPECTIONS
   INCIDENTS

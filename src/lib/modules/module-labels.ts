@@ -7,6 +7,7 @@
 export const MODULE_LABELS_DE: Record<string, string> = {
   "modules.cockpit.label": "Cockpit",
   "modules.my-tasks.label": "Meine Aufgaben",
+  "modules.calendar.label": "Kalender",
   "modules.risk.label": "Gefährdungsbeurteilung",
   "modules.risk.children.workstations": "Arbeitsplätze",
   "modules.risk.children.processes": "Prozesse",

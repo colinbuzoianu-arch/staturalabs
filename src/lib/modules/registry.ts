@@ -48,6 +48,7 @@ export type ModuleDomain = "osh" | "environment" | "shared";
 export type IconName =
   | "cockpit"
   | "inbox"
+  | "calendar"
   | "clipboard-check"
   | "search"
   | "alert-triangle"
@@ -143,6 +144,22 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     icon: "inbox",
     children: [],
     badge: "open-my-tasks",
+  },
+  {
+    // P14 G2: the cross-module Aktivitätenkalender — a read-only aggregation of
+    // every due-dated item (actions, inspections, assessment/legal reviews,
+    // incident notification deadlines) over the user's accessible scope. Baseline
+    // (no entitlement): an overview surface like cockpit/my-tasks.
+    key: ModuleKey.CALENDAR,
+    labelKey: "modules.calendar.label",
+    menuGroup: "overview",
+    domain: "shared",
+    order: 15,
+    requiresEntitlement: false,
+    permission: "calendar.read",
+    basePath: siteModulePath("calendar"),
+    icon: "calendar",
+    children: [],
   },
   {
     key: ModuleKey.RISK,

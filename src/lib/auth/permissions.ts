@@ -29,6 +29,7 @@ import type { PlatformUserModel } from "@/generated/prisma/models";
 export const PERMISSIONS = [
   "cockpit.read",
   "my-tasks.read",
+  "calendar.read",
   "risk.read",
   "risk.write",
   "inspections.read",
@@ -88,6 +89,7 @@ export const ROLE_PERMISSIONS: Readonly<
   [PlatformRole.EHS_SPECIALIST]: new Set<Permission>([
     "cockpit.read",
     "my-tasks.read",
+    "calendar.read",
     "risk.read",
     "risk.write",
     "inspections.read",
@@ -114,6 +116,7 @@ export const ROLE_PERMISSIONS: Readonly<
   [PlatformRole.MANAGER]: new Set<Permission>([
     "cockpit.read",
     "my-tasks.read",
+    "calendar.read",
     "risk.read",
     // P10c: a line manager reports events for their own org units (scope in
     // rbac/scope.ts). No health_data.*.
@@ -129,6 +132,7 @@ export const ROLE_PERMISSIONS: Readonly<
   ]),
   [PlatformRole.EMPLOYEE]: new Set<Permission>([
     "my-tasks.read",
+    "calendar.read",
     "training.read",
   ]),
   // P10c: the sole holder of health_data.* (§3.18(b)). Reads incidents to
@@ -136,6 +140,7 @@ export const ROLE_PERMISSIONS: Readonly<
   [PlatformRole.OCCUPATIONAL_PHYSICIAN]: new Set<Permission>([
     "cockpit.read",
     "my-tasks.read",
+    "calendar.read",
     "incidents.read",
     "health_data.read",
     "health_data.write",
@@ -144,6 +149,7 @@ export const ROLE_PERMISSIONS: Readonly<
   // anzeige co-sign, general co-determination read). No health, no write.
   [PlatformRole.WORKS_COUNCIL]: new Set<Permission>([
     "cockpit.read",
+    "calendar.read",
     "risk.read",
     "incidents.read",
     "reports.read",

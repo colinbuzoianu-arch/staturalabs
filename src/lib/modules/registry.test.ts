@@ -23,11 +23,12 @@ describe("module registry", () => {
     }
   });
 
-  it("marks exactly cockpit/my-tasks/actions/documents/settings as baseline", () => {
+  it("marks exactly cockpit/my-tasks/calendar/actions/documents/settings as baseline", () => {
     expect([...baselineModuleKeys()].sort()).toEqual(
       [
         ModuleKey.COCKPIT,
         ModuleKey.MY_TASKS,
+        ModuleKey.CALENDAR,
         ModuleKey.ACTIONS,
         ModuleKey.DOCUMENTS,
         ModuleKey.SETTINGS,

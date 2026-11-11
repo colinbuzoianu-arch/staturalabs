@@ -4,8 +4,14 @@ import { ACTION_STATUS_TONE, Badge } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/misc";
 import { getAccessibleSites } from "@/lib/auth/accessible-sites";
+import { hasPermission } from "@/lib/auth/permissions";
 import { requireAuthenticatedUser } from "@/lib/auth/require-access";
+import {
+  type CalendarModule,
+  collectCalendarEntries,
+} from "@/lib/calendar/collect";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
+import { getDashboardDictionary } from "@/lib/i18n/dictionaries/dashboard";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { generateDueNotifications } from "@/lib/notifications/generate";
 import {
@@ -63,6 +69,25 @@ export default async function MyTasksPage() {
 
   const notifications = await listNotifications(user.id);
   const unreadCount = notifications.filter((n) => n.readAt === null).length;
+
+  // P14 G2: upcoming cross-site, cross-module deadlines (read-only aggregation),
+  // gated per module the user may read. The full calendar lives per site under
+  // Übersicht; this is the personal digest.
+  const calendarDict = getDashboardDictionary(locale).calendar;
+  const ALL_CAL_MODULES: readonly CalendarModule[] = [
+    "actions",
+    "inspections",
+    "risk",
+    "legal",
+    "incidents",
+  ];
+  const calModules = new Set<CalendarModule>(
+    ALL_CAL_MODULES.filter((m) => hasPermission(user, `${m}.read`)),
+  );
+  const allCalendarEntries = hasPermission(user, "calendar.read")
+    ? await collectCalendarEntries({ siteIds, modules: calModules })
+    : [];
+  const upcoming = allCalendarEntries.slice(0, 8);
 
   const [myActions, awaitingApproval] = await Promise.all([
     prisma.action.findMany({
@@ -260,6 +285,48 @@ export default async function MyTasksPage() {
           )}
         </CardBody>
       </Card>
+
+      {upcoming.length > 0 && (
+        <Card>
+          <CardHeader title={calendarDict.heading} />
+          <CardBody>
+            <ul className="divide-y divide-border">
+              {upcoming.map((e) => (
+                <li key={e.id}>
+                  <Link
+                    href={e.href}
+                    className="flex items-center justify-between gap-3 px-1 py-2.5 text-sm hover:text-accent"
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <Badge tone={e.overdue ? "high" : "neutral"}>
+                        {calendarDict.moduleLabels[e.module]}
+                      </Badge>
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium text-foreground">
+                          {e.title || calendarDict.kinds[e.kind]}
+                        </span>
+                        <span className="text-xs text-foreground-subtle">
+                          {siteName.get(e.siteId)} ·{" "}
+                          {calendarDict.kinds[e.kind]}
+                        </span>
+                      </span>
+                    </span>
+                    <span
+                      className={
+                        e.overdue
+                          ? "shrink-0 font-medium text-status-high"
+                          : "shrink-0 text-foreground-subtle"
+                      }
+                    >
+                      {e.dueDate.toISOString().slice(0, 10)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </CardBody>
+        </Card>
+      )}
     </div>
   );
 }
