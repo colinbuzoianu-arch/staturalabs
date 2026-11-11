@@ -37,6 +37,10 @@ describe("module registry", () => {
   });
 
   it("builds site-scoped base paths, with my-tasks cross-cutting", () => {
+    // The cockpit is the site landing itself, not a /cockpit sub-route.
+    expect(getModuleDefinition(ModuleKey.COCKPIT).basePath("site1")).toBe(
+      "/app/s/site1",
+    );
     expect(getModuleDefinition(ModuleKey.RISK).basePath("site1")).toBe(
       "/app/s/site1/risk",
     );

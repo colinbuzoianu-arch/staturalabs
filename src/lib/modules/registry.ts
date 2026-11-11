@@ -128,7 +128,10 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     order: 10,
     requiresEntitlement: false,
     permission: "cockpit.read",
-    basePath: siteModulePath("cockpit"),
+    // The cockpit IS the site landing page (/app/s/[siteId]), not a /cockpit
+    // sub-route — so its base is the site root. (resolveActiveKey's longest-
+    // prefix match still lets the more specific modules win.)
+    basePath: (siteId: string) => `/app/s/${siteId}`,
     icon: "cockpit",
     children: [],
   },
@@ -276,12 +279,11 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     permission: "chemicals.read",
     basePath: siteModulePath("chemicals"),
     icon: "flask",
+    // Only children with their own route are listed (a sidebar link must never
+    // 404). SDS live as a section inside the register today — no standalone
+    // route yet, so no sidebar child until one exists.
     children: [
       { labelKey: "modules.chemicals.children.register", slug: "register" },
-      {
-        labelKey: "modules.chemicals.children.safety-data-sheets",
-        slug: "safety-data-sheets",
-      },
       {
         labelKey: "modules.chemicals.children.operating-instructions",
         slug: "operating-instructions",
@@ -298,14 +300,11 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     permission: "training.read",
     basePath: siteModulePath("training"),
     icon: "graduation-cap",
+    // Only the matrix has its own route today; sessions / records / requirements
+    // are sections within it, not standalone routes — so no sidebar child until
+    // they get their own pages (a sidebar link must never 404).
     children: [
       { labelKey: "modules.training.children.matrix", slug: "matrix" },
-      { labelKey: "modules.training.children.sessions", slug: "sessions" },
-      { labelKey: "modules.training.children.records", slug: "records" },
-      {
-        labelKey: "modules.training.children.requirements",
-        slug: "requirements",
-      },
     ],
     badge: "due-trainings",
   },
