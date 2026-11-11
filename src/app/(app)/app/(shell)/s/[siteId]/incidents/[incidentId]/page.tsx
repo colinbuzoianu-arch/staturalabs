@@ -14,6 +14,7 @@ import { getLocale } from "@/lib/i18n/get-locale";
 import { hasHealthDetail } from "@/lib/incidents/health";
 import {
   raiseActionFromIncident,
+  setIncidentCaseDetails,
   setIncidentInvestigation,
   transitionIncident,
   triageIncident,
@@ -113,6 +114,10 @@ export default async function IncidentDetailPage({
   for (const ip of incident.involvedPersons) {
     healthOnFile.set(ip.id, await hasHealthDetail(ip.id));
   }
+
+  // P14 G5: complaint / liability light field set, shown by type.
+  const isComplaint = incident.type === "BESCHWERDE";
+  const isLiability = incident.type === "HAFTUNGSFALL";
 
   // P14 G4: fleet-vehicle link for a Fahrzeugereignis. Active vehicles + the
   // currently-linked one (even if retired) to pick from.
@@ -220,6 +225,24 @@ export default async function IncidentDetailPage({
       vehicleId: typeof vid === "string" && vid.length > 0 ? vid : null,
       companyId: s.companyId,
       actorUserId: user.id,
+    });
+    revalidatePath(`/app/s/${siteId}/incidents/${incidentId}`);
+  }
+
+  async function caseDetailsAction(formData: FormData) {
+    "use server";
+    const { user } = await requireSiteAdministrationAccess(siteId);
+    const str = (k: string) => {
+      const v = formData.get(k);
+      return typeof v === "string" ? v : null;
+    };
+    await setIncidentCaseDetails({
+      incidentId,
+      siteId,
+      actorUserId: user.id,
+      complaintSource: str("complaintSource"),
+      complaintSubject: str("complaintSubject"),
+      liabilityClaimBasis: str("liabilityClaimBasis"),
     });
     revalidatePath(`/app/s/${siteId}/incidents/${incidentId}`);
   }
@@ -646,6 +669,57 @@ export default async function IncidentDetailPage({
             </form>
           ))}
       </section>
+
+      {/* P14 G5: complaint / liability light fields */}
+      {(isComplaint || isLiability) && (
+        <section className="flex flex-col gap-3">
+          <h2 className="font-heading text-sm font-bold">
+            {isComplaint ? dict.complaintHeading : dict.liabilityHeading}
+          </h2>
+          <form
+            action={caseDetailsAction}
+            className="flex flex-wrap items-end gap-3 text-sm"
+          >
+            {isComplaint && (
+              <>
+                <label className="flex flex-col gap-1">
+                  {dict.complaintSourceLabel}
+                  <input
+                    name="complaintSource"
+                    defaultValue={incident.complaintSource ?? ""}
+                    placeholder={dict.complaintSourcePlaceholder}
+                    className="w-44 rounded border border-border bg-background px-2 py-1"
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  {dict.complaintSubjectLabel}
+                  <input
+                    name="complaintSubject"
+                    defaultValue={incident.complaintSubject ?? ""}
+                    className="w-56 rounded border border-border bg-background px-2 py-1"
+                  />
+                </label>
+              </>
+            )}
+            {isLiability && (
+              <label className="flex flex-col gap-1">
+                {dict.liabilityClaimBasisLabel}
+                <input
+                  name="liabilityClaimBasis"
+                  defaultValue={incident.liabilityClaimBasis ?? ""}
+                  className="w-72 rounded border border-border bg-background px-2 py-1"
+                />
+              </label>
+            )}
+            <button
+              type="submit"
+              className="rounded-[var(--radius-md)] border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-surface-raised"
+            >
+              {dict.vehicleSave}
+            </button>
+          </form>
+        </section>
+      )}
 
       {/* P14 G4: fleet-vehicle link (Fahrzeugereignis only) */}
       {isVehicleEvent && (

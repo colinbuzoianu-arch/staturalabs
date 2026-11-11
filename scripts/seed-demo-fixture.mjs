@@ -527,6 +527,34 @@ async function main() {
         vehicleId: atVehicle.id,
         updatedAt: new Date(),
       });
+      // P14 G5: an anonymous Beschwerde (no reporter) + a Haftungsfall.
+      await insertRow(db, "Incident", {
+        id: crypto.randomUUID(),
+        companyId: company.id,
+        siteId: site.id,
+        type: "BESCHWERDE",
+        status: "REPORTED",
+        occurredAt: daysAgo(7),
+        title: "Beschwerde über Lärm in der Nachtschicht",
+        description:
+          "Hinweis auf wiederkehrende Lärmbelastung an der Abkantpresse während der Nachtschicht.",
+        complaintSource: "anonym",
+        complaintSubject: "Lärm Nachtschicht",
+        updatedAt: new Date(),
+      });
+      await insertRow(db, "Incident", {
+        id: crypto.randomUUID(),
+        companyId: company.id,
+        siteId: deSite.id,
+        type: "HAFTUNGSFALL",
+        status: "UNDER_INVESTIGATION",
+        occurredAt: daysAgo(20),
+        title: "Haftungsfall: Sachschaden an Kundenlieferung",
+        description:
+          "Reklamierter Transportschaden an einer Kundenlieferung; Prüfung der Haftung.",
+        liabilityClaimBasis: "Vertragliche Gewährleistung (Transportschaden)",
+        updatedAt: new Date(),
+      });
       // AT Arbeitsunfall — recent, triaged, injured person D-1001.
       const atInc = await insertRow(db, "Incident", {
         id: crypto.randomUUID(),

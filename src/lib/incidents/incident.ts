@@ -63,6 +63,45 @@ export async function createIncident(input: {
   return { id: incident.id };
 }
 
+// P14 G5: set the light complaint/liability field set on a case (person-free
+// free text). Scoped to the site; audited. A Beschwerde may have no reporter
+// (an anonymous intake path, P10 D3) — createIncident already allows a null
+// reportedByUserId, so nothing here assumes one.
+export async function setIncidentCaseDetails(input: {
+  incidentId: string;
+  siteId: string;
+  actorUserId: string | null;
+  complaintSource?: string | null;
+  complaintSubject?: string | null;
+  liabilityClaimBasis?: string | null;
+}): Promise<void> {
+  const incident = await prisma.incident.findUnique({
+    where: { id: input.incidentId },
+    select: { siteId: true, companyId: true },
+  });
+  if (!incident || incident.siteId !== input.siteId) {
+    throw new Error("Incident not found");
+  }
+  const clean = (v: string | null | undefined) =>
+    v === undefined ? undefined : v?.trim() || null;
+  await prisma.incident.update({
+    where: { id: input.incidentId },
+    data: {
+      complaintSource: clean(input.complaintSource),
+      complaintSubject: clean(input.complaintSubject),
+      liabilityClaimBasis: clean(input.liabilityClaimBasis),
+    },
+  });
+  await recordAuditEvent({
+    actorUserId: input.actorUserId,
+    action: "incident.set_case_details",
+    entityType: "Incident",
+    entityId: input.incidentId,
+    companyId: incident.companyId,
+    siteId: input.siteId,
+  });
+}
+
 // Triage: set work-relatedness, severity band and the two one-way domain flags,
 // and advance REPORTED -> TRIAGED. The status move is validated against the
 // machine; triage of an already-triaged incident just updates the fields.

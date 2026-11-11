@@ -2900,6 +2900,9 @@ enum IncidentType {
   SECURITY_VORFALL
   GEWALT_UEBERGRIFF
   BEHOERDE_BEANSTANDUNG
+  // P14 G5: complaint + liability case types (person-safe, light field set).
+  BESCHWERDE
+  HAFTUNGSFALL
   SONSTIGES
 }
 
@@ -2953,6 +2956,12 @@ model Incident {
   // P14 G4: optional link to a fleet vehicle (for a Fahrzeugereignis). Person-
   // free — the vehicle master holds no driver.
   vehicleId                 String?
+  // P14 G5: light field set for a Beschwerde (complaint) / Haftungsfall
+  // (liability). All nullable, person-free free text — complaintSource is a
+  // channel/role ("Kunde", "anonym"), never a named person.
+  complaintSource           String?
+  complaintSubject          String?
+  liabilityClaimBasis       String?
 
   company               Company                  @relation(fields: [companyId], references: [id], onDelete: Restrict)
   site                  Site                     @relation(fields: [siteId], references: [id], onDelete: Restrict)
