@@ -7,7 +7,7 @@ import { resolveModuleLabel } from "@/lib/modules/module-labels";
 import type { BadgeSource } from "@/lib/modules/registry";
 import { MODULE_REGISTRY, type ModuleKey } from "@/lib/modules/registry";
 import { isPresentMode } from "@/lib/present-mode";
-import { AppSidebar } from "./app-sidebar";
+import { AppSidebar, type SidebarSite } from "./app-sidebar";
 
 const COLLAPSE_KEY = "sld-sidebar-collapsed";
 
@@ -24,12 +24,14 @@ const COLLAPSE_KEY = "sld-sidebar-collapsed";
 export function AppShell({
   siteId,
   enabledKeys,
+  sites = [],
   badges,
   exitLabel,
   children,
 }: {
   siteId: string;
   enabledKeys: readonly ModuleKey[];
+  sites?: readonly SidebarSite[];
   badges: Partial<Record<BadgeSource, number>>;
   exitLabel: string;
   children: ReactNode;
@@ -73,6 +75,7 @@ export function AppShell({
       modules={modules}
       activeKey={activeKey}
       siteId={siteId}
+      sites={sites}
       collapsed={collapsed}
       badges={badges}
       t={resolveModuleLabel}
