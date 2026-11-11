@@ -1051,21 +1051,23 @@ async function main() {
       console.log("P11 Rechtskataster already seeded — skipping.");
     }
 
-    // --- P12 KPI period figures (headcount + hours) for the current year, so
-    // the accident-rate KPIs compute on the demo. Idempotent (ON CONFLICT).
+    // --- P14 G1 workforce figures (headcount + hours), annual YEAR period, for
+    // the current year, so the accident-rate KPIs compute on the demo. Idempotent
+    // (ON CONFLICT on the whole-site partial unique index).
     const kpiYear = new Date().getUTCFullYear();
     for (const [sId, hc, hrs] of [
       [site.id, 45, 81000],
       [deSite.id, 30, 54000],
     ]) {
       await db.query(
-        `INSERT INTO "SitePeriodFigures"(id,"siteId",year,headcount,"hoursWorked","setByUserId","updatedAt")
-         VALUES($1,$2,$3,$4,$5,$6,now())
-         ON CONFLICT ("siteId",year) DO UPDATE SET headcount=EXCLUDED.headcount, "hoursWorked"=EXCLUDED."hoursWorked", "updatedAt"=now()`,
+        `INSERT INTO "SiteWorkforcePeriod"(id,"siteId","orgUnitId","periodType",year,"periodIndex",headcount,"hoursWorked","setByUserId","updatedAt")
+         VALUES($1,$2,NULL,'YEAR',$3,0,$4,$5,$6,now())
+         ON CONFLICT ("siteId","periodType",year,"periodIndex") WHERE "orgUnitId" IS NULL
+         DO UPDATE SET headcount=EXCLUDED.headcount, "hoursWorked"=EXCLUDED."hoursWorked", "setByUserId"=EXCLUDED."setByUserId", "setAt"=now(), "updatedAt"=now()`,
         [crypto.randomUUID(), sId, kpiYear, hc, hrs, demoUserId],
       );
     }
-    console.log(`P12 KPI: period figures set for AT + DE sites (${kpiYear})`);
+    console.log(`P14 G1: workforce figures set for AT + DE sites (${kpiYear})`);
 
     // --- The historical demo narrative: seeded once, as a block ---
     const heroWorkstation = workstations["Montageplatz Paneele 1"];

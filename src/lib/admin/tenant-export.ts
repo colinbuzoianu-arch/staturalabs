@@ -43,7 +43,7 @@ export async function exportCompany(input: {
     siteLegalRequirements,
     complianceEvaluations,
     generatedDocuments,
-    sitePeriodFigures,
+    workforcePeriods,
   ] = await Promise.all([
     prisma.company.findUnique({ where: { id: companyId } }),
     prisma.site.findMany({ where: { companyId } }),
@@ -102,7 +102,7 @@ export async function exportCompany(input: {
         generatedAt: true,
       },
     }),
-    prisma.sitePeriodFigures.findMany({ where: { siteId: { in: siteIds } } }),
+    prisma.siteWorkforcePeriod.findMany({ where: { siteId: { in: siteIds } } }),
   ]);
 
   await recordAuditEvent({
@@ -139,7 +139,7 @@ export async function exportCompany(input: {
     siteLegalRequirements,
     complianceEvaluations,
     generatedDocuments,
-    sitePeriodFigures,
+    workforcePeriods,
   };
 }
 

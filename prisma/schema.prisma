@@ -93,7 +93,7 @@ model Site {
   environmentalAssessments EnvironmentalAssessment[]
   wasteStreams             WasteStream[]
   siteLegalRequirements    SiteLegalRequirement[]
-  sitePeriodFigures        SitePeriodFigures[]
+  workforcePeriods         SiteWorkforcePeriod[]
   generatedDocuments       GeneratedDocument[]
   documents                Document[]
   substanceUses            SubstanceUse[]
@@ -860,9 +860,10 @@ model OrgUnit {
   site          Site           @relation(fields: [siteId], references: [id], onDelete: Restrict)
   parent        OrgUnit?       @relation("OrgUnitTree", fields: [parentId], references: [id], onDelete: Restrict)
   children      OrgUnit[]      @relation("OrgUnitTree")
-  workstations  Workstation[]
-  processes     Process[]
-  substanceUses SubstanceUse[]
+  workstations     Workstation[]
+  processes        Process[]
+  substanceUses    SubstanceUse[]
+  workforcePeriods SiteWorkforcePeriod[]
 
   @@index([siteId])
   @@index([parentId])
@@ -3284,9 +3285,9 @@ model ComplianceEvaluationEvent {
 // KPI DEFINITIONS are versioned data (label/unit/domain/order/flags); the
 // COMPUTATION for each key lives in code (src/lib/analytics/kpi.ts), keyed by
 // `key`. Person-derived KPIs (personDerived = true) pass through the §3.4
-// minimum-group-size helper. Period-sensitive KPIs read SitePeriodFigures
-// (headcount/hours per site+year) for rate denominators. Person-free: no model
-// here references the people compartment.
+// minimum-group-size helper. Period-sensitive KPIs read SiteWorkforcePeriod
+// (headcount/hours per site+orgUnit+period) for rate denominators. Person-free:
+// no model here references the people compartment.
 // ---------------------------------------------------------------------------
 enum KpiDomain {
   OSH
@@ -3355,18 +3356,40 @@ model FeatureFlag {
   @@index([companyId])
 }
 
-model SitePeriodFigures {
-  id          String   @id @default(cuid())
+// P14 G1: person-free workforce figures (headcount + hours worked) per site,
+// optional org-unit, and period. Supersedes the annual-only SitePeriodFigures;
+// the P12 accident-rate denominators aggregate from here per year. A figure,
+// never a count of Person rows (ERGO §3.18): no FK into the people compartment.
+//
+// periodIndex carries 0 for a YEAR row, 1-4 for QUARTER, 1-12 for MONTH — a
+// hand-added CHECK (SiteWorkforcePeriod_period_shape_check) enforces the range
+// by periodType. Uniqueness ("one row per site+orgUnit+period") is two hand-added
+// partial unique indexes (orgUnitId NULL vs NOT NULL) — not expressible in
+// Prisma, so there is no @@unique here; setSiteWorkforcePeriod() does a
+// find-then-write rather than a Prisma upsert.
+enum WorkforcePeriodType {
+  MONTH
+  QUARTER
+  YEAR
+}
+
+model SiteWorkforcePeriod {
+  id          String              @id @default(cuid())
   siteId      String
+  orgUnitId   String?
+  periodType  WorkforcePeriodType
   year        Int
+  periodIndex Int
   headcount   Int?
   hoursWorked Int?
-  setByUserId String?  @db.Uuid
-  updatedAt   DateTime @updatedAt
-  createdAt   DateTime @default(now())
+  setByUserId String?             @db.Uuid
+  setAt       DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  createdAt   DateTime            @default(now())
 
-  site Site @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  site    Site     @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  orgUnit OrgUnit? @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
 
-  @@unique([siteId, year])
-  @@index([siteId])
+  @@index([siteId, year])
+  @@index([orgUnitId])
 }

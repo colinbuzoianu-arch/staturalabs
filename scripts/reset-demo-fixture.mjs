@@ -142,11 +142,11 @@ async function main() {
       `DELETE FROM "SiteLegalRequirement" WHERE "siteId" = ANY($1)`,
       [siteIds],
     );
-    // P12: per-site KPI period figures.
+    // P14 G1: per-site workforce figures (headcount + hours).
     await del(
       db,
-      "SitePeriodFigures",
-      `DELETE FROM "SitePeriodFigures" WHERE "siteId" = ANY($1)`,
+      "SiteWorkforcePeriod",
+      `DELETE FROM "SiteWorkforcePeriod" WHERE "siteId" = ANY($1)`,
       [siteIds],
     );
     // P8 Gefahrstoffe (SLD_P8_GEFAHRSTOFFE_APPROVED.md): every substance FK is

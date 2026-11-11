@@ -8,6 +8,7 @@ import {
   ratio,
 } from "./kpi-formulas";
 import { withMinimumGroupSize } from "./min-group-size";
+import { aggregateWorkforce } from "./workforce-aggregate";
 
 // P12 KPI compute engine (SLD_RESTRUCTURE_PLAN_platform-modules.md §7.10). One
 // computation per KPI key; the versioned KpiDefinition supplies the metadata.
@@ -75,9 +76,9 @@ export async function computeKpis(scope: KpiScope): Promise<KpiResult[]> {
     prisma.incident.count({
       where: { siteId: inSites, type: "BEINAHEUNFALL", occurredAt: inYear },
     }),
-    prisma.sitePeriodFigures.findMany({
+    prisma.siteWorkforcePeriod.findMany({
       where: { siteId: inSites, year },
-      select: { headcount: true, hoursWorked: true },
+      select: { siteId: true, headcount: true, hoursWorked: true },
     }),
     prisma.incidentHealthDetail.findMany({
       where: {
@@ -155,8 +156,7 @@ export async function computeKpis(scope: KpiScope): Promise<KpiResult[]> {
     }),
   ]);
 
-  const headcount = sum(figures.map((f) => f.headcount));
-  const hoursWorked = sum(figures.map((f) => f.hoursWorked));
+  const { headcount, hoursWorked } = aggregateWorkforce(figures);
   const lostDaysTotal = healthDetails.reduce(
     (a, h) => a + (h.incapacityDays ?? 0),
     0,
@@ -193,7 +193,17 @@ export async function computeKpis(scope: KpiScope): Promise<KpiResult[]> {
       ratePerMillionHours(accidents, hoursWorked),
     ),
     grouped("lost-days", lostDaysTotal, affectedPersons),
+    // G1: severity (Ausfalltage je Unfall) and the lost-day rate per 1.000
+    // employees — both lost-day-derived, so min-group-gated on affected persons.
+    grouped("severity-rate", ratio(lostDaysTotal, accidents), affectedPersons),
+    grouped(
+      "lost-day-rate-1000",
+      ratePerThousand(lostDaysTotal, headcount),
+      affectedPersons,
+    ),
     plain("near-miss-ratio", ratio(nearMisses, accidents)),
+    // G1: near-miss rate per 1.000 employees (not person-derived).
+    plain("near-miss-rate-1000", ratePerThousand(nearMisses, headcount)),
     plain("open-actions", openActions),
     plain("overdue-actions", overdueActions),
     plain(
@@ -218,10 +228,4 @@ export async function computeKpis(scope: KpiScope): Promise<KpiResult[]> {
     plain("waste-quantity", wasteStreams.length > 0 ? wasteTotal : null),
     plain("environmental-significance", significantAspects),
   ];
-}
-
-function sum(values: (number | null)[]): number | null {
-  const present = values.filter((v): v is number => v !== null);
-  if (present.length === 0) return null;
-  return present.reduce((a, b) => a + b, 0);
 }

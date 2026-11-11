@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import type { KpiDomain } from "@/generated/prisma/enums";
 import { computeKpis } from "@/lib/analytics/kpi";
-import { setSitePeriodFigures } from "@/lib/analytics/period-figures";
+import { setSiteWorkforcePeriod } from "@/lib/analytics/workforce-period";
 import { canAccessCompany } from "@/lib/auth/rbac";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
@@ -48,8 +48,14 @@ export default async function KpiCockpitPage({
       orderBy: { order: "asc" },
     }),
     computeKpis({ siteIds, companyId, year }),
-    prisma.sitePeriodFigures.findUnique({
-      where: { siteId_year: { siteId, year } },
+    prisma.siteWorkforcePeriod.findFirst({
+      where: {
+        siteId,
+        orgUnitId: null,
+        periodType: "YEAR",
+        year,
+        periodIndex: 0,
+      },
     }),
   ]);
   const byKey = new Map(results.map((r) => [r.key, r]));
@@ -78,10 +84,13 @@ export default async function KpiCockpitPage({
       typeof v === "string" && v.trim().length > 0
         ? Number.parseInt(v, 10)
         : null;
-    await setSitePeriodFigures({
+    await setSiteWorkforcePeriod({
       siteId,
       companyId: s.companyId,
+      orgUnitId: null,
+      periodType: "YEAR",
       year: typeof y === "string" ? Number.parseInt(y, 10) : thisYear,
+      periodIndex: 0,
       headcount: num(hc),
       hoursWorked: num(hrs),
       actorUserId: actor.id,
