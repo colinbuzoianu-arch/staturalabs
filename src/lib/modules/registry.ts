@@ -213,6 +213,7 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     icon: "alert-triangle",
     children: [
       { labelKey: "modules.incidents.children.reports", slug: "reports" },
+      { labelKey: "modules.incidents.children.quick", slug: "quick" },
       {
         labelKey: "modules.incidents.children.investigations",
         slug: "investigations",

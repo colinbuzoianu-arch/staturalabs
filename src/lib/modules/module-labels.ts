@@ -20,6 +20,7 @@ export const MODULE_LABELS_DE: Record<string, string> = {
   "modules.inspections.children.templates": "Vorlagen",
   "modules.incidents.label": "Ereignisse",
   "modules.incidents.children.reports": "Meldungen",
+  "modules.incidents.children.quick": "Schnellmeldung",
   "modules.incidents.children.investigations": "Untersuchungen",
   "modules.incidents.children.notifications": "Behördenmeldungen",
   "modules.incidents.children.verbandbuch": "Verbandbuch",
