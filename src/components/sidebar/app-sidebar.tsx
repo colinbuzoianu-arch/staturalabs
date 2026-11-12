@@ -236,7 +236,7 @@ function useDismiss<T extends HTMLElement>(open: boolean, onClose: () => void) {
 }
 
 const MENU_PANEL_CLASS =
-  "absolute left-0 right-0 z-30 mt-1 max-h-72 overflow-y-auto rounded-[var(--radius-md)] border border-border bg-surface py-1 shadow-lg";
+  "absolute left-0 right-0 z-50 mt-1 max-h-72 overflow-y-auto rounded-[var(--radius-md)] border border-border bg-surface-raised py-1 shadow-lg";
 
 function SiteSwitcher({
   sites,
