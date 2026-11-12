@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/misc";
 import { requireSiteAccess } from "@/lib/auth/require-access";
@@ -15,16 +16,19 @@ export default async function WorkstationsListPage({
   const { siteId } = await params;
   const { site } = await requireSiteAccess(siteId);
 
-  const workstations = await prisma.workstation.findMany({
-    where: { siteId },
-    select: {
-      id: true,
-      name: true,
-      location: true,
-      orgUnit: { select: { name: true } },
-    },
-    orderBy: { name: "asc" },
-  });
+  const [workstations, floorPlanCount] = await Promise.all([
+    prisma.workstation.findMany({
+      where: { siteId },
+      select: {
+        id: true,
+        name: true,
+        location: true,
+        orgUnit: { select: { name: true } },
+      },
+      orderBy: { name: "asc" },
+    }),
+    prisma.floorPlan.count({ where: { siteId } }),
+  ]);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -36,6 +40,27 @@ export default async function WorkstationsListPage({
           Arbeitsplätze
         </h1>
       </div>
+
+      {/* Lagepläne prominently surfaced here (not just the small cockpit
+          link): the floor plan is where workstations are placed and read on a
+          site map. */}
+      <Card>
+        <CardHeader
+          title="Lagepläne"
+          description={
+            floorPlanCount > 0
+              ? `${floorPlanCount} ${floorPlanCount === 1 ? "Lageplan" : "Lagepläne"} · Arbeitsplätze auf dem Lageplan platzieren und verwalten`
+              : "Noch kein Lageplan hochgeladen — Lageplan hochladen und Arbeitsplätze darauf platzieren"
+          }
+          action={
+            <Link href={`/app/s/${siteId}/risk/floor-plan`}>
+              <Button variant="secondary" size="sm">
+                Lagepläne verwalten →
+              </Button>
+            </Link>
+          }
+        />
+      </Card>
 
       <Card>
         <CardHeader
