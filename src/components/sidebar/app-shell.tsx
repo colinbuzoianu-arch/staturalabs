@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { usePathname, useSearchParams } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
 import { PresentModeExitBar } from "@/components/present-mode-exit-bar";
@@ -101,6 +102,15 @@ export function AppShell({
           >
             ☰
           </button>
+          <Image
+            src="/logo/statura_logo_on_dark.svg"
+            alt=""
+            aria-hidden
+            width={28}
+            height={28}
+            unoptimized
+            className="h-7 w-7 rounded-[var(--radius-sm)]"
+          />
           <span className="font-[family-name:var(--font-wordmark)] text-sm font-semibold">
             STATURA LABS DYNAMICS
           </span>

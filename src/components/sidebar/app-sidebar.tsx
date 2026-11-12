@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, ChevronsUpDown, Plus, X } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -182,9 +183,19 @@ export function AppSidebar({
 function Brand({ collapsed }: { collapsed: boolean }) {
   return (
     <div className="flex h-14 items-center gap-2 border-b border-border px-4">
-      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[var(--radius-md)] bg-accent font-[family-name:var(--font-wordmark)] text-sm font-bold text-white">
-        SLD
-      </span>
+      {/* The brand mark — the same square badge used as the browser-tab icon.
+          A self-contained teal tile, so it reads on both the dark and light
+          sidebar surface without a theme swap (and never flashes empty before
+          data-theme resolves). */}
+      <Image
+        src="/logo/statura_logo_on_dark.svg"
+        alt="Statura Labs Dynamics"
+        width={32}
+        height={32}
+        unoptimized
+        priority
+        className="h-8 w-8 shrink-0 rounded-[var(--radius-md)]"
+      />
       {!collapsed ? (
         <span className="font-[family-name:var(--font-wordmark)] text-sm font-semibold tracking-wide">
           STATURA LABS DYNAMICS
