@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
+import { AssessmentSubjectFields } from "@/components/risk/assessment-subject-fields";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
@@ -105,8 +106,11 @@ export default async function RiskAssessmentsPage({
     prisma.process.findMany({ where: { siteId }, orderBy: { name: "asc" } }),
   ]);
 
+  const inputClass =
+    "w-full rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm";
+
   return (
-    <div className="flex flex-col gap-8">
+    <div className="mx-auto flex max-w-6xl flex-col gap-6">
       <div className="flex flex-col gap-1">
         <p className="font-technical text-xs uppercase tracking-[0.2em] text-border">
           {dict.eyebrow}
@@ -114,130 +118,97 @@ export default async function RiskAssessmentsPage({
         <h1 className="font-heading text-2xl font-bold">{dict.heading}</h1>
       </div>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="font-heading text-lg font-bold">{dict.createHeading}</h2>
-        <form
-          action={createRiskAssessmentAction}
-          className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4"
-        >
-          <div className="flex flex-wrap gap-4 text-sm">
-            <label className="flex items-center gap-1">
-              <input
-                type="radio"
-                name="subjectType"
-                value="workstation"
-                defaultChecked
-              />
-              {dict.workstationOption}
-            </label>
-            <label className="flex items-center gap-1">
-              <input type="radio" name="subjectType" value="process" />
-              {dict.processOption}
-            </label>
-          </div>
-          <div className="flex flex-wrap gap-2">
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Left: create form */}
+        <section className="flex flex-col gap-3 self-start rounded-lg border border-border bg-surface p-5">
+          <h2 className="font-heading text-lg font-bold">
+            {dict.createHeading}
+          </h2>
+          <form
+            action={createRiskAssessmentAction}
+            className="flex flex-col gap-3"
+          >
+            <AssessmentSubjectFields
+              siteId={siteId}
+              workstations={workstations}
+              processes={processes}
+              labels={{
+                subjectTypeLabel: dict.subjectTypeLabel,
+                workstationOption: dict.workstationOption,
+                processOption: dict.processOption,
+                workstationLabel: dict.workstationLabel,
+                processLabel: dict.processLabel,
+                noWorkstationsHint: dict.noWorkstationsHint,
+                noProcessesHint: dict.noProcessesHint,
+              }}
+            />
             <label className="flex flex-col gap-1 text-sm">
-              {dict.workstationLabel}
-              <select
-                name="workstationId"
-                className="rounded border border-border bg-background px-2 py-1"
-              >
-                {workstations.map((workstation) => (
-                  <option key={workstation.id} value={workstation.id}>
-                    {workstation.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              {dict.processLabel}
-              <select
-                name="processId"
-                className="rounded border border-border bg-background px-2 py-1"
-              >
-                {processes.map((process) => (
-                  <option key={process.id} value={process.id}>
-                    {process.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              {dict.assessedAtLabel}
+              <span className="text-xs font-medium text-foreground-muted">
+                {dict.assessedAtLabel}
+              </span>
               <input
                 type="datetime-local"
                 name="assessedAt"
                 required
-                className="rounded border border-border bg-background px-2 py-1"
+                className={inputClass}
               />
             </label>
-          </div>
-          <label className="flex flex-col gap-1 text-sm">
-            {dict.pilotContextLabel}
-            <input
-              name="pilotContext"
-              className="rounded border border-border bg-background px-2 py-1"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            {dict.notesLabel}
-            <input
-              name="notes"
-              className="rounded border border-border bg-background px-2 py-1"
-            />
-          </label>
-          <button
-            type="submit"
-            className="self-start rounded bg-accent px-3 py-1.5 text-sm font-semibold text-background"
-          >
-            {dict.create}
-          </button>
-        </form>
-      </section>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-xs font-medium text-foreground-muted">
+                {dict.pilotContextLabel}
+              </span>
+              <input name="pilotContext" className={inputClass} />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-xs font-medium text-foreground-muted">
+                {dict.notesLabel}
+              </span>
+              <input name="notes" className={inputClass} />
+            </label>
+            <button
+              type="submit"
+              className="self-start rounded-[var(--radius-md)] bg-accent px-4 py-2 text-sm font-semibold text-white hover:brightness-110"
+            >
+              {dict.create}
+            </button>
+          </form>
+        </section>
 
-      {riskAssessments.length === 0 ? (
-        <p className="text-sm text-border">{dict.empty}</p>
-      ) : (
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="py-1 pr-4">{dict.colSubject}</th>
-              <th className="py-1 pr-4">{dict.colStatus}</th>
-              <th className="py-1 pr-4">{dict.colAssessedAt}</th>
-              <th className="py-1 pr-4">{dict.colFindings}</th>
-              <th className="py-1" />
-            </tr>
-          </thead>
-          <tbody>
-            {riskAssessments.map((riskAssessment) => (
-              <tr
-                key={riskAssessment.id}
-                className="border-b border-border last:border-0"
-              >
-                <td className="py-1 pr-4">
-                  {riskAssessment.workstation?.name ??
-                    riskAssessment.process?.name}
-                </td>
-                <td className="py-1 pr-4">
-                  {statusLabels[riskAssessment.status]}
-                </td>
-                <td className="py-1 pr-4">
-                  {riskAssessment.assessedAt.toISOString()}
-                </td>
-                <td className="py-1 pr-4">{riskAssessment._count.findings}</td>
-                <td className="py-1">
+        {/* Right: existing assessments */}
+        <section className="flex flex-col gap-3">
+          <h2 className="font-heading text-lg font-bold">
+            {dict.existingHeading}
+          </h2>
+          {riskAssessments.length === 0 ? (
+            <p className="text-sm text-border">{dict.empty}</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {riskAssessments.map((riskAssessment) => (
+                <li key={riskAssessment.id}>
                   <Link
                     href={`/app/s/${siteId}/risk/assessments/${riskAssessment.id}`}
-                    className="underline hover:text-accent"
+                    className="flex flex-col gap-1 rounded-lg border border-border bg-surface p-3 hover:border-accent"
                   >
-                    {dict.viewLink}
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-foreground">
+                        {riskAssessment.workstation?.name ??
+                          riskAssessment.process?.name}
+                      </span>
+                      <span className="text-xs text-border">
+                        {statusLabels[riskAssessment.status]}
+                      </span>
+                    </span>
+                    <span className="text-xs text-border">
+                      {riskAssessment.assessedAt.toISOString().slice(0, 10)} ·{" "}
+                      {dict.colFindings}: {riskAssessment._count.findings}
+                    </span>
                   </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

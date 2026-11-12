@@ -112,8 +112,12 @@ export default async function EnvironmentAssessmentsPage({
     }),
   ]);
 
+  const fieldClass =
+    "w-full rounded-[var(--radius-md)] border border-border bg-background px-3 py-2 text-sm";
+  const labelTextClass = "text-xs font-medium text-foreground-muted";
+
   return (
-    <div className="flex flex-col gap-8">
+    <div className="mx-auto flex max-w-6xl flex-col gap-6">
       <div className="flex flex-col gap-1">
         <p className="font-technical text-xs uppercase tracking-[0.2em] text-border">
           {dict.listEyebrow}
@@ -122,132 +126,121 @@ export default async function EnvironmentAssessmentsPage({
         <p className="text-sm text-border">{dict.listDescription}</p>
       </div>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="font-heading text-lg font-bold">{dict.createHeading}</h2>
-        <form
-          action={createAction}
-          className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4"
-        >
-          <div className="flex flex-wrap gap-2">
-            <label className="flex flex-col gap-1 text-sm">
-              {dict.workstationScopeLabel}
-              <select
-                name="workstationId"
-                className="rounded border border-border bg-background px-2 py-1"
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Left: create + AWK/EMAS */}
+        <div className="flex flex-col gap-6 self-start">
+          <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-5">
+            <h2 className="font-heading text-lg font-bold">
+              {dict.createHeading}
+            </h2>
+            <form action={createAction} className="flex flex-col gap-3">
+              <label className="flex flex-col gap-1 text-sm">
+                <span className={labelTextClass}>
+                  {dict.workstationScopeLabel}
+                </span>
+                <select name="workstationId" className={fieldClass}>
+                  <option value="">{dict.scopeSiteLevel}</option>
+                  {workstations.map((workstation) => (
+                    <option key={workstation.id} value={workstation.id}>
+                      {workstation.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className={labelTextClass}>{dict.assessedAtLabel}</span>
+                <input
+                  type="datetime-local"
+                  name="assessedAt"
+                  required
+                  className={fieldClass}
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className={labelTextClass}>{dict.pilotContextLabel}</span>
+                <input name="pilotContext" className={fieldClass} />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className={labelTextClass}>{dict.notesLabel}</span>
+                <input name="notes" className={fieldClass} />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className={labelTextClass}>
+                  {dict.futureDevelopmentLabel}
+                </span>
+                <input name="futureDevelopment" className={fieldClass} />
+              </label>
+              <button
+                type="submit"
+                className="self-start rounded-[var(--radius-md)] bg-accent px-4 py-2 text-sm font-semibold text-white hover:brightness-110"
               >
-                <option value="">{dict.scopeSiteLevel}</option>
-                {workstations.map((workstation) => (
-                  <option key={workstation.id} value={workstation.id}>
-                    {workstation.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-sm">
-              {dict.assessedAtLabel}
-              <input
-                type="datetime-local"
-                name="assessedAt"
-                required
-                className="rounded border border-border bg-background px-2 py-1"
-              />
-            </label>
-          </div>
-          <label className="flex flex-col gap-1 text-sm">
-            {dict.pilotContextLabel}
-            <input
-              name="pilotContext"
-              className="rounded border border-border bg-background px-2 py-1"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            {dict.notesLabel}
-            <input
-              name="notes"
-              className="rounded border border-border bg-background px-2 py-1"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            {dict.futureDevelopmentLabel}
-            <input
-              name="futureDevelopment"
-              className="rounded border border-border bg-background px-2 py-1"
-            />
-          </label>
-          <button
-            type="submit"
-            className="self-start rounded bg-accent px-3 py-1.5 text-sm font-semibold text-background"
-          >
-            {dict.createButton}
-          </button>
-        </form>
-      </section>
+                {dict.createButton}
+              </button>
+            </form>
+          </section>
 
-      {/* E4 (§6): the Abfallwirtschaftskonzept generator + EMAS exemption.
-          Link shown only for AT sites; the EMAS note explains the §10 Abs. 1
-          exemption. */}
-      <section className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4">
-        {site.emasRegistered && (
-          <p className="text-sm text-border">{dict.emasExemptNote}</p>
-        )}
-        {awkPack && (
-          <a
-            href={`/api/sites/${siteId}/awk`}
-            className="self-start text-sm text-accent hover:underline"
-          >
-            {dict.awkLink}
-          </a>
-        )}
-        <form action={toggleEmasAction}>
-          <button
-            type="submit"
-            className="self-start rounded border border-border px-3 py-1.5 text-sm hover:border-accent"
-          >
-            {site.emasRegistered ? dict.emasUnmarkButton : dict.emasMarkButton}
-          </button>
-        </form>
-      </section>
-
-      {assessments.length === 0 ? (
-        <p className="text-sm text-border">{dict.listEmpty}</p>
-      ) : (
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="py-1 pr-4">{dict.colSubject}</th>
-              <th className="py-1 pr-4">{dict.colStatus}</th>
-              <th className="py-1 pr-4">{dict.colAssessedAt}</th>
-              <th className="py-1 pr-4">{dict.colFindings}</th>
-              <th className="py-1" />
-            </tr>
-          </thead>
-          <tbody>
-            {assessments.map((assessment) => (
-              <tr
-                key={assessment.id}
-                className="border-b border-border last:border-0"
+          {/* E4 (§6): the Abfallwirtschaftskonzept generator + EMAS exemption.
+              Link shown only for AT sites; the EMAS note explains the §10
+              Abs. 1 exemption. */}
+          <section className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4">
+            {site.emasRegistered && (
+              <p className="text-sm text-border">{dict.emasExemptNote}</p>
+            )}
+            {awkPack && (
+              <a
+                href={`/api/sites/${siteId}/awk`}
+                className="self-start text-sm text-accent hover:underline"
               >
-                <td className="py-1 pr-4">
-                  {assessment.workstation?.name ?? dict.scopeSiteLevel}
-                </td>
-                <td className="py-1 pr-4">{statusLabels[assessment.status]}</td>
-                <td className="py-1 pr-4">
-                  {assessment.assessedAt.toISOString()}
-                </td>
-                <td className="py-1 pr-4">{assessment._count.findings}</td>
-                <td className="py-1">
+                {dict.awkLink}
+              </a>
+            )}
+            <form action={toggleEmasAction}>
+              <button
+                type="submit"
+                className="self-start rounded border border-border px-3 py-1.5 text-sm hover:border-accent"
+              >
+                {site.emasRegistered
+                  ? dict.emasUnmarkButton
+                  : dict.emasMarkButton}
+              </button>
+            </form>
+          </section>
+        </div>
+
+        {/* Right: existing assessments */}
+        <section className="flex flex-col gap-3">
+          <h2 className="font-heading text-lg font-bold">
+            {dict.existingHeading}
+          </h2>
+          {assessments.length === 0 ? (
+            <p className="text-sm text-border">{dict.listEmpty}</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {assessments.map((assessment) => (
+                <li key={assessment.id}>
                   <Link
                     href={`/app/s/${siteId}/environment/assessments/${assessment.id}`}
-                    className="underline hover:text-accent"
+                    className="flex flex-col gap-1 rounded-lg border border-border bg-surface p-3 hover:border-accent"
                   >
-                    {dict.viewLink}
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-foreground">
+                        {assessment.workstation?.name ?? dict.scopeSiteLevel}
+                      </span>
+                      <span className="text-xs text-border">
+                        {statusLabels[assessment.status]}
+                      </span>
+                    </span>
+                    <span className="text-xs text-border">
+                      {assessment.assessedAt.toISOString().slice(0, 10)} ·{" "}
+                      {dict.colFindings}: {assessment._count.findings}
+                    </span>
                   </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
