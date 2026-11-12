@@ -1,16 +1,16 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { LanguageSwitcher } from "@/components/language-switcher";
+import { type AdminNavItem, AdminShell } from "@/components/admin/admin-shell";
 import { mfaRedirectTarget } from "@/lib/auth/mfa";
 import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 import { getAdminDictionary } from "@/lib/i18n/dictionaries/admin";
 import { getLocale } from "@/lib/i18n/get-locale";
 
-// Internal, super_admin-only tool: minimal CRUD to unblock manual testing
-// (create the Company -> Site -> Workstation -> Task chain without hand-
-// editing scripts/seed-dev-fixture.mjs) and a results view detailed enough
-// to replace one-off diagnostic scripts after a capture. Deliberately not
-// styled and not scoped for company_admin/site_admin — see CLAUDE.md.
+// Internal, super_admin-only console: cross-tenant management (tenants,
+// module entitlements, catalogues, users, audit, feature flags, demo tools).
+// The bare underline-link layout this used to ship with was restyled into a
+// real control panel (AdminShell) — see CLAUDE.md. Billing is deliberately not
+// surfaced anywhere here; it is managed outside the app.
 export default async function AdminLayout({
   children,
 }: {
@@ -21,44 +21,26 @@ export default async function AdminLayout({
   // too (the /security/mfa page lives outside this layout, so no redirect loop).
   const mfaTarget = await mfaRedirectTarget(user);
   if (mfaTarget) redirect(mfaTarget);
+
   const locale = await getLocale();
   const dict = getAdminDictionary(locale);
+  const l = dict.layout;
+
+  const nav: AdminNavItem[] = [
+    { href: "/admin", label: l.overviewNav },
+    { href: "/admin/tenants", label: l.companiesNav },
+    { href: "/admin/entitlements", label: l.entitlementsNav },
+    { href: "/admin/catalogues", label: l.cataloguesNav },
+    { href: "/admin/users", label: l.usersNav },
+    { href: "/admin/audit", label: l.auditNav },
+    { href: "/admin/flags", label: l.flagsNav },
+    { href: "/admin/pilot-data", label: l.pilotNav },
+    { href: "/admin/demo-reset", label: l.demoResetNav },
+  ];
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-8">
-      <nav className="flex items-center justify-between text-sm">
-        <div className="flex gap-4">
-          <a href="/admin/companies" className="underline">
-            {dict.layout.companiesNav}
-          </a>
-          <a href="/admin/entitlements" className="underline">
-            {dict.layout.entitlementsNav}
-          </a>
-          <a href="/admin/catalogues" className="underline">
-            {dict.layout.cataloguesNav}
-          </a>
-          <a href="/admin/users" className="underline">
-            {dict.layout.usersNav}
-          </a>
-          <a href="/admin/audit" className="underline">
-            {dict.layout.auditNav}
-          </a>
-          <a href="/admin/flags" className="underline">
-            {dict.layout.flagsNav}
-          </a>
-          <a href="/admin/pilot-data" className="underline">
-            {dict.layout.pilotNav}
-          </a>
-          <a href="/admin/demo-reset" className="underline">
-            {dict.layout.demoResetNav}
-          </a>
-        </div>
-        {/* Upper-right corner, same as every other page — the one piece of
-            chrome this deliberately-unstyled tool gets, since the language
-            switch was asked for on every page without exception. */}
-        <LanguageSwitcher />
-      </nav>
+    <AdminShell title={l.title} nav={nav}>
       {children}
-    </div>
+    </AdminShell>
   );
 }

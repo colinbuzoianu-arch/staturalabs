@@ -11,6 +11,8 @@
 // tool's copy (this file) stays deliberately plain/no-polish.
 export const en = {
   layout: {
+    title: "Super-admin console",
+    overviewNav: "Overview",
     companiesNav: "Tenants",
     demoResetNav: "Demo reset",
     entitlementsNav: "Entitlements",
@@ -19,6 +21,43 @@ export const en = {
     usersNav: "Users",
     flagsNav: "Feature flags",
     pilotNav: "Demo/pilot data",
+  },
+  console: {
+    heading: "Overview",
+    subheading:
+      "Manage tenants and the modules each one can use. Billing is handled outside the app.",
+    tenantsStat: "Tenants",
+    activeStat: "Active",
+    archivedStat: "Archived",
+    sitesStat: "Sites",
+    usersStat: "Users",
+    modulesStat: "Module grants",
+    manageTenants: "Manage tenants",
+    createTenant: "Create tenant",
+    recentTenants: "Recent tenants",
+    viewAllTenants: "All tenants",
+    billingNote: "Billing and contracts are handled outside this app.",
+    noTenants: "No tenants yet.",
+  },
+  tenantDetailPage: {
+    backToTenants: "All tenants",
+    country: "Country",
+    created: "Created",
+    modulesHeading: "Modules",
+    modulesHint:
+      "Turn modules on or off for this tenant. Baseline modules are always available and are not listed here.",
+    baselineBadge: "always on",
+    applyTemplate: "Apply default template",
+    on: "On",
+    off: "Off",
+    enable: "Enable",
+    disable: "Disable",
+    sitesHeading: "Sites",
+    manageSites: "Manage sites",
+    noSites: "No sites yet.",
+    adminsHeading: "Administrators",
+    noAdmins: "No administrators invited yet.",
+    dangerHeading: "Danger zone",
   },
   flagsPage: {
     heading: "Feature flags",

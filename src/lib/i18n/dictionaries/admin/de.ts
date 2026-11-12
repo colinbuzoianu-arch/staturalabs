@@ -3,6 +3,8 @@ import type { en } from "./en";
 // Meaning-based translation, not word-for-word — see CLAUDE.md i18n notes.
 export const de: typeof en = {
   layout: {
+    title: "Super-Admin-Konsole",
+    overviewNav: "Übersicht",
     companiesNav: "Mandanten",
     demoResetNav: "Demo zurücksetzen",
     entitlementsNav: "Berechtigungen",
@@ -11,6 +13,44 @@ export const de: typeof en = {
     usersNav: "Benutzer",
     flagsNav: "Feature-Flags",
     pilotNav: "Demo-/Pilotdaten",
+  },
+  console: {
+    heading: "Übersicht",
+    subheading:
+      "Verwalten Sie Mandanten und die Module, die jeder nutzen darf. Die Abrechnung erfolgt außerhalb der App.",
+    tenantsStat: "Mandanten",
+    activeStat: "Aktiv",
+    archivedStat: "Archiviert",
+    sitesStat: "Standorte",
+    usersStat: "Benutzer",
+    modulesStat: "Modulfreigaben",
+    manageTenants: "Mandanten verwalten",
+    createTenant: "Mandant anlegen",
+    recentTenants: "Neueste Mandanten",
+    viewAllTenants: "Alle Mandanten",
+    billingNote:
+      "Abrechnung und Verträge werden außerhalb dieser App verwaltet.",
+    noTenants: "Noch keine Mandanten.",
+  },
+  tenantDetailPage: {
+    backToTenants: "Alle Mandanten",
+    country: "Land",
+    created: "Erstellt",
+    modulesHeading: "Module",
+    modulesHint:
+      "Module für diesen Mandanten aktivieren oder deaktivieren. Basismodule sind immer verfügbar und werden hier nicht aufgeführt.",
+    baselineBadge: "immer aktiv",
+    applyTemplate: "Standardvorlage anwenden",
+    on: "Ein",
+    off: "Aus",
+    enable: "Aktivieren",
+    disable: "Deaktivieren",
+    sitesHeading: "Standorte",
+    manageSites: "Standorte verwalten",
+    noSites: "Noch keine Standorte.",
+    adminsHeading: "Administratoren",
+    noAdmins: "Noch keine Administratoren eingeladen.",
+    dangerHeading: "Gefahrenzone",
   },
   flagsPage: {
     heading: "Feature-Flags",

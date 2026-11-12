@@ -3,6 +3,8 @@ import type { en } from "./en";
 // Meaning-based translation, not word-for-word — see CLAUDE.md i18n notes.
 export const ro: typeof en = {
   layout: {
+    title: "Consolă super-admin",
+    overviewNav: "Prezentare generală",
     companiesNav: "Tenanți",
     demoResetNav: "Resetare demo",
     entitlementsNav: "Drepturi module",
@@ -11,6 +13,44 @@ export const ro: typeof en = {
     usersNav: "Utilizatori",
     flagsNav: "Indicatoare funcții",
     pilotNav: "Date demo/pilot",
+  },
+  console: {
+    heading: "Prezentare generală",
+    subheading:
+      "Gestionați tenanții și modulele pe care le poate folosi fiecare. Facturarea este gestionată în afara aplicației.",
+    tenantsStat: "Tenanți",
+    activeStat: "Activi",
+    archivedStat: "Arhivați",
+    sitesStat: "Locații",
+    usersStat: "Utilizatori",
+    modulesStat: "Module acordate",
+    manageTenants: "Gestionează tenanții",
+    createTenant: "Creează tenant",
+    recentTenants: "Tenanți recenți",
+    viewAllTenants: "Toți tenanții",
+    billingNote:
+      "Facturarea și contractele sunt gestionate în afara acestei aplicații.",
+    noTenants: "Încă niciun tenant.",
+  },
+  tenantDetailPage: {
+    backToTenants: "Toți tenanții",
+    country: "Țară",
+    created: "Creat",
+    modulesHeading: "Module",
+    modulesHint:
+      "Activați sau dezactivați module pentru acest tenant. Modulele de bază sunt întotdeauna disponibile și nu sunt listate aici.",
+    baselineBadge: "mereu activ",
+    applyTemplate: "Aplică șablonul implicit",
+    on: "Pornit",
+    off: "Oprit",
+    enable: "Activează",
+    disable: "Dezactivează",
+    sitesHeading: "Locații",
+    manageSites: "Gestionează locațiile",
+    noSites: "Încă nicio locație.",
+    adminsHeading: "Administratori",
+    noAdmins: "Încă niciun administrator invitat.",
+    dangerHeading: "Zonă periculoasă",
   },
   flagsPage: {
     heading: "Indicatoare de funcții",
