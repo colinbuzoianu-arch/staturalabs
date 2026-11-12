@@ -21,11 +21,11 @@ export default async function LandingPage() {
     <>
       {/* Hero */}
       <section className="bg-teal text-ivory">
-        <div className="mx-auto max-w-5xl px-6 py-24 min-[860px]:py-28">
+        <div className="mx-auto max-w-5xl px-5 py-16 min-[860px]:px-6 min-[860px]:py-28">
           <p className="font-technical text-xs uppercase tracking-[0.2em] text-coral">
             {hero.eyebrow}
           </p>
-          <h1 className="mt-5 max-w-3xl font-heading text-3xl font-bold leading-tight min-[860px]:text-5xl">
+          <h1 className="mt-5 max-w-3xl font-heading text-[1.7rem] font-bold leading-tight hyphens-auto min-[860px]:text-5xl">
             {hero.h1}
           </h1>
           <p className="mt-6 max-w-2xl text-base text-ivory/85 min-[860px]:text-lg">
@@ -34,13 +34,13 @@ export default async function LandingPage() {
           <div className="mt-9 flex flex-col gap-3 min-[860px]:flex-row min-[860px]:items-center">
             <a
               href={PILOT_MAILTO}
-              className="rounded-md bg-coral px-6 py-3 text-center font-heading text-sm font-bold text-teal transition-opacity hover:opacity-90"
+              className="w-full rounded-md bg-coral px-6 py-3 text-center font-heading text-sm font-bold text-teal transition-opacity hover:opacity-90 min-[860px]:w-auto"
             >
               {hero.ctaPrimary}
             </a>
             <a
               href="#module"
-              className="rounded-md border border-sage-dark/50 px-6 py-3 text-center font-heading text-sm font-bold text-ivory transition-colors hover:border-ivory"
+              className="w-full rounded-md border border-sage-dark/50 px-6 py-3 text-center font-heading text-sm font-bold text-ivory transition-colors hover:border-ivory min-[860px]:w-auto"
             >
               {hero.ctaSecondary}
             </a>
@@ -50,11 +50,11 @@ export default async function LandingPage() {
 
       {/* Platform */}
       <section className="bg-ivory">
-        <div className="mx-auto max-w-5xl px-6 py-20">
+        <div className="mx-auto max-w-5xl px-5 py-14 min-[860px]:px-6 min-[860px]:py-20">
           <p className="font-technical text-xs uppercase tracking-[0.2em] text-coral">
             {platform.eyebrow}
           </p>
-          <h2 className="mt-4 max-w-3xl font-heading text-2xl font-bold text-teal min-[860px]:text-3xl">
+          <h2 className="mt-4 max-w-3xl font-heading text-2xl font-bold text-teal hyphens-auto min-[860px]:text-3xl">
             {platform.heading}
           </h2>
           <div className="mt-6 grid gap-5 min-[860px]:grid-cols-2">
@@ -69,11 +69,11 @@ export default async function LandingPage() {
 
       {/* Modules */}
       <section id="module" className="scroll-mt-20 bg-teal text-ivory">
-        <div className="mx-auto max-w-6xl px-6 py-20">
+        <div className="mx-auto max-w-6xl px-5 py-14 min-[860px]:px-6 min-[860px]:py-20">
           <p className="font-technical text-xs uppercase tracking-[0.2em] text-coral">
             {modules.eyebrow}
           </p>
-          <h2 className="mt-4 max-w-3xl font-heading text-2xl font-bold min-[860px]:text-3xl">
+          <h2 className="mt-4 max-w-3xl font-heading text-2xl font-bold hyphens-auto min-[860px]:text-3xl">
             {modules.heading}
           </h2>
           <p className="mt-4 max-w-2xl text-base text-ivory/80">
@@ -85,7 +85,7 @@ export default async function LandingPage() {
                 key={m.title}
                 className="rounded-lg border border-sage-dark/40 bg-teal/40 p-5"
               >
-                <h3 className="font-heading text-base font-bold text-ivory">
+                <h3 className="font-heading text-base font-bold text-ivory hyphens-auto">
                   {m.title}
                 </h3>
                 <p className="mt-2 text-sm text-ivory/75">{m.description}</p>
@@ -97,11 +97,11 @@ export default async function LandingPage() {
 
       {/* Documents */}
       <section className="bg-ivory">
-        <div className="mx-auto max-w-5xl px-6 py-20">
+        <div className="mx-auto max-w-5xl px-5 py-14 min-[860px]:px-6 min-[860px]:py-20">
           <p className="font-technical text-xs uppercase tracking-[0.2em] text-coral">
             {documents.eyebrow}
           </p>
-          <h2 className="mt-4 max-w-3xl font-heading text-2xl font-bold text-teal min-[860px]:text-3xl">
+          <h2 className="mt-4 max-w-3xl font-heading text-2xl font-bold text-teal hyphens-auto min-[860px]:text-3xl">
             {documents.heading}
           </h2>
           <p className="mt-4 max-w-2xl text-base text-teal/80">
@@ -113,7 +113,7 @@ export default async function LandingPage() {
                 key={d.title}
                 className="rounded-lg border border-sage-dark/30 bg-white/40 p-5"
               >
-                <h3 className="font-heading text-base font-bold text-teal">
+                <h3 className="font-heading text-base font-bold text-teal hyphens-auto">
                   {d.title}
                 </h3>
                 <p className="mt-2 text-sm text-teal/75">{d.description}</p>
@@ -125,11 +125,11 @@ export default async function LandingPage() {
 
       {/* DACH */}
       <section className="bg-sage-light/40">
-        <div className="mx-auto max-w-5xl px-6 py-20">
+        <div className="mx-auto max-w-5xl px-5 py-14 min-[860px]:px-6 min-[860px]:py-20">
           <p className="font-technical text-xs uppercase tracking-[0.2em] text-coral">
             {dach.eyebrow}
           </p>
-          <h2 className="mt-4 max-w-3xl font-heading text-2xl font-bold text-teal min-[860px]:text-3xl">
+          <h2 className="mt-4 max-w-3xl font-heading text-2xl font-bold text-teal hyphens-auto min-[860px]:text-3xl">
             {dach.heading}
           </h2>
           <p className="mt-4 max-w-2xl text-base text-teal/80">
@@ -153,17 +153,17 @@ export default async function LandingPage() {
 
       {/* Trust / GDPR */}
       <section className="bg-ivory">
-        <div className="mx-auto max-w-5xl px-6 py-20">
+        <div className="mx-auto max-w-5xl px-5 py-14 min-[860px]:px-6 min-[860px]:py-20">
           <p className="font-technical text-xs uppercase tracking-[0.2em] text-coral">
             {trust.eyebrow}
           </p>
-          <h2 className="mt-4 max-w-3xl font-heading text-2xl font-bold text-teal min-[860px]:text-3xl">
+          <h2 className="mt-4 max-w-3xl font-heading text-2xl font-bold text-teal hyphens-auto min-[860px]:text-3xl">
             {trust.heading}
           </h2>
           <div className="mt-10 grid gap-6 min-[860px]:grid-cols-3">
             {trust.items.map((t) => (
               <div key={t.title}>
-                <h3 className="font-heading text-base font-bold text-teal">
+                <h3 className="font-heading text-base font-bold text-teal hyphens-auto">
                   {t.title}
                 </h3>
                 <p className="mt-2 text-sm text-teal/75">{t.description}</p>
@@ -175,7 +175,7 @@ export default async function LandingPage() {
 
       {/* Final CTA */}
       <section className="bg-teal text-ivory">
-        <div className="mx-auto flex max-w-5xl flex-col items-start gap-6 px-6 py-20 min-[860px]:items-center min-[860px]:text-center">
+        <div className="mx-auto flex max-w-5xl flex-col items-start gap-6 px-5 py-14 min-[860px]:px-6 min-[860px]:py-20 min-[860px]:items-center min-[860px]:text-center">
           <p className="font-technical text-xs uppercase tracking-[0.2em] text-coral">
             {finalCta.eyebrow}
           </p>

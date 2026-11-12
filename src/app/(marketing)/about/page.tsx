@@ -13,7 +13,7 @@ export default async function AboutPage() {
 
   return (
     <div className="bg-ivory">
-      <div className="mx-auto max-w-3xl px-6 py-24">
+      <div className="mx-auto max-w-3xl px-5 py-16 min-[860px]:px-6 min-[860px]:py-24">
         <Eyebrow>{dict.eyebrow}</Eyebrow>
         <h1 className="mt-4 font-heading text-3xl font-bold text-teal min-[860px]:text-4xl">
           {dict.h1}
