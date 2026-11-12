@@ -3,8 +3,7 @@ export const en = {
     ariaLabel: "Switch language",
   },
   nav: {
-    administration: "Administration",
-    workplaceOverview: "Workplace overview",
+    signOut: "Sign out",
   },
   // B8c (SLD_NEXT_STEPS_B8b-B8f.md) reversed the dashboard/administration
   // dictionaries' original "BodyRegion/CameraAngle/RiskBand/RegionResult-

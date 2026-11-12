@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { LogoutButton } from "@/components/logout-button";
 import { ThemeToggle } from "./theme-toggle";
 
 const STORAGE_KEY = "statura-theme";
@@ -56,6 +57,7 @@ export function AppHeader() {
       <div className="flex items-center gap-4 text-foreground">
         <LanguageSwitcher />
         <ThemeToggle theme={theme} onToggle={toggleTheme} />
+        <LogoutButton />
       </div>
     </header>
   );

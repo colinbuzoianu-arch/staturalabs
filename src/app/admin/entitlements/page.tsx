@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { EntitlementToggle } from "@/components/admin/entitlement-toggle";
 import type { ModuleKey } from "@/generated/prisma/enums";
 import {
   applyTemplateToCompany,
@@ -30,16 +31,16 @@ export default async function EntitlementsPage() {
     revalidatePath("/admin/entitlements");
   }
 
-  async function toggleCellAction(formData: FormData) {
+  async function toggleCellKey(
+    companyId: string,
+    key: string,
+    enable: boolean,
+  ) {
     "use server";
     const actor = await requireSuperAdmin();
-    const companyId = formData.get("companyId");
-    const key = formData.get("key") as ModuleKey | null;
-    const enable = formData.get("enable") === "true";
-    if (typeof companyId !== "string" || !key) return;
     await toggleCompanyModule({
       companyId,
-      key,
+      key: key as ModuleKey,
       enable,
       actorUserId: actor.id,
     });
@@ -134,27 +135,21 @@ export default async function EntitlementsPage() {
                         const st = statusOf(k);
                         return (
                           <td key={k} className="px-2 py-1 text-center">
-                            <form action={toggleCellAction}>
-                              <input
-                                type="hidden"
-                                name="companyId"
-                                value={c.id}
-                              />
-                              <input type="hidden" name="key" value={k} />
-                              <input
-                                type="hidden"
-                                name="enable"
-                                value={on ? "false" : "true"}
-                              />
-                              <button
-                                type="submit"
+                            <div className="flex justify-center">
+                              <EntitlementToggle
+                                appearance="cell"
+                                on={on}
+                                moduleKey={k}
                                 disabled={st === "planned"}
-                                className={`h-5 w-5 rounded border text-[10px] ${on ? "bg-black text-white dark:bg-white dark:text-black" : ""} ${st === "planned" ? "opacity-40" : ""}`}
-                                title={st === "beta" ? dict.beta : undefined}
-                              >
-                                {on ? "✓" : ""}
-                              </button>
-                            </form>
+                                labels={{
+                                  enable: dict.enable,
+                                  disable: dict.disable,
+                                  saving: dict.saving,
+                                  saved: dict.saved,
+                                }}
+                                action={toggleCellKey.bind(null, c.id)}
+                              />
+                            </div>
                           </td>
                         );
                       })}

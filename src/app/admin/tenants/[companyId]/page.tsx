@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { EntitlementToggle } from "@/components/admin/entitlement-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -54,15 +55,12 @@ export default async function TenantDetailPage({
   const archived = company.status === CompanyStatus.ARCHIVED;
   const countries = [...new Set(company.sites.map((s) => s.country))];
 
-  async function toggleModuleAction(formData: FormData) {
+  async function toggleModuleKey(key: string, enable: boolean) {
     "use server";
     const actor = await requireSuperAdmin();
-    const key = formData.get("key") as ModuleKey | null;
-    const enable = formData.get("enable") === "true";
-    if (!key) return;
     await toggleCompanyModule({
       companyId,
-      key,
+      key: key as ModuleKey,
       enable,
       actorUserId: actor.id,
     });
@@ -175,22 +173,19 @@ export default async function TenantDetailPage({
                       {k}
                     </span>
                   </span>
-                  <form action={toggleModuleAction}>
-                    <input type="hidden" name="key" value={k} />
-                    <input
-                      type="hidden"
-                      name="enable"
-                      value={on ? "false" : "true"}
-                    />
-                    <Button
-                      type="submit"
-                      size="sm"
-                      disabled={planned}
-                      variant={on ? "secondary" : "primary"}
-                    >
-                      {on ? t.disable : t.enable}
-                    </Button>
-                  </form>
+                  <EntitlementToggle
+                    appearance="button"
+                    on={on}
+                    moduleKey={k}
+                    disabled={planned}
+                    labels={{
+                      enable: t.enable,
+                      disable: t.disable,
+                      saving: t.saving,
+                      saved: t.saved,
+                    }}
+                    action={toggleModuleKey}
+                  />
                 </li>
               );
             })}

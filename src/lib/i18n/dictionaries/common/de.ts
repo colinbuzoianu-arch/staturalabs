@@ -5,8 +5,7 @@ export const de: typeof en = {
     ariaLabel: "Sprache wechseln",
   },
   nav: {
-    administration: "Verwaltung",
-    workplaceOverview: "Arbeitsplatzübersicht",
+    signOut: "Abmelden",
   },
   bodyRegionLabels: {
     NECK: "Nacken",

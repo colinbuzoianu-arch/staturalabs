@@ -5,8 +5,7 @@ export const ro: typeof en = {
     ariaLabel: "Schimbă limba",
   },
   nav: {
-    administration: "Administrare",
-    workplaceOverview: "Prezentare generală a locurilor de muncă",
+    signOut: "Deconectare",
   },
   bodyRegionLabels: {
     NECK: "Gât",

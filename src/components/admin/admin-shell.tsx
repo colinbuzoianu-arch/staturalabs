@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { LogoutButton } from "@/components/logout-button";
 import { cn } from "@/components/ui/cn";
 
 // Styled super-admin console shell. Replaces the bare underline-link nav the
@@ -47,7 +48,10 @@ export function AdminShell({
               <span className="text-xs text-foreground-subtle">{title}</span>
             </span>
           </Link>
-          <LanguageSwitcher />
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher />
+            <LogoutButton />
+          </div>
         </div>
 
         <nav

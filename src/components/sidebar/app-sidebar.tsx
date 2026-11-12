@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { LogoutButton } from "@/components/logout-button";
 import { cn } from "@/components/ui/cn";
 import { Icon } from "@/components/ui/icon";
 import {
@@ -167,6 +168,10 @@ export function AppSidebar({
           ))}
         </div>
       ) : null}
+
+      <div className="border-t border-border px-2 py-2">
+        <LogoutButton variant="sidebar-row" collapsed={collapsed} />
+      </div>
 
       <button
         type="button"
