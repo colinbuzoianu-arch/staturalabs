@@ -1,7 +1,11 @@
 export const LOCALES = ["en", "de", "ro"] as const;
 export type Locale = (typeof LOCALES)[number];
 
-export const DEFAULT_LOCALE: Locale = "en";
+// German by default — this is a DACH-first product (AT/DE/CH), so a user or
+// tenant that hasn't chosen a language should see German, not English. A
+// per-user cookie and a per-tenant Company.defaultLocale (e.g. a Romanian
+// customer → "ro") both override this (see getLocale / getTenantDefaultLocale).
+export const DEFAULT_LOCALE: Locale = "de";
 
 export const LOCALE_LABELS: Record<Locale, string> = {
   en: "EN",
