@@ -15,6 +15,6 @@ import { getCurrentPlatformUser } from "./current-user";
 export async function requireSuperAdmin(): Promise<PlatformUserModel> {
   const user = await getCurrentPlatformUser();
   if (!user) redirect("/login");
-  if (user.role !== PlatformRole.SUPER_ADMIN) redirect("/app/sites");
+  if (user.role !== PlatformRole.SUPER_ADMIN) redirect("/app");
   return user;
 }

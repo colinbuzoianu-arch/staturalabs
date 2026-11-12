@@ -67,7 +67,7 @@ export default async function UsersPage() {
           : null,
       actorUserId: actor.id,
     });
-    redirect("/app/sites");
+    redirect("/app");
   }
 
   const [users, companies] = await Promise.all([

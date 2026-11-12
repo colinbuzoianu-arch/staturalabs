@@ -17,7 +17,7 @@ import { prisma } from "@/lib/prisma";
 // a clearly-marked removable sample, resumable + skippable.
 export default async function OnboardingPage() {
   const user = await requireAdministrationAccess();
-  if (!user.companyId) redirect("/app/sites");
+  if (!user.companyId) redirect("/app");
   const companyId = user.companyId;
   const locale = await getLocale();
   const dict = getAdministrationDictionary(locale).onboarding;
@@ -58,7 +58,7 @@ export default async function OnboardingPage() {
     const u = await requireAdministrationAccess();
     if (!u.companyId) return;
     await completeOnboarding(u.companyId, u.id);
-    redirect("/app/sites");
+    redirect("/app");
   }
 
   const siteId = firstSite?.id;

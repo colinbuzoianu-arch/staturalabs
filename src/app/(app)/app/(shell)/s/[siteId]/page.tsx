@@ -515,7 +515,7 @@ function Breadcrumb({
 }) {
   return (
     <p className="text-sm text-border">
-      <Link href="/app/sites" className="hover:text-accent">
+      <Link href="/app" className="hover:text-accent">
         {sitesLabel}
       </Link>{" "}
       / {site.name}

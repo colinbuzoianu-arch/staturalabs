@@ -47,7 +47,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/app/sites");
+      router.push("/app");
       router.refresh();
     } catch (err) {
       console.error("Sign-in failed:", err);

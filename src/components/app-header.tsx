@@ -37,7 +37,7 @@ export function AppHeader() {
 
   return (
     <header className="flex items-center justify-between gap-4 px-6 py-4">
-      <Link href="/app/sites" className="flex items-center gap-3">
+      <Link href="/app" className="flex items-center gap-3">
         <Image
           src={badgeSrc}
           alt="Statura Labs Dynamics"
