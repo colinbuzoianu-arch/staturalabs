@@ -1,4 +1,5 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { resolveHazardName } from "@/lib/i18n/catalog-labels";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
 import {
@@ -349,7 +350,13 @@ export function RiskAssessmentReportDocument({
                 <Text style={styles.findingCategory}>
                   {adminDict.hazardCategoryLabels[finding.hazard.category]}
                 </Text>
-                <Text style={styles.findingHazard}>{finding.hazard.name}</Text>
+                <Text style={styles.findingHazard}>
+                  {resolveHazardName(
+                    finding.hazard.code,
+                    finding.hazard.name,
+                    lang,
+                  )}
+                </Text>
               </View>
               <Text style={styles.findingBand}>
                 {commonDict.riskBandLabels[finding.riskBand]} (

@@ -21,6 +21,7 @@ import {
   DocumentScanError,
   uploadNewDocument,
 } from "@/lib/documents/upload-document";
+import { resolveHazardName } from "@/lib/i18n/catalog-labels";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { prisma } from "@/lib/prisma";
@@ -540,7 +541,13 @@ export default async function SubstanceDetailPage({
         ) : (
           <ul className="flex flex-col gap-1 text-sm text-foreground-muted">
             {substance.findingLinks.map((l) => (
-              <li key={l.id}>{l.riskFinding.hazard.name}</li>
+              <li key={l.id}>
+                {resolveHazardName(
+                  l.riskFinding.hazard.code,
+                  l.riskFinding.hazard.name,
+                  locale,
+                )}
+              </li>
             ))}
           </ul>
         )}

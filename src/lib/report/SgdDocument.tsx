@@ -1,4 +1,5 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { resolveHazardName } from "@/lib/i18n/catalog-labels";
 import {
   type ExposureThresholdStatus,
   exposureThresholdStatus,
@@ -496,7 +497,12 @@ export function SgdDocument({ data }: { data: SgdReportData }) {
                       [
                       {hazardCategoryLabelsDe[finding.hazard.category] ??
                         finding.hazard.category}
-                      ] {finding.hazard.name}
+                      ]{" "}
+                      {resolveHazardName(
+                        finding.hazard.code,
+                        finding.hazard.name,
+                        "de",
+                      )}
                     </Text>
                     <Text style={styles.findingBand}>
                       {finding.riskBand} ({finding.riskScore})

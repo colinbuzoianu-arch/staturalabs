@@ -1,8 +1,10 @@
 import { revalidatePath } from "next/cache";
 import { HazardCategory, PlatformRole } from "@/generated/prisma/enums";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
+import { resolveHazardName } from "@/lib/i18n/catalog-labels";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
+import type { Locale } from "@/lib/i18n/locale";
 import { prisma } from "@/lib/prisma";
 
 const HAZARD_CATEGORIES = Object.values(HazardCategory);
@@ -158,12 +160,14 @@ export default async function HazardsPage({
         hazards={systemHazards}
         dict={dict}
         categoryLabels={categoryLabels}
+        locale={locale}
       />
       <HazardTable
         heading={dict.companyHeading}
         hazards={companyHazards}
         dict={dict}
         categoryLabels={categoryLabels}
+        locale={locale}
       />
     </div>
   );
@@ -174,6 +178,7 @@ function HazardTable({
   hazards,
   dict,
   categoryLabels,
+  locale,
 }: {
   heading: string;
   hazards: Array<{
@@ -191,6 +196,7 @@ function HazardTable({
     colDescription: string;
   };
   categoryLabels: Record<HazardCategory, string>;
+  locale: Locale;
 }) {
   return (
     <section className="flex flex-col gap-3">
@@ -215,7 +221,9 @@ function HazardTable({
               >
                 <td className="py-1 pr-4">{categoryLabels[hazard.category]}</td>
                 <td className="py-1 pr-4">{hazard.code}</td>
-                <td className="py-1 pr-4">{hazard.name}</td>
+                <td className="py-1 pr-4">
+                  {resolveHazardName(hazard.code, hazard.name, locale)}
+                </td>
                 <td className="py-1">{hazard.description}</td>
               </tr>
             ))}

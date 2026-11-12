@@ -9,6 +9,10 @@ import {
   HierarchyOfControl,
 } from "@/generated/prisma/enums";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
+import {
+  resolveEnvironmentalAspectName,
+  resolveHazardName,
+} from "@/lib/i18n/catalog-labels";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
 import { getLocale } from "@/lib/i18n/get-locale";
@@ -258,7 +262,7 @@ export default async function ActionsPage({
     label: `${
       finding.riskAssessment.workstation?.name ??
       finding.riskAssessment.process?.name
-    } — ${finding.hazard.name} (${riskBandLabels[finding.riskBand]})`,
+    } — ${resolveHazardName(finding.hazard.code, finding.hazard.name, locale)} (${riskBandLabels[finding.riskBand]})`,
     category: finding.hazard.category,
     hasHigherTierAction: findingsWithHigherTierAction.has(finding.id),
   }));
@@ -292,7 +296,7 @@ export default async function ActionsPage({
           }))}
           environmentalFindings={environmentalFindings.map((f) => ({
             id: f.id,
-            label: `${f.environmentalAssessment.workstation?.name ?? site.name} — ${f.aspect.name} (${riskBandLabels[f.riskBand]})`,
+            label: `${f.environmentalAssessment.workstation?.name ?? site.name} — ${resolveEnvironmentalAspectName(f.aspect.code, f.aspect.name, locale)} (${riskBandLabels[f.riskBand]})`,
           }))}
           users={platformUsers.map((u) => ({
             id: u.id,

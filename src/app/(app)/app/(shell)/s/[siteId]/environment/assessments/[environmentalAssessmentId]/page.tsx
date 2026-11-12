@@ -19,6 +19,7 @@ import {
   createEnvironmentalFinding,
   setEnvironmentalCategoryStatus,
 } from "@/lib/env/environmental-finding";
+import { resolveEnvironmentalAspectName } from "@/lib/i18n/catalog-labels";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
 import { getLocale } from "@/lib/i18n/get-locale";
@@ -343,7 +344,10 @@ export default async function EnvironmentalAssessmentDetailPage({
   >();
   for (const aspect of [...systemAspects, ...companyAspects]) {
     const list = aspectsByCategory.get(aspect.category) ?? [];
-    list.push({ id: aspect.id, name: aspect.name });
+    list.push({
+      id: aspect.id,
+      name: resolveEnvironmentalAspectName(aspect.code, aspect.name, locale),
+    });
     aspectsByCategory.set(aspect.category, list);
   }
 
@@ -505,7 +509,11 @@ export default async function EnvironmentalAssessmentDetailPage({
                       >
                         <div className="flex flex-wrap items-baseline justify-between gap-2">
                           <span className="font-medium">
-                            {finding.aspect.name}
+                            {resolveEnvironmentalAspectName(
+                              finding.aspect.code,
+                              finding.aspect.name,
+                              locale,
+                            )}
                           </span>
                           <span className="flex items-center gap-2 text-border">
                             {dict.riskLabel} {riskBandLabels[finding.riskBand]}

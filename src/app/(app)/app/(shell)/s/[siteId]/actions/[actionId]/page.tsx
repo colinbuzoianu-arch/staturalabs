@@ -5,6 +5,7 @@ import { PresentModeNav } from "@/components/present-mode-nav";
 import { ActionStatus, VerificationOutcome } from "@/generated/prisma/enums";
 import { ACTION_STATUS_TRANSITIONS, transitionAction } from "@/lib/action";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
+import { resolveHazardName } from "@/lib/i18n/catalog-labels";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { isPresentMode } from "@/lib/present-mode";
@@ -151,7 +152,11 @@ export default async function ActionDetailPage({
     : null;
 
   const sourceLabel = initial.riskFinding
-    ? initial.riskFinding.hazard.name
+    ? resolveHazardName(
+        initial.riskFinding.hazard.code,
+        initial.riskFinding.hazard.name,
+        locale,
+      )
     : initial.assessmentSession
       ? `${initial.assessmentSession.workstation.name} — ${initial.assessmentSession.startedAt.toISOString()}`
       : commonDict.none;

@@ -4,6 +4,7 @@ import { BodyRegion } from "@/generated/prisma/enums";
 import { requireWorkstationAccess } from "@/lib/auth/require-access";
 import { buildRegionResultsForSample } from "@/lib/capture/build-region-results";
 import { resolveCountryTerm } from "@/lib/country/dashboard-terminology";
+import { resolveHazardName } from "@/lib/i18n/catalog-labels";
 import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
 import { getDashboardDictionary } from "@/lib/i18n/dictionaries/dashboard";
 import { getLocale } from "@/lib/i18n/get-locale";
@@ -288,7 +289,13 @@ export default async function WorkstationRiskPage({
                       <td className="py-1 pr-4">
                         {hazardCategoryLabels[finding.hazard.category]}
                       </td>
-                      <td className="py-1 pr-4">{finding.hazard.name}</td>
+                      <td className="py-1 pr-4">
+                        {resolveHazardName(
+                          finding.hazard.code,
+                          finding.hazard.name,
+                          locale,
+                        )}
+                      </td>
                       <td className="py-1 pr-4">
                         {riskBandLabels[finding.riskBand]}
                       </td>

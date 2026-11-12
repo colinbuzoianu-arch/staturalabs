@@ -1,4 +1,5 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { resolveEnvironmentalAspectName } from "@/lib/i18n/catalog-labels";
 import { BrandMark } from "./brand-mark";
 import type { AwkReportData } from "./get-awk-report-data";
 
@@ -331,7 +332,12 @@ export function AwkDocument({ data }: { data: AwkReportData }) {
                     [
                     {aspectCategoryLabelsDe[f.aspect.category] ??
                       f.aspect.category}
-                    ] {f.aspect.name}
+                    ]{" "}
+                    {resolveEnvironmentalAspectName(
+                      f.aspect.code,
+                      f.aspect.name,
+                      "de",
+                    )}
                   </Text>
                   <Text style={styles.rowBand}>
                     {f.riskBand} ({f.riskScore})

@@ -18,6 +18,7 @@ import {
 } from "@/generated/prisma/enums";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import { getActiveLegalReferenceCatalog } from "@/lib/country/legal-reference-catalog-version";
+import { resolveHazardName } from "@/lib/i18n/catalog-labels";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
 import { getLocale } from "@/lib/i18n/get-locale";
@@ -885,7 +886,7 @@ export default async function RiskAssessmentDetailPage({
                 (hazard): FindingHazardOption => ({
                   id: hazard.id,
                   category: hazard.category,
-                  label: `[${categoryLabels[hazard.category]}] ${hazard.name}`,
+                  label: `[${categoryLabels[hazard.category]}] ${resolveHazardName(hazard.code, hazard.name, locale)}`,
                 }),
               )}
               labels={{
@@ -975,7 +976,11 @@ export default async function RiskAssessmentDetailPage({
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <span className="font-semibold">
                     [{categoryLabels[finding.hazard.category]}]{" "}
-                    {finding.hazard.name}
+                    {resolveHazardName(
+                      finding.hazard.code,
+                      finding.hazard.name,
+                      locale,
+                    )}
                   </span>
                   <span className="text-sm text-border">
                     {dict.riskScoreLabel} {finding.riskScore} ·{" "}

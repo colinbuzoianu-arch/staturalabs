@@ -12,6 +12,7 @@ import {
   RiskAssessmentStatus,
 } from "@/generated/prisma/enums";
 import { requireWorkstationAdministrationAccess } from "@/lib/auth/require-access";
+import { resolveHazardName } from "@/lib/i18n/catalog-labels";
 import { getDashboardDictionary } from "@/lib/i18n/dictionaries/dashboard";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { prisma } from "@/lib/prisma";
@@ -328,7 +329,7 @@ export default async function WorkstationHubPage({
     const option: FindingHazardOption = {
       id: hazard.id,
       category: hazard.category,
-      label: hazard.name,
+      label: resolveHazardName(hazard.code, hazard.name, locale),
     };
     const list = hazardsByCategory.get(hazard.category);
     if (list) list.push(option);
@@ -544,7 +545,11 @@ export default async function WorkstationHubPage({
                             >
                               <div className="flex flex-wrap items-baseline justify-between gap-2">
                                 <span className="font-medium">
-                                  {finding.hazard.name}
+                                  {resolveHazardName(
+                                    finding.hazard.code,
+                                    finding.hazard.name,
+                                    locale,
+                                  )}
                                 </span>
                                 <span className="text-border">
                                   {dict.riskLabel} {finding.riskScore}
