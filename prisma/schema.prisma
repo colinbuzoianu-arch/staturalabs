@@ -35,6 +35,14 @@ model Company {
   // P13 §3: onboarding wizard done/skipped once set. Step progress is otherwise
   // derived from the tenant's own data (resumable).
   onboardingCompletedAt DateTime?
+  // Tenant-level defaults set by a super-admin (both optional, presentation/
+  // convenience only — neither drives legal content). `defaultLocale` is the
+  // UI language (en/de/ro) new users of this tenant see until they choose
+  // their own (getLocale falls back to it). `homeCountry` pre-fills the
+  // jurisdiction when creating this tenant's sites; the legal truth stays
+  // Site.country (a tenant may operate in several countries).
+  defaultLocale         String?
+  homeCountry           CountryCode?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 

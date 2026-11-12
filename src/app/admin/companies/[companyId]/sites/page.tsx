@@ -74,9 +74,12 @@ export default async function SitesPage({
         />
         <label className="flex items-center gap-1 text-sm">
           {dict.countryLabel}
+          {/* Pre-filled from the tenant's home country (super-admin default);
+              still editable, since a tenant may have sites in several
+              countries. */}
           <select
             name="country"
-            defaultValue={CountryCode.AT}
+            defaultValue={company.homeCountry ?? CountryCode.AT}
             className="rounded border px-2 py-1"
           >
             {COUNTRY_OPTIONS.map((country) => (

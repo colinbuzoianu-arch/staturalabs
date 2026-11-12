@@ -36,6 +36,13 @@ export const ro: typeof en = {
     backToTenants: "Toți tenanții",
     country: "Țară",
     created: "Creat",
+    settingsHeading: "Setări",
+    settingsHint:
+      "Limba implicită a interfeței pentru utilizatorii acestui tenant și țara de origine care precompletează locațiile noi. Niciuna nu afectează conținutul juridic.",
+    languageLabel: "Limbă implicită",
+    homeCountryLabel: "Țară de origine",
+    noneOption: "Niciuna",
+    save: "Salvează",
     modulesHeading: "Module",
     modulesHint:
       "Activați sau dezactivați module pentru acest tenant. Modulele de bază sunt întotdeauna disponibile și nu sunt listate aici.",
@@ -187,6 +194,7 @@ export const ro: typeof en = {
     sitesLink: "Locații",
     createHeading: "Creați tenant",
     countryLabel: "Țara primei locații",
+    languageLabel: "Limbă implicită",
     createTenant: "Creați tenant",
     colStatus: "Status",
     colModules: "Module",

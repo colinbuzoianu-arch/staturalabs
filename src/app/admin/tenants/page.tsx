@@ -9,6 +9,7 @@ import { createTenant } from "@/lib/admin/tenant";
 import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 import { getAdminDictionary } from "@/lib/i18n/dictionaries/admin";
 import { getLocale } from "@/lib/i18n/get-locale";
+import { isLocale, LOCALE_LABELS, LOCALES } from "@/lib/i18n/locale";
 import { prisma } from "@/lib/prisma";
 
 const COUNTRIES = Object.values(CountryCode);
@@ -27,6 +28,7 @@ export default async function TenantsPage() {
     const actor = await requireSuperAdmin();
     const name = formData.get("name");
     const country = formData.get("country");
+    const language = formData.get("language");
     if (
       typeof name !== "string" ||
       typeof country !== "string" ||
@@ -37,6 +39,8 @@ export default async function TenantsPage() {
     await createTenant({
       name,
       country: country as CountryCode,
+      defaultLocale:
+        typeof language === "string" && isLocale(language) ? language : null,
       actorUserId: actor.id,
     });
     revalidatePath("/admin/tenants");
@@ -83,6 +87,16 @@ export default async function TenantsPage() {
                 {COUNTRIES.map((c) => (
                   <option key={c} value={c}>
                     {c}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="tenant-language">{dict.languageLabel}</Label>
+              <Select id="tenant-language" name="language" defaultValue="de">
+                {LOCALES.map((l) => (
+                  <option key={l} value={l}>
+                    {LOCALE_LABELS[l]}
                   </option>
                 ))}
               </Select>

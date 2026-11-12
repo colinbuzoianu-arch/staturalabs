@@ -15,13 +15,20 @@ export async function createTenant(input: {
   name: string;
   country: CountryCode;
   firstSiteName?: string | null;
+  defaultLocale?: string | null;
   actorUserId: string;
 }): Promise<{ companyId: string; siteId: string }> {
   if (input.name.trim().length === 0)
     throw new Error("Company name is required");
   const result = await prisma.$transaction(async (tx) => {
     const company = await tx.company.create({
-      data: { name: input.name.trim() },
+      data: {
+        name: input.name.trim(),
+        defaultLocale: input.defaultLocale ?? null,
+        // The first site's country doubles as the tenant's home country
+        // default (pre-fills future sites); editable later.
+        homeCountry: input.country,
+      },
     });
     const site = await tx.site.create({
       data: {
@@ -48,6 +55,34 @@ export async function createTenant(input: {
     diff: { name: input.name.trim(), country: input.country },
   });
   return result;
+}
+
+// Edit a tenant's presentation defaults (UI language + home country). Both
+// optional/clearable; neither drives legal content. Audited.
+export async function setCompanyDefaults(input: {
+  companyId: string;
+  defaultLocale?: string | null;
+  homeCountry?: CountryCode | null;
+  actorUserId: string;
+}): Promise<void> {
+  await prisma.company.update({
+    where: { id: input.companyId },
+    data: {
+      defaultLocale: input.defaultLocale ?? null,
+      homeCountry: input.homeCountry ?? null,
+    },
+  });
+  await recordAuditEvent({
+    actorUserId: input.actorUserId,
+    action: "tenant.set-defaults",
+    entityType: "Company",
+    entityId: input.companyId,
+    companyId: input.companyId,
+    diff: {
+      defaultLocale: input.defaultLocale ?? null,
+      homeCountry: input.homeCountry ?? null,
+    },
+  });
 }
 
 export async function setCompanyArchived(input: {

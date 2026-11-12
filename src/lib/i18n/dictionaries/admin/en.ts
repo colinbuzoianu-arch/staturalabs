@@ -43,6 +43,13 @@ export const en = {
     backToTenants: "All tenants",
     country: "Country",
     created: "Created",
+    settingsHeading: "Settings",
+    settingsHint:
+      "Default UI language for this tenant's users and the home country that pre-fills new sites. Neither affects legal content.",
+    languageLabel: "Default language",
+    homeCountryLabel: "Home country",
+    noneOption: "None",
+    save: "Save",
     modulesHeading: "Modules",
     modulesHint:
       "Turn modules on or off for this tenant. Baseline modules are always available and are not listed here.",
@@ -193,6 +200,7 @@ export const en = {
     sitesLink: "Sites",
     createHeading: "Create tenant",
     countryLabel: "Country of first site",
+    languageLabel: "Default language",
     createTenant: "Create tenant",
     colStatus: "Status",
     colModules: "Modules",

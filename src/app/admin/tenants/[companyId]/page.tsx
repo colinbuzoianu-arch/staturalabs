@@ -5,18 +5,27 @@ import { EntitlementToggle } from "@/components/admin/entitlement-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
-import { Input, Label } from "@/components/ui/field";
-import { CompanyStatus, type ModuleKey } from "@/generated/prisma/enums";
+import { Input, Label, Select } from "@/components/ui/field";
+import {
+  CompanyStatus,
+  CountryCode,
+  type ModuleKey,
+} from "@/generated/prisma/enums";
 import {
   applyTemplateToCompany,
   entitlementModuleKeys,
   toggleCompanyModule,
 } from "@/lib/admin/entitlement-admin";
-import { inviteCompanyAdmin, setCompanyArchived } from "@/lib/admin/tenant";
+import {
+  inviteCompanyAdmin,
+  setCompanyArchived,
+  setCompanyDefaults,
+} from "@/lib/admin/tenant";
 import { deleteTenant } from "@/lib/admin/tenant-delete";
 import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 import { getAdminDictionary } from "@/lib/i18n/dictionaries/admin";
 import { getLocale } from "@/lib/i18n/get-locale";
+import { isLocale, LOCALE_LABELS, LOCALES } from "@/lib/i18n/locale";
 import { resolveModuleLabel } from "@/lib/modules/module-labels";
 import { getModuleDefinition, moduleStatus } from "@/lib/modules/registry";
 import { prisma } from "@/lib/prisma";
@@ -71,6 +80,25 @@ export default async function TenantDetailPage({
     "use server";
     const actor = await requireSuperAdmin();
     await applyTemplateToCompany({ companyId, actorUserId: actor.id });
+    revalidatePath(`/admin/tenants/${companyId}`);
+  }
+
+  async function saveDefaultsAction(formData: FormData) {
+    "use server";
+    const actor = await requireSuperAdmin();
+    const language = formData.get("language");
+    const home = formData.get("homeCountry");
+    await setCompanyDefaults({
+      companyId,
+      defaultLocale:
+        typeof language === "string" && isLocale(language) ? language : null,
+      homeCountry:
+        typeof home === "string" &&
+        (Object.values(CountryCode) as string[]).includes(home)
+          ? (home as CountryCode)
+          : null,
+      actorUserId: actor.id,
+    });
     revalidatePath(`/admin/tenants/${companyId}`);
   }
 
@@ -135,6 +163,53 @@ export default async function TenantDetailPage({
           {t.created}: {company.createdAt.toISOString().slice(0, 10)}
         </p>
       </div>
+
+      {/* Settings: default language + home country */}
+      <Card>
+        <CardHeader title={t.settingsHeading} description={t.settingsHint} />
+        <CardBody>
+          <form
+            action={saveDefaultsAction}
+            className="flex flex-wrap items-end gap-3"
+          >
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="tenant-language">{t.languageLabel}</Label>
+              <Select
+                id="tenant-language"
+                name="language"
+                defaultValue={
+                  isLocale(company.defaultLocale) ? company.defaultLocale : ""
+                }
+              >
+                <option value="">{t.noneOption}</option>
+                {LOCALES.map((l) => (
+                  <option key={l} value={l}>
+                    {LOCALE_LABELS[l]}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="tenant-home-country">{t.homeCountryLabel}</Label>
+              <Select
+                id="tenant-home-country"
+                name="homeCountry"
+                defaultValue={company.homeCountry ?? ""}
+              >
+                <option value="">{t.noneOption}</option>
+                {Object.values(CountryCode).map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <Button type="submit" variant="secondary">
+              {t.save}
+            </Button>
+          </form>
+        </CardBody>
+      </Card>
 
       {/* Modules */}
       <Card>

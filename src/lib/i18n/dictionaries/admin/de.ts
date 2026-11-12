@@ -36,6 +36,13 @@ export const de: typeof en = {
     backToTenants: "Alle Mandanten",
     country: "Land",
     created: "Erstellt",
+    settingsHeading: "Einstellungen",
+    settingsHint:
+      "Standard-UI-Sprache für die Benutzer dieses Mandanten und das Heimatland, das neue Standorte vorbelegt. Beides hat keinen Einfluss auf rechtliche Inhalte.",
+    languageLabel: "Standardsprache",
+    homeCountryLabel: "Heimatland",
+    noneOption: "Keine",
+    save: "Speichern",
     modulesHeading: "Module",
     modulesHint:
       "Module für diesen Mandanten aktivieren oder deaktivieren. Basismodule sind immer verfügbar und werden hier nicht aufgeführt.",
@@ -186,6 +193,7 @@ export const de: typeof en = {
     sitesLink: "Standorte",
     createHeading: "Mandant anlegen",
     countryLabel: "Land des ersten Standorts",
+    languageLabel: "Standardsprache",
     createTenant: "Mandant anlegen",
     colStatus: "Status",
     colModules: "Module",
