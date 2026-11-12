@@ -1,202 +1,204 @@
 import type { en } from "./en";
 
-// Meaning-based translation, not word-for-word — see CLAUDE.md i18n notes.
+// Romanian — a faithful equivalent of en.ts (RO is a UI language, not a sales
+// market). Typed against `typeof en` so a missing key is a compile error.
 export const ro: typeof en = {
+  meta: {
+    title:
+      "Software pentru securitatea muncii și mediu pentru DACH | Statura Labs Dynamics",
+    description:
+      "Statura Labs Dynamics este platforma integrată pentru securitatea muncii, evaluarea riscurilor și protecția mediului în Austria, Germania și Elveția. Documente conforme legal, substanțe periculoase, instruiri, inspecții, măsuri și registru legal — conform GDPR.",
+  },
   header: {
-    requestPilot: "Solicită un proiect pilot",
+    requestPilot: "Solicită un pilot",
     signIn: "Autentificare",
   },
-  countryChooser: {
-    metaTitle: "Alege piața",
-    eyebrow: "Alege piața",
-    h1: "Statura Labs Dynamics, pe piețe.",
-    lede: "Limitele legale, terminologia și documentul generat urmează țara în care se află efectiv locul de muncă — nu invers. Alege-o pe a ta.",
-    countryLabels: { at: "Austria", de: "Germania", ch: "Elveția" },
-    statusAvailable: "Disponibil",
-    statusInPreparation: "În pregătire",
-  },
   hero: {
-    eyebrow: "Mișcare măsurată // ergonomia la locul de muncă",
-    h1: "Riscul ergonomic, citit ca de un instrument de măsură.",
-    lede: "Statura Labs Dynamics transformă evaluarea riscului ergonomic într-un instrument de precizie. Un evaluator încadrează postura observată — trunchi, gât, umăr, cot, încheietura mâinii, genunchi — evaluată conform ISO 11228 și EN 1005, în condiții reale de lucru, nu într-un laborator. Fără cameră video, fără înregistrări video, fără date cu caracter personal.",
-    ctaPrimary: "Solicită un proiect pilot",
-    ctaSecondary: "Vezi cum funcționează",
+    eyebrow: "Securitatea muncii · Sănătate · Mediu",
+    h1: "Securitatea muncii și protecția mediului — o singură platformă pentru întreaga regiune DACH.",
+    lede: "Statura Labs Dynamics reunește evaluarea riscurilor, substanțele periculoase, instruirile, inspecțiile, evenimentele, măsurile, registrul legal și managementul de mediu într-un software conform legal pentru Austria, Germania și Elveția. Generați documentele cerute de lege, gestionați măsurile și dovediți eficacitatea acestora — pe deplin conform GDPR.",
+    ctaPrimary: "Solicită un pilot",
+    ctaSecondary: "Descoperă platforma",
   },
-  pipeline: {
-    eyebrow: "Fluxul de lucru",
-    heading: "De la o observație structurată la un scor documentat.",
-    steps: [
-      {
-        step: "01 / ASSESS",
-        heading: "Încadrează postura la locul de muncă",
-        description:
-          "Fără cameră video, fără dispozitive purtabile, fără senzori. Un evaluator instruit înregistrează postura pe care o observă.",
-      },
-      {
-        step: "02 / RECORD",
-        heading: "Postura și contextul, consemnate ca date",
-        description:
-          "Categorii de postură observate, plus greutate, forță și durată — introduse direct. Niciun material video nu este implicat în vreun moment.",
-      },
-      {
-        step: "03 / SCORE",
-        heading: "Unghiurile sunt verificate, regiune cu regiune",
-        description:
-          "Trunchi, gât, umăr, cot, încheietura mâinii, genunchi — fiecare evaluat conform ISO 11228 / EN 1005.",
-      },
-      {
-        step: "04 / REPORT",
-        heading: "Un document util pentru dosarul dumneavoastră SSM",
-        description:
-          "Un raport documentat, nu doar un tablou de bord — gata de predat mai departe.",
-      },
+  platform: {
+    eyebrow: "Platforma",
+    heading:
+      "Un sistem continuu pentru protecția lucrătorilor și managementul de mediu.",
+    paragraphs: [
+      "Securitatea muncii, protecția sănătății și managementul de mediu sunt adesea ținute în liste, dosare și tabele separate. Statura Labs Dynamics le unifică într-o singură platformă adaptată fiecărei țări — de la postul de lucru și evaluarea riscurilor până la documentul final, conform legal.",
+      "Fiecare evaluare, fiecare măsură și fiecare înregistrare este versionată, trasabilă și legată de o locație și de legislația aplicabilă. Responsabilii de securitate, responsabilii de mediu și conducerea au mereu o imagine de ansamblu — și sunt pregătiți pentru o inspecție a autorităților sau un audit.",
     ],
   },
-  privacy: {
-    eyebrow: "Construit pentru confidențialitate, nu adăugat ulterior",
-    heading: "Evaluează o postură, niciodată o persoană.",
+  modules: {
+    eyebrow: "Module",
+    heading: "Tot ce are nevoie securitatea muncii și managementul de mediu.",
+    lede: "Activați modulele de care aveți nevoie — de la primul post de lucru până la un sistem de management complet.",
     items: [
       {
-        heading: "Fără cameră, fără video, niciunde",
+        title: "Evaluarea riscurilor / Evaluierung",
         description:
-          "Nu există nicio cameră în proces și niciun material video care ar putea fi stocat, transmis sau scurs. O evaluare este un set de observații structurate — categorii de postură și valori măsurate — nimic mai mult.",
+          "Evaluare structurată a riscurilor pe toate categoriile de pericol, cu măsuri și verificarea eficacității — în Austria ca Evaluierung conform ASchG.",
       },
       {
-        heading: "Nicio dată de identitate, nicăieri",
+        title: "Substanțe periculoase",
         description:
-          "Fiecare măsurătoare este asociată unui loc de muncă — niciodată unui nume, unei fețe sau unui dosar de angajat.",
+          "Registru de substanțe periculoase, fișe cu date de securitate și instrucțiuni de lucru generate automat conform GefStoffV / ASchG.",
       },
       {
-        heading: "Gândit pentru UE încă de la început",
+        title: "Instruiri",
         description:
-          "Arhitectura este construită în jurul principiului minimizării datelor din RGPD și al recomandărilor actuale ale AI Act, nu adaptată ulterior.",
+          "Derivarea, planificarea și dovedirea obligațiilor de instruire — inclusiv gestionarea dovezilor și urmărirea termenelor.",
+      },
+      {
+        title: "Inspecții & audituri",
+        description:
+          "Inspecții de securitate și audituri cu șabloane, liste de verificare și transformarea directă a constatărilor în măsuri.",
+      },
+      {
+        title: "Evenimente",
+        description:
+          "Înregistrați, investigați și — unde este necesar — raportați autorităților accidentele, incidentele evitate și evenimentele; inclusiv registrul de prim ajutor.",
+      },
+      {
+        title: "Mediu",
+        description:
+          "Evaluați aspectele de mediu, înregistrați cantitățile și deșeurile și generați conceptul de gestionare a deșeurilor conform AWG.",
+      },
+      {
+        title: "Măsuri",
+        description:
+          "Un registru central de măsuri cu responsabilități, termene și verificarea documentată a eficacității.",
+      },
+      {
+        title: "Registru legal",
+        description:
+          "Mențineți cerințele legale pe fiecare locație, confirmați aplicabilitatea și evaluați conformitatea legală.",
+      },
+      {
+        title: "Documente",
+        description:
+          "Toate documentele conforme legal într-un singur loc — inclusiv o arhivă inviolabilă a înregistrărilor generate.",
+      },
+      {
+        title: "Analize",
+        description:
+          "Indicatori și analize privind securitatea, măsurile și mediul — fără a evalua persoane individuale.",
       },
     ],
   },
-  standards: {
-    eyebrow: "Fundamentat, nu ghicit",
-    heading: "Evaluat conform unor standarde tehnice reale.",
+  documents: {
+    eyebrow: "Documente conforme legal",
+    heading: "Înregistrările cerute — cu un clic, nu manual.",
     paragraph:
-      "Fiecare prag din motorul de evaluare Statura se bazează pe standarde consacrate de ergonomie ocupațională — nu este o cutie neagră proprietară și nici o metodologie împrumutată dintr-un sistem care nu ne aparține.",
-    cards: [
-      { tag: "ISO 11228", label: "Manipulare manuală & postură statică" },
+      "Statura Labs Dynamics generează documentele cerute de lege direct din datele dvs. — specifice fiecărei țări și mereu pe baza legală corectă. Fără copiere între șabloane, fără versiuni învechite.",
+    items: [
       {
-        tag: "EN 1005",
-        label: "Performanța fizică umană în raport cu utilajele",
+        title: "Documentul de securitate și sănătate (SGD)",
+        description: "Pentru Austria, conform §5 ASchG și DOK-VO.",
+      },
+      {
+        title: "Instrucțiuni de lucru",
+        description:
+          "Instrucțiuni de lucru pentru substanțe periculoase conform GefStoffV / ASchG.",
+      },
+      {
+        title: "Concept de gestionare a deșeurilor (AWK)",
+        description: "Conform §10 AWG 2002 pentru locațiile austriece.",
+      },
+      {
+        title: "Înregistrări & rapoarte",
+        description:
+          "De la evaluare până la notificarea autorităților — arhivate inviolabil.",
       },
     ],
   },
-  fieldNotes: {
-    eyebrow: "Note de pe teren",
-    heading: "Ergonomia înseamnă mai mult decât un singur instantaneu.",
-    notes: [
+  dach: {
+    eyebrow: "Construit pentru regiunea DACH",
+    heading: "Legea, terminologia și documentele urmează locația.",
+    paragraph:
+      "O companie poate avea locații în mai multe țări. De aceea, în Statura, locația efectivă decide ce limite se aplică, ce terminologie se folosește și ce document se generează — nu invers.",
+    points: [
+      "Austria: Evaluierung, SGD, logica AUVA și a inspecției muncii.",
+      "Germania: evaluarea riscurilor conform ArbSchG, GefStoffV și DGUV.",
+      "Elveția: în pregătire.",
+    ],
+  },
+  trust: {
+    eyebrow: "Protecția datelor de la început",
+    heading: "Evaluați securitatea fără a supraveghea oamenii.",
+    items: [
       {
-        kicker: "De ce contează",
-        heading: "Ce măsoară de fapt ergonomia la locul de muncă",
-        paragraphs: [
-          "Afecțiunile musculo-scheletice — solicitarea spatelui, umărului și genunchiului cauzată de posturi incomode repetate sau susținute — rămân una dintre cele mai frecvente categorii de accidentări profesionale și una dintre cele mai greu de depistat din timp, pentru că vătămarea se acumulează din mișcări obișnuite repetate de mii de ori, nu dintr-un singur accident.",
-          "O evaluare corectă nu se uită la un singur moment — ia în considerare împreună postura, repetitivitatea, forța și durata, regiune cu regiune: trunchi, gât, umeri, coate, încheieturile mâinii, genunchi. Motorul de evaluare Statura urmează aceeași logică, bazat pe ISO 11228 și EN 1005, nu pe un simplu „scor de risc” simplificat.",
-        ],
-        roadmapNote: null as string | null,
+        title: "Fără cameră, fără date video",
+        description:
+          "Platforma nu folosește cameră și nu stochează date de imagine sau video. O evaluare este o documentare structurată, nu material filmat.",
       },
       {
-        kicker: "Cum funcționează evaluarea",
-        heading: "Observație structurată, nu o transmisie video",
-        paragraphs: [
-          "Statura nu vă supraveghează angajații. Un evaluator instruit încadrează la fiecare loc de muncă postura pe care o observă — trunchi, gât, umeri, coate, încheieturile mâinii, genunchi — și înregistrează greutatea, forța și durata care determină riscul real. Fără hardware proprietar, fără dispozitive purtabile, fără cameră, fără material video. Preia metoda pe care un ergonomist certificat o folosește deja pe teren și o face consecventă, versionată și documentată.",
-        ],
-        roadmapNote: null as string | null,
+        title: "Evaluarea și persoana, separate",
+        description:
+          "Lanțul de evaluare este fără persoane: evaluările se referă la posturi de lucru, nu la nume. Datele personale obligatorii sunt ținute strict separat, într-un compartiment propriu.",
       },
       {
-        kicker: "Dincolo de postură",
-        heading: "Adăugăm în ecuație greutatea, forța și uneltele",
-        paragraphs: [
-          "Postura, singură, nu spune toată povestea — o aplecare moderată fără nimic în mâini reprezintă un risc diferit față de aceeași aplecare cu 20 kg. Alături de fiecare evaluare de postură, Statura înregistrează contextul manual care determină riscul real: greutatea obiectului, forța de împingere/tragere și unealta folosită, introduse de persoana care realizează evaluarea.",
-          "Acestea nu sunt presupuneri adăugate peste un scor — sunt date structurate, asociate aceleiași sarcini și aceluiași loc de muncă, vizibile împreună în fiecare raport.",
-        ],
-        roadmapNote: null as string | null,
-      },
-      {
-        kicker: "Pe foaia de parcurs",
-        heading: "Spații de lucru comune om-robot",
-        paragraphs: [
-          "A înțelege cum se mișcă un corp printr-un spațiu de lucru este un punct de plecare firesc pentru o întrebare conexă, dar distinctă: cum împart oamenii și roboții în siguranță același spațiu de producție.",
-        ],
-        roadmapNote:
-          "Aceasta este o direcție pe care o explorăm, nu o funcționalitate lansată. Monitorizarea siguranței în medii comune om-robot se supune unui regim de reglementare diferit de evaluarea ergonomică (standarde de siguranță funcțională, nu doar protecția datelor), iar orice capabilitate în acest domeniu va trece printr-o evaluare de conformitate dedicată înainte de lansare — nepreluată automat din produsul de ergonomie din jurul ei.",
+        title: "Conceput conform GDPR",
+        description:
+          "Minimizarea datelor și protecția datelor sunt integrate din prima linie de cod, nu adăugate ulterior.",
       },
     ],
   },
   finalCta: {
-    statusLine:
-      "În prezent în pilot tehnic alături de parteneri din producția industrială.",
-    heading: "Vezi cum îți măsoară propria hală de producție.",
-    cta: "Solicită un proiect pilot",
-  },
-  countryContext: {
-    eyebrow: "Construit pentru această piață",
-    verifiedHeading: "Vorbim limbajul autorității tale de reglementare.",
-    unverifiedHeading:
-      "Cadrul legal pentru această piață este încă în pregătire.",
-    unverifiedNote:
-      "Nu am verificat încă referințele legale și terminologia pentru această piață în raport cu o sursă primară. În loc să presupunem, această pagină rămâne doar de poziționare până la finalizarea acelei verificări.",
+    eyebrow: "Începeți",
+    heading: "Vedeți cum Statura vă securizează operațiunile.",
+    paragraph:
+      "Programați un pilot și experimentați platforma la o locație reală.",
+    cta: "Solicită un pilot",
   },
   footer: {
-    about: "Despre",
-    legal: "Legal",
+    about: "Despre noi",
+    legal: "Juridic",
     copyright: (year: number) =>
-      `© ${year} Verumsell SRL · Statura Labs Dynamics este un produs Verumsell SRL`,
+      `© ${year} Verumsell SRL · Statura Labs Dynamics este un produs al Verumsell SRL`,
   },
   about: {
-    metaTitle: "Despre",
-    eyebrow: "Despre",
-    h1: "Construit pentru a măsura ceea ce înainte se ghicea.",
+    metaTitle: "Despre noi",
+    eyebrow: "Despre noi",
+    h1: "Protecția muncii și a mediului, reunite într-o singură platformă.",
     paragraphs: [
-      "Statura Labs Dynamics a pornit de la o frustrare simplă: riscul ergonomic în mediile industriale este de obicei evaluat din ochi, pe o clemă de hârtii, o dată pe an dacă e cazul — nu pentru că nimănui nu îi pasă, ci pentru că o evaluare instrumentată corectă a însemnat mereu dispozitive purtabile, senzori specializați sau timpul unui consultant extern. Ne-am propus să construim ceva care aduce această rigoare oricărui evaluator de pe teren — fără hardware special și fără cameră video.",
-      "Statura este construit de un inginer cu experiență în sisteme industriale de securitate și sănătate în muncă, dezvoltat sub Verumsell SRL, un studio de software din România. Produsul se află în pilot tehnic activ alături de parteneri din producția industrială. Îl construim deliberat și transparent în privința a ceea ce este deja dovedit față de ceea ce este încă în dezvoltare, în loc să grăbim o afirmație lustruită înaintea dovezilor.",
+      "Statura Labs Dynamics a pornit de la o observație simplă: în multe companii, securitatea muncii, protecția sănătății și managementul de mediu sunt ținute în documente, tabele și mințile oamenilor separat — și reasamblate cu greu la o inspecție. Construim o platformă care unifică aceste obligații și generează automat înregistrările cerute.",
+      "Statura Labs Dynamics este dezvoltată sub Verumsell SRL. Platforma este construită pentru regiunea DACH și se adresează operațiunilor industriale și comerciale care doresc să își organizeze protecția muncii și a mediului într-un mod conform legal și trasabil.",
     ],
-    grounded: {
-      eyebrow: "Fundamentat, nu ghicit",
-      paragraph:
-        "Fiecare prag din motorul de evaluare Statura se bazează pe standarde consacrate de ergonomie ocupațională — ISO 11228 și EN 1005 — nu pe o cutie neagră proprietară. Arhitectura a fost construită în jurul minimizării datelor și al recomandărilor actuale ale AI Act încă de la prima linie de cod, nu adaptată ulterior.",
-    },
     whereWeAreNow: {
       eyebrow: "Unde ne aflăm acum",
       paragraph:
-        "Statura Labs Dynamics se află în prezent în pilot tehnic alături de parteneri din producția industrială și nu este încă un produs comercial. Dacă vreți să vedeți cum măsoară un loc de muncă real, ne-ar plăcea să auzim de la dumneavoastră.",
+        "Statura Labs Dynamics se află în dezvoltare activă alături de parteneri pilot. Dacă doriți să vedeți platforma la o locație reală, ne-ar plăcea să auzim de la dvs.",
     },
-    cta: "Solicită un proiect pilot",
+    cta: "Solicită un pilot",
   },
   legal: {
-    metaTitle: "Legal",
-    h1: "Legal",
+    metaTitle: "Juridic",
+    h1: "Juridic",
     thisWebsite: {
-      heading: "Acest website",
+      heading: "Acest site",
       paragraph:
-        "Acest website este operat de Verumsell SRL. În prezent, nu utilizează cookie-uri de urmărire sau instrumente de analiză și nu colectează date cu caracter personal prin formulare — singurul element interactiv este un link mailto către contact@verumsell.com. Dacă această situație se schimbă, pagina va fi actualizată corespunzător.",
+        "Acest site este operat de Verumsell SRL. În prezent nu folosește cookie-uri de urmărire sau analiză și nu colectează date personale prin formulare — singurul element interactiv este un link mailto: către contact@verumsell.com. Dacă acest lucru se schimbă, pagina va fi actualizată în consecință.",
     },
+    // REVIEW REQUIRED: text sensibil juridic — de verificat de un jurist
+    // înainte de lansarea comercială.
     dataHandling: {
-      heading: "Cum gestionează produsul Statura Labs Dynamics datele",
+      heading: "Cum tratează datele produsul Statura Labs Dynamics",
       paragraph:
-        "Produsul Statura Labs Dynamics — utilizat într-un proiect pilot sau într-o implementare, separat de acest website — nu folosește o cameră video și nu captează, nu înregistrează, nu stochează și nu transmite niciun material video sau imagini. O evaluare este consemnată sub formă de observații structurate: încadrări de postură și valori măsurate precum greutatea, forța și durata, introduse de un evaluator instruit și asociate unui loc de muncă, niciodată unei persoane identificate nominal. Statura Labs Dynamics este conceput să îndeplinească cerințele relevante ale AI Act al UE și ale RGPD încă din faza de dezvoltare. Încadrarea regulatorie finală va fi confirmată printr-un aviz juridic formal, înainte de lansarea comercială. Documentația tehnică completă este disponibilă la cerere pentru potențialii parteneri de pilot.",
+        "Produsul Statura Labs Dynamics — astfel cum este folosit într-un pilot sau în implementare, separat de acest site — nu folosește cameră și nu captează, înregistrează, stochează sau transmite date video sau imagini. Lanțul de evaluare este fără persoane: evaluările și măsurătorile sunt legate de un post de lucru sau o locație, niciodată de o persoană numită. Datele personale cerute de lege (de exemplu dovezi de instruire sau înregistrări de evenimente) sunt ținute strict separat, doar pentru o obligație legală concretă; datele de sănătate sunt în plus criptate, iar fiecare accesare este înregistrată. Statura Labs Dynamics este conceput pentru a îndeplini cerințele relevante ale GDPR al UE încă din faza de dezvoltare. Documentația tehnică completă este disponibilă la cerere pentru potențialii parteneri pilot.",
     },
     terms: {
-      heading: "Termeni de utilizare",
+      heading: "Condiții de utilizare",
       paragraph:
-        "Conținutul acestui website este furnizat cu titlu de informare generală despre Statura Labs Dynamics și nu constituie o ofertă cu caracter obligatoriu. Întregul conținut, numele Statura Labs Dynamics și mărcile asociate sunt proprietatea Verumsell SRL. Nimic de pe acest website nu constituie consultanță profesională, medicală sau juridică.",
+        "Conținutul acestui site este oferit cu titlu informativ general despre Statura Labs Dynamics și nu constituie o ofertă obligatorie. Întregul conținut, numele Statura Labs Dynamics și mărcile asociate sunt proprietatea Verumsell SRL. Nimic de pe acest site nu constituie consultanță profesională, medicală sau juridică.",
     },
     company: {
-      heading: "Date despre companie",
+      heading: "Informații despre companie",
       paragraph: "Verumsell SRL · CUI 51132090 · J2025002367001",
     },
     contact: {
       heading: "Contact",
-      prefix: "Întrebări despre confidențialitate sau despre acest website:",
-    },
-    jurisdictionNotice: {
-      heading: "Notă specifică jurisdicției",
-      paragraph:
-        "O variantă specifică acestei piețe a paginii (de exemplu o Offenlegung austriacă conform §5 ECG, un Impressum german conform DDG, sau o încadrare specifică elvețiană conform revDSG) este în pregătire și în așteptarea unei revizuiri juridice. Conținutul de mai sus se aplică la nivelul UE și rămâne valabil până atunci.",
+      prefix: "Întrebări despre confidențialitate sau acest site:",
     },
   },
 };

@@ -1,175 +1,179 @@
 import type { en } from "./en";
 
-// Meaning-based translation, not word-for-word — see CLAUDE.md i18n notes.
+// German is the primary market language (DACH) and is written for German
+// search terms (Arbeitssicherheit, Gefährdungsbeurteilung/Evaluierung,
+// Arbeitsschutz-Software, Gefahrstoffe, Unterweisungen, Umweltmanagement,
+// Rechtskataster …). Typed against `typeof en` so a missing key is a compile
+// error.
 export const de: typeof en = {
+  meta: {
+    title:
+      "Arbeitssicherheit- & Umweltschutz-Software für DACH | Statura Labs Dynamics",
+    description:
+      "Statura Labs Dynamics ist die integrierte Plattform für Arbeitssicherheit, Gefährdungsbeurteilung und Umweltschutz in Österreich, Deutschland und der Schweiz. Rechtssichere Dokumente, Gefahrstoffe, Unterweisungen, Begehungen, Maßnahmen und Rechtskataster – DSGVO-konform.",
+  },
   header: {
-    requestPilot: "Pilotprojekt anfragen",
+    requestPilot: "Pilot anfragen",
     signIn: "Anmelden",
   },
-  countryChooser: {
-    metaTitle: "Markt wählen",
-    eyebrow: "Markt wählen",
-    h1: "Statura Labs Dynamics, nach Markt.",
-    lede: "Rechtliche Grenzwerte, Fachbegriffe und das erzeugte Dokument richten sich nach dem Land, in dem sich der Arbeitsplatz tatsächlich befindet — nicht umgekehrt. Wählen Sie Ihren Markt.",
-    countryLabels: { at: "Österreich", de: "Deutschland", ch: "Schweiz" },
-    statusAvailable: "Verfügbar",
-    statusInPreparation: "In Vorbereitung",
-  },
   hero: {
-    eyebrow: "Gemessene Bewegung // Ergonomie am Arbeitsplatz",
-    h1: "Ergonomisches Risiko, abgelesen wie von einem Messgerät.",
-    lede: "Statura Labs Dynamics macht die ergonomische Risikobewertung zu einem Präzisionsinstrument. Eine prüfende Person stuft die beobachtete Körperhaltung ein — Rumpf, Nacken, Schulter, Ellbogen, Handgelenk, Knie — bewertet nach ISO 11228 und EN 1005, unter realen Arbeitsbedingungen, nicht im Labor. Keine Kamera, kein Video, keine personenbezogenen Daten.",
-    ctaPrimary: "Pilotprojekt anfragen",
-    ctaSecondary: "So funktioniert es",
+    eyebrow: "Arbeitssicherheit · Gesundheitsschutz · Umweltschutz",
+    h1: "Arbeitssicherheit und Umweltschutz – eine Plattform für den gesamten DACH-Raum.",
+    lede: "Statura Labs Dynamics bündelt Gefährdungsbeurteilung, Gefahrstoffe, Unterweisungen, Begehungen, Ereignisse, Maßnahmen, Rechtskataster und Umweltmanagement in einer rechtssicheren Software für Österreich, Deutschland und die Schweiz. Erstellen Sie die gesetzlich geforderten Dokumente, verwalten Sie Maßnahmen und weisen Sie deren Wirksamkeit nach – vollständig DSGVO-konform.",
+    ctaPrimary: "Pilot anfragen",
+    ctaSecondary: "Plattform entdecken",
   },
-  pipeline: {
-    eyebrow: "Der Ablauf",
+  platform: {
+    eyebrow: "Die Plattform",
     heading:
-      "Von einer strukturierten Beobachtung zum dokumentierten Ergebnis.",
-    steps: [
-      {
-        step: "01 / ASSESS",
-        heading: "Haltung am Arbeitsplatz einstufen",
-        description:
-          "Keine Kamera, keine Wearables, keine Sensoren. Eine geschulte prüfende Person erfasst die beobachtete Haltung.",
-      },
-      {
-        step: "02 / RECORD",
-        heading: "Haltung und Kontext als Daten erfasst",
-        description:
-          "Beobachtete Haltungskategorien sowie Last, Kraft und Dauer — direkt eingegeben. Zu keinem Zeitpunkt ist Videomaterial beteiligt.",
-      },
-      {
-        step: "03 / SCORE",
-        heading: "Winkel werden Region für Region geprüft",
-        description:
-          "Rumpf, Nacken, Schulter, Ellbogen, Handgelenk, Knie — jeweils bewertet nach ISO 11228 / EN 1005.",
-      },
-      {
-        step: "04 / REPORT",
-        heading: "Ein Nachweis für Ihre EHS-Akte",
-        description:
-          "Ein dokumentierter Bericht, nicht nur ein Dashboard — bereit zur Weitergabe.",
-      },
+      "Eine durchgängige Lösung für Arbeitnehmerschutz und betrieblichen Umweltschutz.",
+    paragraphs: [
+      "Arbeitssicherheit, Gesundheitsschutz und Umweltschutz werden oft in getrennten Listen, Ordnern und Tabellen verwaltet. Statura Labs Dynamics führt sie in einer einzigen, länderspezifischen Plattform zusammen – vom Arbeitsplatz über die Gefährdungsbeurteilung bis zum fertigen, rechtssicheren Dokument.",
+      "Jede Beurteilung, jede Maßnahme und jeder Nachweis ist versioniert, nachvollziehbar und einem Standort samt geltender Rechtslage zugeordnet. Sicherheitsfachkräfte, Umweltbeauftragte und die Geschäftsführung behalten jederzeit den Überblick – und sind auf eine Behördenprüfung oder ein Audit vorbereitet.",
     ],
   },
-  privacy: {
-    eyebrow: "Datenschutz von Grund auf, nicht nachträglich",
-    heading: "Bewertet wird eine Haltung, nie ein Mensch.",
+  modules: {
+    eyebrow: "Module",
+    heading: "Alles, was der betriebliche Arbeits- und Umweltschutz braucht.",
+    lede: "Aktivieren Sie die Module, die Sie benötigen – vom ersten Arbeitsplatz bis zum vollständigen Managementsystem.",
     items: [
       {
-        heading: "Keine Kamera, kein Video, nirgends",
+        title: "Gefährdungsbeurteilung / Evaluierung",
         description:
-          "Es gibt keine Kamera im Ablauf und kein Videomaterial, das gespeichert, übertragen oder nach außen gelangen könnte. Eine Bewertung besteht aus strukturierten Beobachtungen — Haltungskategorien und gemessenen Werten — mehr nicht.",
+          "Strukturierte Gefährdungsbeurteilung über alle Gefährdungskategorien, mit Maßnahmen und Wirksamkeitskontrolle – in Österreich als Evaluierung nach ASchG.",
       },
       {
-        heading: "Keine Identitätsdaten, nirgendwo",
+        title: "Gefahrstoffe",
         description:
-          "Jede Messung ist einem Arbeitsplatz zugeordnet — nie einem Namen, einem Gesicht oder einer Personalakte.",
+          "Gefahrstoffverzeichnis, Sicherheitsdatenblätter und automatisch erzeugte Betriebsanweisungen nach GefStoffV bzw. ASchG.",
       },
       {
-        heading: "Von Anfang an EU-orientiert",
+        title: "Unterweisungen",
         description:
-          "Die Architektur folgt von Beginn an der DSGVO-Datenminimierung und den aktuellen Vorgaben des AI Act — nicht nachträglich angepasst.",
+          "Unterweisungspflichten ableiten, planen und nachweisen – inklusive Nachweisverwaltung und Fristenüberwachung.",
+      },
+      {
+        title: "Begehungen & Audits",
+        description:
+          "Sicherheitsbegehungen und Audits mit Vorlagen, Checklisten und direkter Ableitung von Maßnahmen.",
+      },
+      {
+        title: "Ereignisse",
+        description:
+          "Unfälle, Beinaheunfälle und Vorkommnisse erfassen, untersuchen und – wo erforderlich – den Behörden melden; inkl. Verbandbuch.",
+      },
+      {
+        title: "Umwelt",
+        description:
+          "Umweltaspekte bewerten, Mengen und Abfälle erfassen und das Abfallwirtschaftskonzept nach AWG erstellen.",
+      },
+      {
+        title: "Maßnahmen",
+        description:
+          "Zentrales Maßnahmenregister mit Verantwortlichkeiten, Fristen und dokumentierter Wirksamkeitsprüfung.",
+      },
+      {
+        title: "Rechtskataster",
+        description:
+          "Rechtsvorschriften je Standort führen, Anwendbarkeit prüfen und die Rechtskonformität bewerten.",
+      },
+      {
+        title: "Dokumente",
+        description:
+          "Alle rechtssicheren Dokumente an einem Ort – inklusive revisionssicherem Archiv der erzeugten Nachweise.",
+      },
+      {
+        title: "Auswertungen",
+        description:
+          "Kennzahlen und Auswertungen zu Sicherheit, Maßnahmen und Umwelt – ohne personenbezogene Bewertung Einzelner.",
       },
     ],
   },
-  standards: {
-    eyebrow: "Fundiert, nicht geraten",
-    heading: "Bewertet nach echten technischen Normen.",
+  documents: {
+    eyebrow: "Rechtssichere Dokumente",
+    heading: "Die geforderten Nachweise – auf Knopfdruck, nicht in Handarbeit.",
     paragraph:
-      "Jeder Schwellenwert in der Bewertungslogik von Statura basiert auf etablierten Normen der Arbeitsergonomie — keine proprietäre Blackbox und keine geliehene Methodik aus einem System, das uns nicht gehört.",
-    cards: [
+      "Statura Labs Dynamics erzeugt die gesetzlich geforderten Dokumente direkt aus Ihren Daten – länderspezifisch und immer auf der passenden Rechtsgrundlage. Kein Kopieren zwischen Vorlagen, keine veralteten Fassungen.",
+    items: [
       {
-        tag: "ISO 11228",
-        label: "Manuelle Handhabung & statische Körperhaltung",
+        title: "Sicherheits- und Gesundheitsschutzdokument (SGD)",
+        description: "Für Österreich nach §5 ASchG und DOK-VO.",
       },
       {
-        tag: "EN 1005",
-        label: "Menschliche physische Leistungsfähigkeit an Maschinen",
+        title: "Betriebsanweisungen",
+        description:
+          "Gefahrstoff-Betriebsanweisungen nach GefStoffV bzw. ASchG.",
+      },
+      {
+        title: "Abfallwirtschaftskonzept (AWK)",
+        description: "Nach §10 AWG 2002 für österreichische Standorte.",
+      },
+      {
+        title: "Nachweise & Berichte",
+        description:
+          "Von der Beurteilung bis zur Behördenmeldung – revisionssicher archiviert.",
       },
     ],
   },
-  fieldNotes: {
-    eyebrow: "Notizen aus der Praxis",
-    heading: "Ergonomie ist mehr als eine Momentaufnahme.",
-    notes: [
+  dach: {
+    eyebrow: "Für den DACH-Raum gebaut",
+    heading: "Recht, Begriffe und Dokumente folgen dem Standort.",
+    paragraph:
+      "Ein Unternehmen kann Standorte in mehreren Ländern haben. Deshalb entscheidet bei Statura der tatsächliche Standort über die geltenden Grenzwerte, die verwendete Terminologie und das erzeugte Dokument – nicht umgekehrt.",
+    points: [
+      "Österreich: Evaluierung, SGD, AUVA- und Arbeitsinspektions-Logik.",
+      "Deutschland: Gefährdungsbeurteilung nach ArbSchG, GefStoffV und DGUV.",
+      "Schweiz: in Vorbereitung.",
+    ],
+  },
+  trust: {
+    eyebrow: "Datenschutz von Anfang an",
+    heading: "Sicherheit bewerten, ohne Menschen zu überwachen.",
+    items: [
       {
-        kicker: "Warum das wichtig ist",
-        heading: "Was Arbeitsplatz-Ergonomie tatsächlich misst",
-        paragraphs: [
-          "Muskel-Skelett-Erkrankungen — Belastungen von Rücken, Schulter und Knie durch wiederholte oder anhaltende Zwangshaltungen — zählen weiterhin zu den größten Kategorien von Berufserkrankungen und sind zugleich am schwersten frühzeitig zu erkennen, weil der Schaden sich aus gewöhnlichen, tausendfach wiederholten Bewegungen aufbaut, nicht aus einem einzelnen Unfall.",
-          "Eine seriöse Bewertung betrachtet nicht nur einen Moment — sie betrachtet Haltung, Wiederholung, Kraft und Dauer gemeinsam, Region für Region: Rumpf, Nacken, Schultern, Ellbogen, Handgelenke, Knie. Die Bewertungslogik von Statura folgt derselben Logik, aufgebaut auf ISO 11228 und EN 1005, statt auf einen einzelnen vereinfachten „Risikowert“.",
-        ],
-        roadmapNote: null as string | null,
+        title: "Keine Kamera, keine Videodaten",
+        description:
+          "Die Plattform nutzt keine Kamera und speichert keine Bild- oder Videodaten. Eine Beurteilung ist eine strukturierte Dokumentation, kein Filmmaterial.",
       },
       {
-        kicker: "So funktioniert die Bewertung",
-        heading: "Strukturierte Beobachtung statt Kamerabild",
-        paragraphs: [
-          "Statura überwacht Ihre Mitarbeitenden nicht. Eine geschulte prüfende Person stuft an jedem Arbeitsplatz die beobachtete Haltung ein — Rumpf, Nacken, Schultern, Ellbogen, Handgelenke, Knie — und erfasst Last, Kraft und Dauer, die das tatsächliche Risiko bestimmen. Keine proprietäre Hardware, keine Wearables, keine Kamera, kein Videomaterial. Es nimmt die Methode, die eine zertifizierte ergonomische Fachkraft ohnehin vor Ort anwendet, und macht sie konsistent, versioniert und dokumentiert.",
-        ],
-        roadmapNote: null as string | null,
+        title: "Trennung von Beurteilung und Person",
+        description:
+          "Die Beurteilungskette ist personenfrei: Beurteilungen beziehen sich auf Arbeitsplätze, nicht auf Namen. Personenbezogene Pflichtdaten liegen streng getrennt in einem eigenen Bereich.",
       },
       {
-        kicker: "Mehr als Haltung",
-        heading: "Last, Kraft und Werkzeuge mit ins Bild",
-        paragraphs: [
-          "Haltung allein erzählt nicht die ganze Geschichte — eine mäßige Vorbeuge ohne Last ist ein anderes Risiko als dieselbe Vorbeuge mit 20 kg. Zu jeder Haltungsbewertung erfasst Statura zusätzlich den manuellen Kontext, der das tatsächliche Risiko bestimmt: Objektgewicht, Schub-/Zugkraft und das verwendete Werkzeug — eingegeben von der Person, die die Bewertung durchführt.",
-          "Das sind keine Vermutungen, die über einen Wert gelegt werden — es sind strukturierte Datenpunkte, die derselben Aufgabe und demselben Arbeitsplatz zugeordnet sind und gemeinsam in jedem Bericht sichtbar werden.",
-        ],
-        roadmapNote: null as string | null,
-      },
-      {
-        kicker: "Auf der Roadmap",
-        heading: "Gemeinsame Arbeitsbereiche von Mensch und Roboter",
-        paragraphs: [
-          "Zu verstehen, wie sich ein Körper durch einen Arbeitsbereich bewegt, ist ein naheliegender Ausgangspunkt für eine verwandte, aber eigenständige Frage: wie Menschen und Roboter sich denselben Raum in der Fertigung sicher teilen.",
-        ],
-        roadmapNote:
-          "Das ist eine Richtung, die wir untersuchen, kein ausgeliefertes Feature. Sicherheitsüberwachung in gemeinsamen Mensch-Roboter-Umgebungen unterliegt einem anderen regulatorischen Rahmen als die Ergonomie-Bewertung (funktionale Sicherheitsnormen, nicht nur Datenschutz), und jede Fähigkeit in diesem Bereich durchläuft vor der Veröffentlichung eine eigene, dedizierte Compliance-Prüfung — nicht übernommen vom umgebenden Ergonomie-Produkt.",
+        title: "DSGVO-konform konzipiert",
+        description:
+          "Datensparsamkeit und Datenschutz sind von der ersten Zeile an eingebaut, nicht nachträglich ergänzt.",
       },
     ],
   },
   finalCta: {
-    statusLine:
-      "Derzeit im technischen Pilotbetrieb mit Partnern aus der Industrieproduktion.",
-    heading: "Erleben Sie es live in Ihrer eigenen Fertigung.",
-    cta: "Pilotprojekt anfragen",
-  },
-  countryContext: {
-    eyebrow: "Für diesen Markt aufgebaut",
-    verifiedHeading: "In der Sprache Ihrer Behörde.",
-    unverifiedHeading:
-      "Die rechtliche Einordnung für diesen Markt ist noch in Vorbereitung.",
-    unverifiedNote:
-      "Wir haben die rechtlichen Bezüge und Fachbegriffe für diesen Markt noch nicht anhand einer Primärquelle geprüft. Statt zu raten, bleibt diese Seite bis zum Abschluss dieser Prüfung reine Positionierung.",
+    eyebrow: "Loslegen",
+    heading: "Sehen Sie, wie Statura Ihren Betrieb absichert.",
+    paragraph:
+      "Vereinbaren Sie einen Piloten und erleben Sie die Plattform an einem echten Standort.",
+    cta: "Pilot anfragen",
   },
   footer: {
     about: "Über uns",
     legal: "Rechtliches",
     copyright: (year: number) =>
-      `© ${year} Verumsell SRL · Statura Labs Dynamics ist ein Produkt von Verumsell SRL`,
+      `© ${year} Verumsell SRL · Statura Labs Dynamics ist ein Produkt der Verumsell SRL`,
   },
   about: {
     metaTitle: "Über uns",
     eyebrow: "Über uns",
-    h1: "Entwickelt, um zu messen, was früher geschätzt wurde.",
+    h1: "Arbeits- und Umweltschutz, zusammengeführt in einer Plattform.",
     paragraphs: [
-      "Statura Labs Dynamics entstand aus einer einfachen Frustration: Ergonomisches Risiko in industriellen Arbeitsumgebungen wird meist nach Augenmaß beurteilt, auf einem Klemmbrett, wenn überhaupt einmal im Jahr — nicht, weil es niemanden kümmert, sondern weil eine echte instrumentierte Bewertung bisher immer Wearables, spezielle Sensorik oder die Zeit eines externen Beraters bedeutete. Wir wollten etwas bauen, das diese Sorgfalt jeder prüfenden Person vor Ort zugänglich macht — ohne spezielle Hardware und ohne Kamera.",
-      "Statura wird von einem Ingenieur mit Hintergrund in industriellen Arbeitsschutzsystemen entwickelt, unter dem Dach von Verumsell SRL, einem Software-Studio mit Sitz in Rumänien. Das Produkt befindet sich im aktiven technischen Pilotbetrieb mit Partnern aus der Industrieproduktion. Wir entwickeln es bewusst und offen — mit klarer Unterscheidung zwischen dem, was bereits belegt ist, und dem, was noch in Entwicklung ist, statt einer polierten Behauptung vorzugreifen, bevor die Belege dafür vorliegen.",
+      "Statura Labs Dynamics entstand aus einer einfachen Beobachtung: In vielen Betrieben werden Arbeitssicherheit, Gesundheitsschutz und Umweltschutz in getrennten Dokumenten, Tabellen und Köpfen verwaltet – und bei einer Prüfung mühsam wieder zusammengesucht. Wir bauen eine Plattform, die diese Pflichten zusammenführt und die geforderten Nachweise automatisch erzeugt.",
+      "Entwickelt wird Statura Labs Dynamics unter der Verumsell SRL. Die Plattform ist auf den DACH-Raum ausgerichtet und richtet sich an Industrie- und Gewerbebetriebe, die ihren Arbeits- und Umweltschutz rechtssicher und nachvollziehbar organisieren wollen.",
     ],
-    grounded: {
-      eyebrow: "Fundiert, nicht geraten",
-      paragraph:
-        "Jeder Schwellenwert in der Bewertungslogik von Statura basiert auf etablierten Normen der Arbeitsergonomie — ISO 11228 und EN 1005 — keine proprietäre Blackbox. Die Architektur folgt von der ersten Codezeile an dem Prinzip der Datenminimierung und den aktuellen Vorgaben des AI Act, nicht nachträglich angepasst.",
-    },
     whereWeAreNow: {
-      eyebrow: "Wo wir gerade stehen",
+      eyebrow: "Wo wir stehen",
       paragraph:
-        "Statura Labs Dynamics befindet sich derzeit im technischen Pilotbetrieb mit Partnern aus der Industrieproduktion und ist noch kein kommerzielles Produkt. Wenn Sie erleben möchten, wie es einen echten Arbeitsplatz misst, freuen wir uns, von Ihnen zu hören.",
+        "Statura Labs Dynamics befindet sich in aktiver Weiterentwicklung mit Pilotpartnern. Wenn Sie die Plattform an einem echten Standort sehen möchten, freuen wir uns über Ihre Nachricht.",
     },
-    cta: "Pilotprojekt anfragen",
+    cta: "Pilot anfragen",
   },
   legal: {
     metaTitle: "Rechtliches",
@@ -177,17 +181,19 @@ export const de: typeof en = {
     thisWebsite: {
       heading: "Diese Website",
       paragraph:
-        "Diese Website wird von Verumsell SRL betrieben. Sie verwendet derzeit keine Tracking-Cookies oder Analysetools und erhebt keine personenbezogenen Daten über Formulare — das einzige interaktive Element ist ein mailto-Link zu contact@verumsell.com. Sollte sich das ändern, wird diese Seite entsprechend aktualisiert.",
+        "Diese Website wird von der Verumsell SRL betrieben. Sie verwendet derzeit keine Tracking-Cookies oder Analysetools und erhebt über Formulare keine personenbezogenen Daten – das einzige interaktive Element ist ein mailto:-Link an contact@verumsell.com. Sollte sich das ändern, wird diese Seite entsprechend aktualisiert.",
     },
+    // REVIEW REQUIRED: rechtlich sensibler Text – vor dem kommerziellen Start
+    // juristisch prüfen lassen.
     dataHandling: {
       heading: "Wie das Produkt Statura Labs Dynamics mit Daten umgeht",
       paragraph:
-        "Das Produkt Statura Labs Dynamics — im Rahmen eines Pilotprojekts oder einer Implementierung, getrennt von dieser Website — verwendet keine Kamera und erfasst, speichert oder überträgt kein Video- oder Bildmaterial. Eine Bewertung wird als strukturierte Beobachtungen festgehalten: Haltungseinstufungen und gemessene Werte wie Last, Kraft und Dauer, eingegeben von einer geschulten prüfenden Person und einem Arbeitsplatz zugeordnet, niemals einer namentlich bekannten Person. Statura Labs Dynamics ist darauf ausgelegt, die relevanten Anforderungen des EU AI Act und der DSGVO bereits ab der Entwicklungsphase zu erfüllen. Die endgültige regulatorische Einstufung wird vor der kommerziellen Markteinführung durch ein förmliches Rechtsgutachten bestätigt. Vollständige technische Dokumentation ist für potenzielle Pilotpartner auf Anfrage erhältlich.",
+        "Das Produkt Statura Labs Dynamics – wie es in einem Piloten oder im Einsatz verwendet wird, getrennt von dieser Website – nutzt keine Kamera und erfasst, speichert oder übermittelt keine Video- oder Bilddaten. Die Beurteilungskette ist personenfrei: Beurteilungen und Messwerte sind einem Arbeitsplatz oder Standort zugeordnet, niemals einer namentlich genannten Person. Gesetzlich erforderliche personenbezogene Daten (etwa Unterweisungsnachweise oder Ereignisaufzeichnungen) werden streng getrennt und ausschließlich für eine konkrete gesetzliche Pflicht geführt; Gesundheitsdaten werden zusätzlich verschlüsselt und jeder Zugriff protokolliert. Statura Labs Dynamics ist darauf ausgelegt, die einschlägigen Anforderungen der EU-DSGVO von der Entwicklungsphase an zu erfüllen. Eine vollständige technische Dokumentation ist für interessierte Pilotpartner auf Anfrage verfügbar.",
     },
     terms: {
       heading: "Nutzungsbedingungen",
       paragraph:
-        "Die Inhalte dieser Website dienen der allgemeinen Information über Statura Labs Dynamics und stellen kein verbindliches Angebot dar. Alle Inhalte, der Name Statura Labs Dynamics sowie die zugehörigen Kennzeichen sind Eigentum von Verumsell SRL. Nichts auf dieser Website stellt eine fachliche, medizinische oder rechtliche Beratung dar.",
+        "Die Inhalte dieser Website dienen der allgemeinen Information über Statura Labs Dynamics und stellen kein verbindliches Angebot dar. Alle Inhalte, der Name Statura Labs Dynamics und zugehörige Kennzeichen sind Eigentum der Verumsell SRL. Nichts auf dieser Website stellt eine fachliche, medizinische oder rechtliche Beratung dar.",
     },
     company: {
       heading: "Unternehmensangaben",
@@ -196,11 +202,6 @@ export const de: typeof en = {
     contact: {
       heading: "Kontakt",
       prefix: "Fragen zum Datenschutz oder zu dieser Website:",
-    },
-    jurisdictionNotice: {
-      heading: "Länderspezifischer Hinweis",
-      paragraph:
-        "Eine länderspezifische Fassung dieser Seite für diesen Markt (z. B. eine österreichische Offenlegung nach § 5 ECG, ein deutsches Impressum nach dem DDG oder eine Schweizer Fassung nach revDSG) wird vorbereitet und ist noch nicht rechtlich geprüft. Die obigen Inhalte gelten EU-weit und bleiben bis dahin gültig.",
     },
   },
 };

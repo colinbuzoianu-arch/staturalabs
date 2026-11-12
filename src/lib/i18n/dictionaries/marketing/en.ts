@@ -1,147 +1,156 @@
-// Source-of-truth copy — matches the reviewed prototype content exactly.
-// de.ts/ro.ts are meaning-based translations of this, not word-for-word.
+// Source-of-truth copy for the public marketing site. de.ts is the primary
+// market language (DACH) and is written for German search terms; en.ts/ro.ts
+// are meaning-based equivalents. The landing describes the current platform
+// (integrated OSH + environmental-protection software for DACH), not the
+// earlier ergonomics/posture product.
 export const en = {
+  meta: {
+    title:
+      "Occupational safety & environmental software for DACH | Statura Labs Dynamics",
+    description:
+      "Statura Labs Dynamics is the integrated platform for occupational safety, risk assessment and environmental protection in Austria, Germany and Switzerland. Legally compliant documents, hazardous substances, instructions, inspections, measures and a legal register — GDPR-compliant.",
+  },
   header: {
     requestPilot: "Request a pilot",
     signIn: "Sign in",
   },
-  // The "/" country-chooser page — SLD_IMPLEMENTATION_PLAN_austria-first.md
-  // §4.2: a real page with explicit links, never a geo-redirect.
-  countryChooser: {
-    metaTitle: "Choose your market",
-    eyebrow: "Choose your market",
-    h1: "Statura Labs Dynamics, by market.",
-    lede: "Legal limits, terminology, and the generated document all follow the country a workplace is actually in — not the other way around. Pick yours.",
-    countryLabels: { at: "Austria", de: "Germany", ch: "Switzerland" },
-    statusAvailable: "Available",
-    statusInPreparation: "In preparation",
-  },
   hero: {
-    eyebrow: "Measured motion // workplace ergonomics",
-    h1: "Ergonomic risk, read like an instrument reads it.",
-    lede: "Statura Labs Dynamics turns ergonomic risk assessment into a precision instrument. An assessor classifies the posture they observe — trunk, neck, shoulder, elbow, wrist, knee — scored against ISO 11228 and EN 1005, in real working conditions, not a lab. No camera, no video, no personal data.",
+    eyebrow: "Occupational safety · Health protection · Environment",
+    h1: "Occupational safety and environmental protection — one platform for the whole DACH region.",
+    lede: "Statura Labs Dynamics brings risk assessment, hazardous substances, instructions, inspections, incidents, measures, a legal register and environmental management together in one legally sound software for Austria, Germany and Switzerland. Produce the legally required documents, manage measures and prove their effectiveness — fully GDPR-compliant.",
     ctaPrimary: "Request a pilot",
-    ctaSecondary: "See how it works",
+    ctaSecondary: "Explore the platform",
   },
-  pipeline: {
-    eyebrow: "The pipeline",
-    heading: "From a structured observation to a documented score.",
-    steps: [
-      {
-        step: "01 / ASSESS",
-        heading: "Classify the posture at the workstation",
-        description:
-          "No camera, no wearables, no sensors. A trained assessor records the posture they observe.",
-      },
-      {
-        step: "02 / RECORD",
-        heading: "Posture and context captured as data",
-        description:
-          "Observed posture categories, plus load, force, and duration — entered directly. No footage is involved at any point.",
-      },
-      {
-        step: "03 / SCORE",
-        heading: "Angles are checked, region by region",
-        description:
-          "Trunk, neck, shoulder, elbow, wrist, knee — each scored against ISO 11228 / EN 1005.",
-      },
-      {
-        step: "04 / REPORT",
-        heading: "A record your EHS file can use",
-        description:
-          "A documented report, not just a dashboard — ready to hand to someone else.",
-      },
+  platform: {
+    eyebrow: "The platform",
+    heading:
+      "One continuous system for worker protection and corporate environmental management.",
+    paragraphs: [
+      "Occupational safety, health protection and environmental management are often kept in separate lists, folders and spreadsheets. Statura Labs Dynamics unifies them in a single, country-aware platform — from the workstation and its risk assessment to the finished, legally compliant document.",
+      "Every assessment, every measure and every record is versioned, traceable and tied to a site and its applicable law. Safety officers, environmental managers and leadership keep the overview at all times — and are prepared when an authority inspection or audit comes.",
     ],
   },
-  privacy: {
-    eyebrow: "Built for privacy, not around it",
-    heading: "It assesses a posture, never a person.",
+  modules: {
+    eyebrow: "Modules",
+    heading:
+      "Everything occupational safety and environmental management needs.",
+    lede: "Switch on the modules you need — from your first workstation to a complete management system.",
     items: [
       {
-        heading: "No camera, no video, anywhere",
+        title: "Risk assessment / Evaluierung",
         description:
-          "There is no camera in the loop and no footage to store, stream, or leak. An assessment is a set of structured observations — posture categories and measured values — nothing more.",
+          "Structured risk assessment across every hazard category, with measures and effectiveness checks — in Austria as the Evaluierung under the ASchG.",
       },
       {
-        heading: "No identity data, anywhere",
+        title: "Hazardous substances",
         description:
-          "Every measurement is tied to a workstation — never to a name, a face, or an employee record.",
+          "Hazardous-substance register, safety data sheets and automatically generated operating instructions under the GefStoffV / ASchG.",
       },
       {
-        heading: "EU-minded from day one",
+        title: "Instructions",
         description:
-          "Architecture built around GDPR data minimization and current AI Act guidance, not retrofitted after the fact.",
+          "Derive, schedule and prove instruction obligations — including proof management and deadline tracking.",
+      },
+      {
+        title: "Inspections & audits",
+        description:
+          "Safety walk-throughs and audits with templates, checklists and direct conversion of findings into measures.",
+      },
+      {
+        title: "Incidents",
+        description:
+          "Record, investigate and — where required — report accidents, near-misses and incidents to the authorities; incl. first-aid logbook.",
+      },
+      {
+        title: "Environment",
+        description:
+          "Assess environmental aspects, record quantities and waste, and generate the waste-management concept under the AWG.",
+      },
+      {
+        title: "Measures",
+        description:
+          "A central measures register with responsibilities, deadlines and documented effectiveness verification.",
+      },
+      {
+        title: "Legal register",
+        description:
+          "Maintain legal requirements per site, confirm applicability and evaluate legal compliance.",
+      },
+      {
+        title: "Documents",
+        description:
+          "All legally compliant documents in one place — including a tamper-evident archive of generated records.",
+      },
+      {
+        title: "Analytics",
+        description:
+          "KPIs and analytics on safety, measures and environment — without ranking individual people.",
       },
     ],
   },
-  standards: {
-    eyebrow: "Grounded, not guessed",
-    heading: "Scored against real engineering standards.",
+  documents: {
+    eyebrow: "Legally compliant documents",
+    heading: "The required records — at the click of a button, not by hand.",
     paragraph:
-      "Every threshold in Statura's scoring engine is built on established occupational ergonomics standards — not a proprietary black box, and not a borrowed methodology from a system we don't own.",
-    cards: [
-      { tag: "ISO 11228", label: "Manual handling & static posture" },
-      { tag: "EN 1005", label: "Human physical performance in machinery" },
+      "Statura Labs Dynamics generates the legally required documents straight from your data — country-specific and always on the correct legal basis. No copying between templates, no outdated versions.",
+    items: [
+      {
+        title: "Safety and health protection document (SGD)",
+        description: "For Austria under §5 ASchG and the DOK-VO.",
+      },
+      {
+        title: "Operating instructions",
+        description:
+          "Hazardous-substance operating instructions under the GefStoffV / ASchG.",
+      },
+      {
+        title: "Waste-management concept (AWK)",
+        description: "Under §10 AWG 2002 for Austrian sites.",
+      },
+      {
+        title: "Records & reports",
+        description:
+          "From the assessment to the authority notification — archived tamper-evident.",
+      },
     ],
   },
-  fieldNotes: {
-    eyebrow: "Field notes",
-    heading: "Ergonomics is bigger than a single snapshot.",
-    notes: [
+  dach: {
+    eyebrow: "Built for the DACH region",
+    heading: "Law, terminology and documents follow the site.",
+    paragraph:
+      "A company can have sites in several countries. That is why, in Statura, the actual site decides which limits apply, which terminology is used and which document is generated — not the other way around.",
+    points: [
+      "Austria: Evaluierung, SGD, AUVA and labour-inspection logic.",
+      "Germany: risk assessment under the ArbSchG, GefStoffV and DGUV.",
+      "Switzerland: in preparation.",
+    ],
+  },
+  trust: {
+    eyebrow: "Data protection from the start",
+    heading: "Assess safety without monitoring people.",
+    items: [
       {
-        kicker: "Why this matters",
-        heading: "What workplace ergonomics actually measures",
-        paragraphs: [
-          "Musculoskeletal disorders — back, shoulder, and knee strain from repeated or sustained awkward posture — remain one of the largest categories of occupational injury, and one of the hardest to catch early, because the damage accumulates from ordinary movements repeated thousands of times, not a single accident.",
-          "A proper assessment doesn't look at one moment — it looks at posture, repetition, force, and duration together, region by region: trunk, neck, shoulders, elbows, wrists, knees. Statura's scoring engine follows that same logic, built on ISO 11228 and EN 1005 rather than a single simplified \"risk score.\"",
-        ],
-        roadmapNote: null as string | null,
+        title: "No camera, no video data",
+        description:
+          "The platform uses no camera and stores no image or video data. An assessment is structured documentation, not footage.",
       },
       {
-        kicker: "How assessment works",
-        heading: "Structured observation, not a camera feed",
-        paragraphs: [
-          "Statura doesn't watch your workers. A trained assessor classifies the posture they observe at each workstation — trunk, neck, shoulders, elbows, wrists, knees — and records the load, force, and duration that shape real risk. No proprietary hardware, no wearables, no camera, no footage. It takes the method a certified ergonomist already uses on the floor and makes it consistent, versioned, and documented.",
-        ],
-        roadmapNote: null as string | null,
+        title: "Assessment and person kept apart",
+        description:
+          "The assessment chain is person-free: assessments relate to workstations, not names. Mandatory personal data lives strictly separated in its own compartment.",
       },
       {
-        kicker: "Beyond posture",
-        heading: "Adding load, force, and tools to the picture",
-        paragraphs: [
-          "Posture alone doesn't tell the whole story — a moderate forward bend holding nothing is a different risk than the same bend holding 20kg. Alongside every posture assessment, Statura logs the manual context that shapes real risk: object weight, push/pull force, and the tool in use, entered by whoever is running the assessment.",
-          "These aren't guesses layered on top of a score — they're structured data points tied to the same task and workstation, visible together in every report.",
-        ],
-        roadmapNote: null as string | null,
-      },
-      {
-        kicker: "On the roadmap",
-        heading: "Shared human-robot workspaces",
-        paragraphs: [
-          "Understanding how a body moves through a workspace is a natural starting point for a related but distinct question: how humans and robots share space safely on the same shop floor.",
-        ],
-        roadmapNote:
-          "This is a direction we're exploring, not a shipped feature. Safety monitoring in shared human-robot environments sits under a different regulatory regime than ergonomics assessment (functional safety standards, not just data protection), and any capability here will go through its own dedicated compliance review before release — not inherited from the ergonomics product around it.",
+        title: "Designed to be GDPR-compliant",
+        description:
+          "Data minimization and data protection are built in from the first line of code, not added afterwards.",
       },
     ],
   },
   finalCta: {
-    statusLine:
-      "Currently in technical pilot with industrial manufacturing partners.",
-    heading: "See it measure your own floor.",
+    eyebrow: "Get started",
+    heading: "See how Statura secures your operation.",
+    paragraph: "Arrange a pilot and experience the platform at a real site.",
     cta: "Request a pilot",
-  },
-  // Rendered by CountryContextSection on a /[country] homepage — see
-  // SLD_IMPLEMENTATION_PLAN_austria-first.md §4.1/§4.2. The verified
-  // branch's actual terminology/positioning line comes from the country
-  // pack (src/lib/country/packs/**), not from here; this dictionary only
-  // holds the section chrome, which stays the same shape across markets.
-  countryContext: {
-    eyebrow: "Built for this market",
-    verifiedHeading: "Speaking your regulator's language.",
-    unverifiedHeading: "This market's legal framing is still in preparation.",
-    unverifiedNote:
-      "We haven't yet checked this market's legal references and terminology against a primary source. Rather than guess, this page stays positioning-only until that review is done.",
   },
   footer: {
     about: "About",
@@ -152,20 +161,15 @@ export const en = {
   about: {
     metaTitle: "About",
     eyebrow: "About",
-    h1: "Built to measure what used to be guessed.",
+    h1: "Occupational and environmental protection, brought together in one platform.",
     paragraphs: [
-      "Statura Labs Dynamics started from a simple frustration: ergonomic risk in industrial workplaces is usually assessed by eye, on a clipboard, once a year if at all — not because anyone doesn't care, but because proper instrumented assessment has always meant wearables, specialized sensors, or an outside consultant's time. We set out to build something that brings that rigor to any assessor on the floor, with no special hardware — and no camera — at all.",
-      "Statura is built by an engineer with a background in industrial occupational health and safety systems, developed under Verumsell SRL, a Romania-based software studio. The product is in active technical pilot with industrial manufacturing partners. We're building it deliberately and in the open about what's proven versus what's still in development, rather than rushing a polished claim ahead of the evidence.",
+      "Statura Labs Dynamics started from a simple observation: in many companies, occupational safety, health protection and environmental management are kept in separate documents, spreadsheets and people's heads — and laboriously reassembled when an inspection comes. We are building a platform that unifies these obligations and generates the required records automatically.",
+      "Statura Labs Dynamics is developed under Verumsell SRL. The platform is built for the DACH region and aimed at industrial and commercial operations that want to organise their occupational and environmental protection in a legally sound and traceable way.",
     ],
-    grounded: {
-      eyebrow: "Grounded, not guessed",
-      paragraph:
-        "Every threshold in Statura's scoring engine is built on established occupational ergonomics standards — ISO 11228 and EN 1005 — not a proprietary black box. The architecture was built around data minimization and current AI Act guidance from the first line of code, not retrofitted after the fact.",
-    },
     whereWeAreNow: {
       eyebrow: "Where we are now",
       paragraph:
-        "Statura Labs Dynamics is currently in technical pilot with industrial manufacturing partners, not yet a commercial product. If you want to see it measure a real workstation, we'd like to hear from you.",
+        "Statura Labs Dynamics is in active development with pilot partners. If you want to see the platform at a real site, we would like to hear from you.",
     },
     cta: "Request a pilot",
   },
@@ -177,16 +181,13 @@ export const en = {
       paragraph:
         "This website is operated by Verumsell SRL. It does not use tracking cookies or analytics at this time, and collects no personal data through forms — the only interactive element is a mailto: link to contact@verumsell.com. If that changes, this page will be updated to reflect it.",
     },
-    // REVIEW REQUIRED (2026-10-09, colinbuzoianu): this paragraph was
-    // rewritten to remove the previous "processes camera video on-device"
-    // wording after camera capture was removed from the product for GDPR.
-    // It is compliance-sensitive legal copy — have it checked by legal
-    // before commercial launch, same standing as the jurisdictionNotice
-    // below. The de/ro translations below carry the same requirement.
+    // REVIEW REQUIRED: compliance-sensitive legal copy — have it checked by
+    // legal before commercial launch. The de/ro translations carry the same
+    // requirement.
     dataHandling: {
       heading: "How the Statura Labs Dynamics product handles data",
       paragraph:
-        "The Statura Labs Dynamics product — as used in a pilot or deployment, separate from this website — does not use a camera and does not capture, record, store, or transmit any video or images. An assessment is recorded as structured observations: posture classifications and measured values such as load, force, and duration, entered by a trained assessor and tied to a workstation, never to a named individual. Statura Labs Dynamics is designed to meet the relevant requirements of the EU AI Act and GDPR from the development phase onward. Final regulatory classification will be confirmed by a formal legal opinion prior to commercial launch. Full technical documentation is available on request for prospective pilot partners.",
+        "The Statura Labs Dynamics product — as used in a pilot or deployment, separate from this website — does not use a camera and does not capture, record, store, or transmit any video or images. The assessment chain is person-free: assessments and measurements are tied to a workstation or site, never to a named individual. Personal data required by law (for example instruction proof or incident records) is held strictly separated, only for a specific statutory duty, and health data is additionally encrypted and access-audited. Statura Labs Dynamics is designed to meet the relevant requirements of the EU GDPR from the development phase onward. Full technical documentation is available on request for prospective pilot partners.",
     },
     terms: {
       heading: "Terms of use",
@@ -200,17 +201,6 @@ export const en = {
     contact: {
       heading: "Contact",
       prefix: "Questions about privacy or this website:",
-    },
-    // Shown on every /[country]/legal page — see
-    // SLD_IMPLEMENTATION_PLAN_austria-first.md §7 B1: the content above
-    // applies EU-wide and is already reviewed; a jurisdiction-specific
-    // variant (an Austrian Offenlegung under §5 ECG, a German Impressum
-    // under the DDG, Swiss revDSG framing) is new verbatim text that
-    // still needs legal review, not something to paraphrase here.
-    jurisdictionNotice: {
-      heading: "Jurisdiction-specific notice",
-      paragraph:
-        "A jurisdiction-specific variant of this page for this market (for example an Austrian Offenlegung under §5 ECG, a German Impressum under the DDG, or Swiss-specific framing under revDSG) is in preparation and pending legal review. The content above applies EU-wide and remains accurate in the meantime.",
     },
   },
 };
