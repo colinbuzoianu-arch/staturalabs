@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { AppFooter } from "@/components/app-footer";
 import { AppHeader } from "@/components/app-header";
 import { AppShell } from "@/components/sidebar/app-shell";
-import { PlatformRole } from "@/generated/prisma/enums";
 import { getAccessibleSites } from "@/lib/auth/accessible-sites";
 import { requireAuthenticatedUser } from "@/lib/auth/require-access";
 import { getDashboardDictionary } from "@/lib/i18n/dictionaries/dashboard";
@@ -38,12 +37,9 @@ export default async function MeLayout({ children }: { children: ReactNode }) {
   }
 
   // Fallback: no site to anchor the sidebar — header chrome only.
-  const showAdministrationLink =
-    user.role === PlatformRole.COMPANY_ADMIN ||
-    user.role === PlatformRole.SITE_ADMIN;
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <AppHeader showAdministrationLink={showAdministrationLink} />
+      <AppHeader />
       <main className="flex-1 px-6 py-8">{children}</main>
       <AppFooter />
     </div>

@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { AppFooter } from "@/components/app-footer";
 import { AppHeader } from "@/components/app-header";
 import { PresentModeShell } from "@/components/present-mode-shell";
-import { PlatformRole } from "@/generated/prisma/enums";
 import { requireAuthenticatedUser } from "@/lib/auth/require-access";
 import { getDashboardDictionary } from "@/lib/i18n/dictionaries/dashboard";
 import { getLocale } from "@/lib/i18n/get-locale";
@@ -18,16 +17,13 @@ export default async function LegacyLayout({
 }: {
   children: ReactNode;
 }) {
-  const user = await requireAuthenticatedUser();
-  const showAdministrationLink =
-    user.role === PlatformRole.COMPANY_ADMIN ||
-    user.role === PlatformRole.SITE_ADMIN;
+  await requireAuthenticatedUser();
   const locale = await getLocale();
   const exitLabel = getDashboardDictionary(locale).presentMode.exitLabel;
 
   return (
     <PresentModeShell
-      header={<AppHeader showAdministrationLink={showAdministrationLink} />}
+      header={<AppHeader />}
       footer={<AppFooter />}
       exitLabel={exitLabel}
     >

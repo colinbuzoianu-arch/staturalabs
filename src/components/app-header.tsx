@@ -4,8 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { LanguageSwitcher } from "@/components/language-switcher";
-import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
-import { useLocale } from "@/lib/i18n/locale-context";
 import { ThemeToggle } from "./theme-toggle";
 
 const STORAGE_KEY = "statura-theme";
@@ -17,18 +15,8 @@ const STORAGE_KEY = "statura-theme";
 // toggle button, read from the DOM attribute the inline init script (root
 // layout.tsx) already set before this component mounts.
 //
-// showAdministrationLink is resolved server-side by the caller
-// ((app)/layout.tsx, via requireAuthenticatedUser's role) rather than
-// re-deriving role logic here — this component has no access to the
-// current user itself.
-export function AppHeader({
-  showAdministrationLink = false,
-}: {
-  showAdministrationLink?: boolean;
-}) {
+export function AppHeader() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
-  const { locale } = useLocale();
-  const dict = getCommonDictionary(locale);
 
   useEffect(() => {
     const current = document.documentElement.getAttribute("data-theme");
@@ -66,24 +54,6 @@ export function AppHeader({
         </span>
       </Link>
       <div className="flex items-center gap-4 text-foreground">
-        {showAdministrationLink && (
-          <>
-            {/* The logo already links to /sites, but that's not an obvious
-                "go back" affordance once you're deep in /administration —
-                this makes switching between the two explicit in both
-                directions, not just administration -> workplace via the
-                logo. */}
-            <Link href="/app/sites" className="text-sm hover:text-accent">
-              {dict.nav.workplaceOverview}
-            </Link>
-            <Link
-              href="/app/administration"
-              className="text-sm hover:text-accent"
-            >
-              {dict.nav.administration}
-            </Link>
-          </>
-        )}
         <LanguageSwitcher />
         <ThemeToggle theme={theme} onToggle={toggleTheme} />
       </div>
