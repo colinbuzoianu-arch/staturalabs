@@ -75,7 +75,23 @@ yet armed in production.
 - **No camera or video capture anywhere in the product** (removed for GDPR,
   Oct 2026): no image, frame or footage is captured, transmitted or stored.
 
-## 7. Software development and operations
+## 7. AI processing (Gefahrstoffe KI-Funktionen)
+- AI is used **only inside fixed functions** (SDS extraction, consistency-hint
+  explanations, Betriebsanweisung drafting) — never a free conversational agent
+  — and only when a tenant has the KI-Funktionen entitlement (`chemicals.ai`,
+  default OFF).
+- Processing runs **server-side, tenant-scoped**, via Anthropic (Claude API — a
+  sub-processor; see `subprocessors-template.md`). The data sent is supplier SDS
+  documents and substance/classification data (product documents) plus business
+  contact details from the SDS — **never worker or health data**.
+- Per-tenant usage is metered and an optional monthly cap can pause AI while
+  manual entry continues. Every extracted/drafted value carries provenance and
+  is labelled as a draft/Prüfhinweis requiring expert review; the AI never
+  produces a legal value from its own knowledge.
+- *(Confirm the processing region and transfer mechanism for the real
+  deployment, and reflect it in the DPA and sub-processor list.)*
+
+## 8. Software development and operations
 - Dependency vulnerability scanning in CI (build fails on a high/critical
   production advisory); typecheck, lint and an automated test suite gate every
   change.

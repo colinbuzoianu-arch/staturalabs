@@ -14,8 +14,15 @@ or replacements and may object (see DPA clause 6).
 | [Hosting / application platform] | Application hosting / CDN | [confirm region] | [confirm] |
 | [Email delivery provider, if used] | Transactional email (invites, notifications) | [confirm] | [confirm] |
 | [Error-monitoring provider, if configured] | Error reporting (no person/health data sent) | [confirm] | [confirm] |
+| Anthropic (Claude API) | AI processing inside the Gefahrstoffe KI-Funktionen (SDS extraction, consistency-hint explanations, Betriebsanweisung drafting) — processes uploaded supplier SDS documents and substance data only; **no worker/person data** | [confirm — US/EU; set by API region] | [SCCs — confirm current mechanism] |
 
 **Notes for completion**
+- Anthropic is engaged **only** when a tenant has the KI-Funktionen Gefahrstoffe
+  entitlement (feature flag `chemicals.ai`, default OFF) enabled. The data sent is
+  supplier SDS PDFs and substance/classification data (product documents) plus
+  business contact details from the SDS — never worker or health data. Include it
+  here only for tenants where the feature is enabled, and confirm the processing
+  region and transfer mechanism; add it to the DPA/TOMs accordingly.
 - Confirm each provider's actual legal entity, processing location and whether
   any personal data leaves the EU/EEA (or Switzerland for CH customers).
 - The error-monitoring seam (`report-error.ts`) is off until a DSN is configured;
