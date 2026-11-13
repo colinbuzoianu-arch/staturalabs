@@ -276,3 +276,111 @@ export function parseSdsExtractionResponse(text: string): SdsExtractionResult {
   }
   return normalizeSdsExtraction(parsed);
 }
+
+// ----- Confirmed payload (S2b): the accepted values, evidence stripped -----
+export type ConfirmedSdsComponent = {
+  name: string | null;
+  casNumber: string | null;
+  ecNumber: string | null;
+  concentration: string | null;
+  classification: string | null;
+  specificConcentrationLimits: string | null;
+  mFactor: string | null;
+  acuteToxicityEstimate: string | null;
+};
+
+export type ConfirmedSdsCitedLimit = {
+  substance: string | null;
+  value: string | null;
+  unit: string | null;
+  type: string | null;
+};
+
+export type ConfirmedSdsData = {
+  productIdentifier: string | null;
+  ufi: string | null;
+  supplier: string | null;
+  emergencyPhone: string | null;
+  revisionDate: string | null;
+  version: string | null;
+  language: string | null;
+  classification: string | null;
+  signalWord: string | null;
+  pictograms: string[];
+  statementCodes: string[];
+  components: ConfirmedSdsComponent[];
+  citedLimits: ConfirmedSdsCitedLimit[];
+  flashPoint: string | null;
+  boilingPoint: string | null;
+  density: string | null;
+  vapourPressure: string | null;
+  ph: string | null;
+  physicalState: string | null;
+  unNumber: string | null;
+  properShippingName: string | null;
+  transportClass: string | null;
+  packingGroup: string | null;
+  adrRid: string | null;
+  imdg: string | null;
+  iata: string | null;
+  marinePollutant: string | null;
+  wgk: string | null;
+  lagerklasse: string | null;
+  rPhrases: string[];
+  sPhrases: string[];
+};
+
+// Strip evidence from a (reviewed) extraction result into the confirmed values.
+export function buildConfirmedPayload(
+  r: SdsExtractionResult,
+): ConfirmedSdsData {
+  const s = (f: Field<string>) => f?.value ?? null;
+  const a = (f: Field<string[]>) => f?.value ?? [];
+  return {
+    productIdentifier: s(r.productIdentifier),
+    ufi: s(r.ufi),
+    supplier: s(r.supplier),
+    emergencyPhone: s(r.emergencyPhone),
+    revisionDate: s(r.revisionDate),
+    version: s(r.version),
+    language: s(r.language),
+    classification: s(r.classification),
+    signalWord: s(r.signalWord),
+    pictograms: a(r.pictograms),
+    statementCodes: a(r.statementCodes),
+    components: r.components.map((c) => ({
+      name: s(c.name),
+      casNumber: s(c.casNumber),
+      ecNumber: s(c.ecNumber),
+      concentration: s(c.concentration),
+      classification: s(c.classification),
+      specificConcentrationLimits: s(c.specificConcentrationLimits),
+      mFactor: s(c.mFactor),
+      acuteToxicityEstimate: s(c.acuteToxicityEstimate),
+    })),
+    citedLimits: r.citedLimits.map((l) => ({
+      substance: s(l.substance),
+      value: s(l.value),
+      unit: s(l.unit),
+      type: s(l.type),
+    })),
+    flashPoint: s(r.flashPoint),
+    boilingPoint: s(r.boilingPoint),
+    density: s(r.density),
+    vapourPressure: s(r.vapourPressure),
+    ph: s(r.ph),
+    physicalState: s(r.physicalState),
+    unNumber: s(r.unNumber),
+    properShippingName: s(r.properShippingName),
+    transportClass: s(r.transportClass),
+    packingGroup: s(r.packingGroup),
+    adrRid: s(r.adrRid),
+    imdg: s(r.imdg),
+    iata: s(r.iata),
+    marinePollutant: s(r.marinePollutant),
+    wgk: s(r.wgk),
+    lagerklasse: s(r.lagerklasse),
+    rPhrases: a(r.rPhrases),
+    sPhrases: a(r.sPhrases),
+  };
+}

@@ -2620,21 +2620,54 @@ model SubstanceStatement {
 }
 
 model SafetyDataSheet {
-  id           String    @id @default(cuid())
-  substanceId  String
-  version      String?
-  revisionDate DateTime
-  language     String
-  supplier     String?
-  documentId   String?
-  supersededAt DateTime?
-  lastUsedAt   DateTime?
-  createdAt    DateTime  @default(now())
+  id                 String    @id @default(cuid())
+  substanceId        String
+  version            String?
+  revisionDate       DateTime
+  language           String
+  supplier           String?
+  documentId         String?
+  supersededAt       DateTime?
+  lastUsedAt         DateTime?
+  // P15 S2b: confirmed-detail provenance. extractionMethod = "sds-extraction"
+  // (confirmed from an AI draft) or "manual"; confirmedData holds the accepted
+  // section 1/9/14/15 values (evidence stripped) until their consuming slice
+  // promotes them to columns (S4/S5/S6).
+  confirmedData      Json?
+  sourceExtractionId String?
+  extractionMethod   String?
+  confirmedByUserId  String?   @db.Uuid
+  createdAt          DateTime  @default(now())
 
-  substance Substance @relation(fields: [substanceId], references: [id], onDelete: Restrict)
-  document  Document? @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  substance       Substance      @relation(fields: [substanceId], references: [id], onDelete: Restrict)
+  document        Document?      @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  sourceExtraction SdsExtraction? @relation(fields: [sourceExtractionId], references: [id], onDelete: Restrict)
+  components      SdsComponent[]
 
   @@index([substanceId])
+  @@index([sourceExtractionId])
+}
+
+/// P15 S2b: one section-3 component of an SDS (name, CAS, EC, concentration,
+/// component classification, SCLs, M-factor, ATE). Relational because S3's
+/// harmonised-classification check and S4's per-component limits join these.
+model SdsComponent {
+  id                          String   @id @default(cuid())
+  safetyDataSheetId           String
+  name                        String
+  casNumber                   String?
+  ecNumber                    String?
+  concentration               String?
+  classification              String?
+  specificConcentrationLimits String?
+  mFactor                     String?
+  acuteToxicityEstimate       String?
+  createdAt                   DateTime @default(now())
+
+  safetyDataSheet SafetyDataSheet @relation(fields: [safetyDataSheetId], references: [id], onDelete: Restrict)
+
+  @@index([safetyDataSheetId])
+  @@index([casNumber])
 }
 
 model SubstanceUse {
@@ -2825,6 +2858,7 @@ model SdsExtraction {
   company   Company    @relation(fields: [companyId], references: [id], onDelete: Restrict)
   substance Substance? @relation(fields: [substanceId], references: [id], onDelete: Restrict)
   document  Document?  @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  confirmedSheets SafetyDataSheet[]
 
   @@index([companyId])
   @@index([substanceId])
