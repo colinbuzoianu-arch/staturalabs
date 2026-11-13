@@ -40,6 +40,23 @@ value from model recollection (§0.7 / §7).
     entry whose stated classification omits a harmonised hazard) needs
     `ClpHarmonisedClassification` loaded; the hook exists, inert until then.
 
+## Recorded interpretation points (S5 — storage, WGK, VbF)
+- **Built now:** StorageLocation entity (S5a); the TRGS 510 Zusammenlagerungs-
+  check (S5b, DE-gated, pure `checkZusammenlagerung`, honest gap when no matrix);
+  Substance.lagerklasse + Substance.wgk set from the confirmed SDS (section 15);
+  WGK + flash-point display on the substance page.
+- **Pending official data (honest gaps, never guessed):**
+  - **TRGS 510 compatibility matrix** — no rows seeded; DE sites show "keine
+    Zusammenlagerungsregel hinterlegt" until the matrix is imported (founder/
+    official step). AT/CH have no scheme (fail-closed).
+  - **UBA Rigoletto substance-WGK import** — not built; WGK shows the supplier-
+    declared value from the SDS (or manual). The own mixture WGK calculation is
+    Phase 2 (`wgk.mixtureCalculation`, flag OFF).
+  - **AT VbF flash-point classification** — the VbF class thresholds are
+    regulatory numbers (RIS), not seeded; the substance page shows the SDS flash
+    point with an explicit "no VbF thresholds loaded" note. Display only; the
+    VbF storage-quantity rules are referenced, not computed (§2 S5).
+
 ## Prepared engines (to be filled in when built — §3)
 ### `clp.mixtureCalculation`
 _Not yet built._ Will implement CLP Annex I mixture calculation methods (ATE

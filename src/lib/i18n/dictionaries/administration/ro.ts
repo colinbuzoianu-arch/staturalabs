@@ -865,6 +865,12 @@ export const ro: typeof en = {
     exposureEu: "UE (suplimentar)",
     exposureSource: "Sursă",
     exposureBinding: "obligatoriu",
+    wgkVbfHeading: "WGK & lichide inflamabile",
+    wgkLabel: "WGK",
+    wgkSupplierNote: "conform furnizorului",
+    lagerklasseLabel: "Clasă de depozitare (TRGS 510)",
+    vbfFlashLabel: "Punct de aprindere (FDS)",
+    vbfGap: "Clasificare VbF: niciun prag VbF încărcat pentru acest sit.",
     exposureIndicative: "orientativ",
     storage: {
       navLabel: "Depozitare (TRGS 510)",

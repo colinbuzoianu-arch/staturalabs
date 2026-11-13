@@ -882,6 +882,12 @@ export const en = {
     exposureEu: "EU (supplementary)",
     exposureSource: "Source",
     exposureBinding: "binding",
+    wgkVbfHeading: "Water hazard class & flammables",
+    wgkLabel: "WGK",
+    wgkSupplierNote: "supplier-declared",
+    lagerklasseLabel: "Storage class (TRGS 510)",
+    vbfFlashLabel: "Flash point (SDS)",
+    vbfGap: "VbF classification: no VbF thresholds loaded for this site.",
     exposureIndicative: "indicative",
     storage: {
       navLabel: "Storage (TRGS 510)",

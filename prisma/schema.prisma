@@ -2605,6 +2605,9 @@ model Substance {
   // P15 S5b: Lagerklasse (TRGS 510), per product — from the confirmed SDS
   // (section 15/7) or manual entry. Feeds the Zusammenlagerungs-check.
   lagerklasse                String?
+  // P15 S5c: Wassergefährdungsklasse (WGK), supplier-declared from the SDS
+  // (section 15) or manual. Own mixture WGK calculation is Phase 2 (flag OFF).
+  wgk                        String?
   excludedLowHazard          Boolean             @default(false)
   excludedLowHazardRationale String?
   environmentalAspectId      String?

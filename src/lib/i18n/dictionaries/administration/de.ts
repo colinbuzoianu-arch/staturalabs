@@ -865,6 +865,13 @@ export const de: typeof en = {
     exposureEu: "EU (ergänzend)",
     exposureSource: "Quelle",
     exposureBinding: "verbindlich",
+    wgkVbfHeading: "WGK & brennbare Flüssigkeiten",
+    wgkLabel: "WGK",
+    wgkSupplierNote: "lt. Lieferant",
+    lagerklasseLabel: "Lagerklasse (TRGS 510)",
+    vbfFlashLabel: "Flammpunkt (SDB)",
+    vbfGap:
+      "VbF-Klassifizierung: keine VbF-Schwellen für diesen Standort hinterlegt.",
     exposureIndicative: "Richtwert",
     storage: {
       navLabel: "Lagerung (TRGS 510)",

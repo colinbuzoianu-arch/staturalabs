@@ -269,6 +269,11 @@ export default async function SubstanceDetailPage({
     casNumber: substance.casNumber,
     ecNumber: substance.ecNumber,
   });
+  // S5c: flash point from the latest confirmed SDS (for the AT VbF display).
+  const latestConfirmed = substance.safetyDataSheets.find(
+    (s) => s.confirmedData !== null,
+  )?.confirmedData as { flashPoint?: string | null } | null | undefined;
+  const flashPoint = latestConfirmed?.flashPoint ?? null;
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-10">
@@ -391,6 +396,30 @@ export default async function SubstanceDetailPage({
             {dict.saveSubstitution}
           </button>
         </form>
+      </section>
+
+      <section className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4 text-sm">
+        <h2 className="font-heading text-sm font-bold">{dict.wgkVbfHeading}</h2>
+        <p>
+          {dict.wgkLabel}: {substance.wgk ?? dict.none}
+          {substance.wgk ? (
+            <span className="text-foreground-subtle">
+              {" "}
+              · {dict.wgkSupplierNote}
+            </span>
+          ) : null}
+        </p>
+        <p>
+          {dict.lagerklasseLabel}: {substance.lagerklasse ?? dict.none}
+        </p>
+        {site.country === "AT" && (
+          <>
+            <p>
+              {dict.vbfFlashLabel}: {flashPoint ?? dict.none}
+            </p>
+            <p className="text-xs text-foreground-subtle">{dict.vbfGap}</p>
+          </>
+        )}
       </section>
 
       <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4 text-sm">

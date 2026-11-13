@@ -132,10 +132,12 @@ export async function confirmSdsExtraction(input: {
     const substanceUpdate: {
       signalWord?: SubstanceSignalWord;
       lagerklasse?: string;
+      wgk?: string;
     } = {};
     if (signalWord) substanceUpdate.signalWord = signalWord;
     if (c.lagerklasse?.trim())
       substanceUpdate.lagerklasse = c.lagerklasse.trim();
+    if (c.wgk?.trim()) substanceUpdate.wgk = c.wgk.trim();
     if (Object.keys(substanceUpdate).length > 0) {
       await tx.substance.update({
         where: { id: input.substanceId },
