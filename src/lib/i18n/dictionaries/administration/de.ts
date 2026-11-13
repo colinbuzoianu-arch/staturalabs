@@ -738,6 +738,9 @@ export const de: typeof en = {
       sectionPhysical: "9 — Physikalische Eigenschaften",
       sectionTransport: "14 — Transport",
       sectionLegal: "15 — Rechtsvorschriften",
+      sectionSafety: "4/5/6/7/13 — Sicherheitsabschnitte",
+      sectionSafetyHint:
+        "Freitext-SDB-Abschnitte — Quelle für den Betriebsanweisungs-Entwurf.",
       targetSubstanceLabel: "Stoff, zu dem dieses SDB gehört",
       chooseSubstance: "— Stoff wählen —",
       targetSubstanceHint:
@@ -815,6 +818,11 @@ export const de: typeof en = {
         marinePollutant: "Meeresschadstoff",
         wgk: "WGK",
         lagerklasse: "Lagerklasse (TRGS 510)",
+        section4FirstAid: "Abschnitt 4 — Erste Hilfe",
+        section5FireFighting: "Abschnitt 5 — Brandbekämpfung",
+        section6AccidentalRelease: "Abschnitt 6 — Unbeabsichtigte Freisetzung",
+        section7HandlingStorage: "Abschnitt 7 — Handhabung & Lagerung",
+        section13Disposal: "Abschnitt 13 — Entsorgung",
       },
     },
     eyebrow: "Gefahrstoffe",

@@ -737,6 +737,9 @@ export const ro: typeof en = {
       sectionPhysical: "9 — Proprietăți fizice",
       sectionTransport: "14 — Transport",
       sectionLegal: "15 — Reglementări",
+      sectionSafety: "4/5/6/7/13 — Secțiuni de securitate",
+      sectionSafetyHint:
+        "Secțiuni FDS text liber — sursa pentru schița instrucțiunii de lucru.",
       targetSubstanceLabel: "Substanța căreia îi aparține această FDS",
       chooseSubstance: "— alegeți o substanță —",
       targetSubstanceHint:
@@ -815,6 +818,11 @@ export const ro: typeof en = {
         marinePollutant: "Poluant marin",
         wgk: "WGK",
         lagerklasse: "Clasă de depozitare (TRGS 510)",
+        section4FirstAid: "Secțiunea 4 — Prim ajutor",
+        section5FireFighting: "Secțiunea 5 — Combaterea incendiilor",
+        section6AccidentalRelease: "Secțiunea 6 — Eliberare accidentală",
+        section7HandlingStorage: "Secțiunea 7 — Manipulare & depozitare",
+        section13Disposal: "Secțiunea 13 — Eliminare",
       },
     },
     eyebrow: "Substanțe periculoase",

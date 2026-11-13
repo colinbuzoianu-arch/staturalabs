@@ -198,6 +198,11 @@ export default async function SdsReviewDetailPage({
       marinePollutant: g("marinePollutant"),
       wgk: g("wgk"),
       lagerklasse: g("lagerklasse"),
+      section4FirstAid: g("section4FirstAid"),
+      section5FireFighting: g("section5FireFighting"),
+      section6AccidentalRelease: g("section6AccidentalRelease"),
+      section7HandlingStorage: g("section7HandlingStorage"),
+      section13Disposal: g("section13Disposal"),
     };
 
     await confirmSdsExtraction({
@@ -614,6 +619,36 @@ export default async function SdsReviewDetailPage({
               dict={dict}
             />
           </div>
+        </section>
+
+        <section className={sectionCls}>
+          <h2 className="font-heading text-sm font-bold">
+            {dict.sectionSafety}
+          </h2>
+          <p className="text-xs text-foreground-muted">
+            {dict.sectionSafetyHint}
+          </p>
+          {(
+            [
+              ["section4FirstAid", result.section4FirstAid],
+              ["section5FireFighting", result.section5FireFighting],
+              ["section6AccidentalRelease", result.section6AccidentalRelease],
+              ["section7HandlingStorage", result.section7HandlingStorage],
+              ["section13Disposal", result.section13Disposal],
+            ] as const
+          ).map(([name, f]) => (
+            <label key={name} className="flex flex-col gap-0.5">
+              <span className="text-xs text-foreground-subtle">
+                {dict.fields[name]}
+              </span>
+              <textarea
+                name={name}
+                defaultValue={f.value ?? ""}
+                rows={2}
+                className="rounded border border-border bg-background px-2 py-1 text-sm"
+              />
+            </label>
+          ))}
         </section>
 
         <section className={sectionCls}>

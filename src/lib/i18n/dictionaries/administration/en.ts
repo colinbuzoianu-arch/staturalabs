@@ -754,6 +754,9 @@ export const en = {
       sectionPhysical: "9 — Physical properties",
       sectionTransport: "14 — Transport",
       sectionLegal: "15 — Regulatory",
+      sectionSafety: "4/5/6/7/13 — Safety sections",
+      sectionSafetyHint:
+        "Free-text SDS sections — the source for the Betriebsanweisung draft.",
       targetSubstanceLabel: "Substance this SDS belongs to",
       chooseSubstance: "— choose a substance —",
       targetSubstanceHint:
@@ -832,6 +835,11 @@ export const en = {
         marinePollutant: "Marine pollutant",
         wgk: "WGK",
         lagerklasse: "Storage class (TRGS 510)",
+        section4FirstAid: "Section 4 — First aid",
+        section5FireFighting: "Section 5 — Firefighting",
+        section6AccidentalRelease: "Section 6 — Accidental release",
+        section7HandlingStorage: "Section 7 — Handling & storage",
+        section13Disposal: "Section 13 — Disposal",
       },
     },
     eyebrow: "Hazardous substances",

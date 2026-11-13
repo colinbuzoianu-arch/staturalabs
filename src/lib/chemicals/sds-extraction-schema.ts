@@ -71,6 +71,13 @@ export type SdsExtractionResult = {
   // Section 15
   wgk: Field<string>;
   lagerklasse: Field<string>;
+  // Free-text safety sections (4/5/6/7/13) — the source material for the S7 AI
+  // Betriebsanweisung draft. Long text.
+  section4FirstAid: Field<string>;
+  section5FireFighting: Field<string>;
+  section6AccidentalRelease: Field<string>;
+  section7HandlingStorage: Field<string>;
+  section13Disposal: Field<string>;
   // Legacy (read-only, never computed/shown on new docs — §0.4)
   rPhrases: Field<string[]>;
   sPhrases: Field<string[]>;
@@ -102,6 +109,11 @@ const SCALAR_FIELDS = [
   "marinePollutant",
   "wgk",
   "lagerklasse",
+  "section4FirstAid",
+  "section5FireFighting",
+  "section6AccidentalRelease",
+  "section7HandlingStorage",
+  "section13Disposal",
 ] as const;
 
 const STRING_ARRAY_FIELDS = [
@@ -241,6 +253,8 @@ export const SDS_EXTRACTION_JSON_SHAPE = `{
   "flashPoint": {}, "boilingPoint": {}, "density": {}, "vapourPressure": {}, "ph": {}, "physicalState": {},
   "unNumber": {}, "properShippingName": {}, "transportClass": {}, "packingGroup": {}, "adrRid": {}, "imdg": {}, "iata": {}, "marinePollutant": {},
   "wgk": {}, "lagerklasse": {},
+  // Free-text safety sections — capture the full relevant text verbatim.
+  "section4FirstAid": {}, "section5FireFighting": {}, "section6AccidentalRelease": {}, "section7HandlingStorage": {}, "section13Disposal": {},
   "rPhrases": {}, "sPhrases": {}
 }`;
 
@@ -326,6 +340,11 @@ export type ConfirmedSdsData = {
   marinePollutant: string | null;
   wgk: string | null;
   lagerklasse: string | null;
+  section4FirstAid: string | null;
+  section5FireFighting: string | null;
+  section6AccidentalRelease: string | null;
+  section7HandlingStorage: string | null;
+  section13Disposal: string | null;
   rPhrases: string[];
   sPhrases: string[];
 };
@@ -380,6 +399,11 @@ export function buildConfirmedPayload(
     marinePollutant: s(r.marinePollutant),
     wgk: s(r.wgk),
     lagerklasse: s(r.lagerklasse),
+    section4FirstAid: s(r.section4FirstAid),
+    section5FireFighting: s(r.section5FireFighting),
+    section6AccidentalRelease: s(r.section6AccidentalRelease),
+    section7HandlingStorage: s(r.section7HandlingStorage),
+    section13Disposal: s(r.section13Disposal),
     rPhrases: a(r.rPhrases),
     sPhrases: a(r.sPhrases),
   };
