@@ -10,6 +10,10 @@ import {
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import { substanceSdsAlerts } from "@/lib/chemicals/alerts";
 import {
+  listStorageLocations,
+  resolveStorageLocation,
+} from "@/lib/chemicals/storage-location";
+import {
   addSdsVersion,
   addSubstanceStatement,
   addSubstanceUse,
@@ -58,6 +62,7 @@ export default async function SubstanceDetailPage({
           workstation: { select: { name: true } },
           process: { select: { name: true } },
           orgUnit: { select: { name: true } },
+          storageLocationRef: { select: { name: true } },
         },
         orderBy: { activeFrom: "desc" },
       },
@@ -191,6 +196,17 @@ export default async function SubstanceDetailPage({
     const routes = formData
       .getAll("exposureRoutes")
       .filter((v): v is string => typeof v === "string") as ExposureRoute[];
+    const storageLocationId = await resolveStorageLocation({
+      siteId,
+      storageLocationId:
+        typeof formData.get("storageLocationId") === "string"
+          ? (formData.get("storageLocationId") as string) || null
+          : null,
+      newName:
+        typeof formData.get("newStorageLocation") === "string"
+          ? (formData.get("newStorageLocation") as string) || null
+          : null,
+    });
     await addSubstanceUse({
       substanceId,
       companyId: s.companyId,
@@ -202,6 +218,7 @@ export default async function SubstanceDetailPage({
       quantityClass: (QUANTITY_CLASSES as string[]).includes(quantity as string)
         ? (quantity as SubstanceQuantityClass)
         : "S",
+      storageLocationId,
       exposureRoutes: routes,
       activeFrom: new Date(),
     });
@@ -218,23 +235,25 @@ export default async function SubstanceDetailPage({
     revalidatePath(`/app/s/${siteId}/chemicals/register/${substanceId}`);
   }
 
-  const [workstations, orgUnits, processes] = await Promise.all([
-    prisma.workstation.findMany({
-      where: { site: { companyId } },
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    }),
-    prisma.orgUnit.findMany({
-      where: { site: { companyId } },
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    }),
-    prisma.process.findMany({
-      where: { site: { companyId } },
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    }),
-  ]);
+  const [workstations, orgUnits, processes, storageLocations] =
+    await Promise.all([
+      prisma.workstation.findMany({
+        where: { site: { companyId } },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      }),
+      prisma.orgUnit.findMany({
+        where: { site: { companyId } },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      }),
+      prisma.process.findMany({
+        where: { site: { companyId } },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      }),
+      listStorageLocations(siteId),
+    ]);
   const pickedPictograms = new Set(
     substance.pictograms.map((p) => p.pictogram),
   );
@@ -546,6 +565,27 @@ export default async function SubstanceDetailPage({
               ))}
             </select>
           </label>
+          <label className="flex flex-col gap-1">
+            {dict.storageLocationLabel}
+            <select
+              name="storageLocationId"
+              className="rounded border border-border bg-background px-2 py-1"
+            >
+              <option value="">{dict.storageLocationNone}</option>
+              {storageLocations.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1">
+            {dict.storageLocationNew}
+            <input
+              name="newStorageLocation"
+              className="rounded border border-border bg-background px-2 py-1"
+            />
+          </label>
           <fieldset className="flex items-end gap-2">
             {EXPOSURE_ROUTES.map((r) => (
               <label key={r} className="flex items-center gap-1">
@@ -576,6 +616,11 @@ export default async function SubstanceDetailPage({
                     u.orgUnit?.name ??
                     dict.none}{" "}
                   · {u.purpose} · {dict.quantityClassLabels[u.quantityClass]}
+                  {u.storageLocationRef?.name
+                    ? ` · ${u.storageLocationRef.name}`
+                    : u.storageLocation
+                      ? ` · ${u.storageLocation}`
+                      : ""}
                   {u.activeTo
                     ? ` · (${u.activeTo.toISOString().slice(0, 10)})`
                     : ""}

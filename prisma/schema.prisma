@@ -107,6 +107,7 @@ model Site {
   generatedDocuments       GeneratedDocument[]
   documents                Document[]
   substanceUses            SubstanceUse[]
+  storageLocations         StorageLocation[]
   operatingInstructions    OperatingInstruction[]
   inspectionTemplates      InspectionTemplate[]
   inspections              Inspection[]
@@ -2560,6 +2561,32 @@ enum ExposureRoute {
   EYE
 }
 
+// P15 S5a: a physical storage location at a site (replaces the free-text
+// SubstanceUse.storageLocation). The TRGS 510 Zusammenlagerungs-check (S5b)
+// groups substance uses by location to list the Lagerklassen present.
+enum StorageLocationType {
+  ROOM
+  CABINET
+  OUTDOOR_AREA
+  TANK
+  OTHER
+}
+
+model StorageLocation {
+  id        String              @id @default(cuid())
+  siteId    String
+  name      String
+  type      StorageLocationType @default(OTHER)
+  notes     String?
+  createdAt DateTime            @default(now())
+
+  site Site           @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  uses SubstanceUse[]
+
+  @@unique([siteId, name])
+  @@index([siteId])
+}
+
 model Substance {
   id                         String              @id @default(cuid())
   companyId                  String
@@ -2679,20 +2706,25 @@ model SubstanceUse {
   orgUnitId       String?
   purpose         String
   quantityClass   SubstanceQuantityClass
-  storageLocation String?
+  // storageLocation (free text) is deprecated — kept as a fallback; new uses set
+  // storageLocationId (P15 S5a). Existing values were migrated into StorageLocation.
+  storageLocation   String?
+  storageLocationId String?
   exposureRoutes  ExposureRoute[]
   activeFrom      DateTime
   activeTo        DateTime?
   createdAt       DateTime               @default(now())
 
-  substance   Substance    @relation(fields: [substanceId], references: [id], onDelete: Restrict)
-  site        Site         @relation(fields: [siteId], references: [id], onDelete: Restrict)
-  workstation Workstation? @relation(fields: [workstationId], references: [id], onDelete: Restrict)
-  process     Process?     @relation(fields: [processId], references: [id], onDelete: Restrict)
-  orgUnit     OrgUnit?     @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
+  substance       Substance        @relation(fields: [substanceId], references: [id], onDelete: Restrict)
+  site            Site             @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  workstation     Workstation?     @relation(fields: [workstationId], references: [id], onDelete: Restrict)
+  process         Process?         @relation(fields: [processId], references: [id], onDelete: Restrict)
+  orgUnit         OrgUnit?         @relation(fields: [orgUnitId], references: [id], onDelete: Restrict)
+  storageLocationRef StorageLocation? @relation(fields: [storageLocationId], references: [id], onDelete: Restrict)
 
   @@index([substanceId])
   @@index([siteId])
+  @@index([storageLocationId])
 }
 
 // P6 §6 FindingSubstance, activated in P8: a CHEMICAL / DUST_PARTICULATE

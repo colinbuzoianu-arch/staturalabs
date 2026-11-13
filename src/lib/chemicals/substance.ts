@@ -149,6 +149,7 @@ export async function addSubstanceUse(input: {
   purpose: string;
   quantityClass: SubstanceQuantityClass;
   storageLocation?: string | null;
+  storageLocationId?: string | null;
   exposureRoutes: ExposureRoute[];
   activeFrom: Date;
 }): Promise<void> {
@@ -171,6 +172,7 @@ export async function addSubstanceUse(input: {
       purpose: input.purpose.trim(),
       quantityClass: input.quantityClass,
       storageLocation: input.storageLocation?.trim() || null,
+      storageLocationId: input.storageLocationId ?? null,
       exposureRoutes: input.exposureRoutes,
       activeFrom: input.activeFrom,
     },
