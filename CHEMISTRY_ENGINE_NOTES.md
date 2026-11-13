@@ -114,15 +114,25 @@ official AwSV text), never recalled. Fixture-tested. **PENDING:** the full AwSV
 conservative simplification), and the real thresholds — both an official-text +
 expert step. Result is a *Berechnungsvorschlag*.
 
-### `transport.classification`
-_Not yet built._ Data model for UN entries + derivation from classification. **No
-dangerous-goods list imported** (ADR has no official machine-readable list; IMDG/
-IATA are licensed). Hand-built fixture list only.
+### `transport.classification` — MODEL BUILT (flag OFF), `engines/transport-classification.ts`
+`UnEntry` model (UN number, proper shipping name, class, packing group, labels,
+special provisions, tunnel code, LQ/EQ) + `lookupUnEntry` against a supplied
+list. Ships only a **tiny illustrative fixture** (one entry) — **no official
+dangerous-goods list is imported** (ADR has none machine-readable; IMDG/IATA are
+licensed); the model is ready to load a licensed/curated list. **PENDING:** the
+classification→UN-class **derivation** needs the official ADR criteria
+(regulatory thresholds) and is deliberately NOT implemented from recollection —
+load the criteria + a curated list, then build/validate derivation with an expert.
 
-### `sds.authoring`
-_Not yet built._ 16-section SDS schema per REACH Annex II (2020/878) + mapping +
-draft render. No phrase catalogue (EuPhraC licensed); free text only. Never offered
-while OFF.
+### `sds.authoring` — BUILT (flag OFF), `engines/sds-authoring.ts`
+16-section SDS skeleton per REACH Annex II (the fixed section structure, not a
+regulatory threshold) + `mapToSdsDraft` (fills sections from the confirmed SDS
+data we already hold; unfilled sections get an explicit "[Keine Daten — zu
+ergänzen]" placeholder, never invented) + `renderSdsDraftText` (plain-text
+draft). **No phrase catalogue** (EuPhraC is licensed) — free text only. Never
+offered while the flag is OFF. **PENDING before go-live:** a proper PDF layout,
+the EuPhraC phrase catalogue (once licensed), and sections 10/11/12/16 which we
+hold no source data for. Output is clearly an ENTWURF.
 
 ### `storage.lagerklasseSuggestion` — FRAMEWORK BUILT (flag OFF), `engines/lagerklasse-suggestion.ts`
 `suggestLagerklasse(input, scheme)` — evaluates a priority-ordered rule list
