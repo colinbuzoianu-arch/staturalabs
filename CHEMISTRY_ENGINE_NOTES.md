@@ -77,10 +77,22 @@ generic concentration limits for CMR/STOT/aspiration). Physical hazards are **no
 calculated (they need test data). Expert review target: reproduce the worked
 examples in ECHA's CLP guidance; list every ambiguity here before the flag goes on.
 
-### `mixture.physicalEstimates`
-_Not yet built._ Density (mass-weighted ideal mixing), boiling-range lower bound,
-flash-point estimate (Raoult/Le Chatelier-type). Always labelled *Näherungswert,
-nicht für Einstufung*. Refuses to compute when component data is missing.
+### `mixture.physicalEstimates` — BUILT (flag OFF), `engines/physical-estimates.ts`
+Pure physics (no regulatory thresholds), so buildable and fixture-tested now.
+- **Density:** mass-weighted ideal mixing, `1/ρ_mix = Σ(w_i/ρ_i)`. **Interpretation
+  / conservative choice:** assumes ideal mixing (no excess volume); real mixtures
+  (e.g. ethanol/water) show volume contraction, so the estimate can differ by a
+  few %. Labelled *Näherungswert, nicht für Einstufung*. Refuses when any
+  component lacks a density or the mass fractions don't sum to ~1.
+- **Boiling-range lower bound:** the lowest component boiling point (a mixture
+  boils no lower than its most volatile component under this simplification).
+- **Flash point:** the lowest component flash point — the **conservative** bound.
+  The Raoult/Le Chatelier partial-pressure refinement needs vapour-pressure data
+  (S6) and is **deferred**; the conservative min-bound is used meanwhile.
+- **Expert review before the flag is turned on:** confirm the ideal-mixing
+  caveat is acceptable for the intended use, and decide whether the Raoult
+  flash-point model is required (it is more accurate but needs reliable
+  component vapour-pressure/Antoine data). Output is never for classification.
 
 ### `wgk.mixtureCalculation`
 _Not yet built._ AwSV mixture rule for WGK from component WGKs + concentrations.
