@@ -9,6 +9,7 @@ import {
 } from "@/generated/prisma/enums";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import { substanceSdsAlerts } from "@/lib/chemicals/alerts";
+import { getReferenceSubstanceByCas } from "@/lib/chemicals/reference-substance";
 import {
   listStorageLocations,
   resolveStorageLocation,
@@ -274,6 +275,9 @@ export default async function SubstanceDetailPage({
     (s) => s.confirmedData !== null,
   )?.confirmedData as { flashPoint?: string | null } | null | undefined;
   const flashPoint = latestConfirmed?.flashPoint ?? null;
+  // S6: public reference data (PubChem), matched by CAS — shown alongside, never
+  // replacing, the SDS values.
+  const referenceData = await getReferenceSubstanceByCas(substance.casNumber);
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-10">
@@ -421,6 +425,48 @@ export default async function SubstanceDetailPage({
           </>
         )}
       </section>
+
+      {referenceData && (
+        <section className="flex flex-col gap-2 rounded-lg border border-border bg-surface p-4 text-sm">
+          <h2 className="font-heading text-sm font-bold">
+            {dict.referenceHeading}
+          </h2>
+          <p className="text-xs text-foreground-muted">{dict.referenceIntro}</p>
+          {referenceData.molecularFormula && (
+            <p>
+              {dict.referenceFormula}: {referenceData.molecularFormula}
+            </p>
+          )}
+          {referenceData.properties.length > 0 && (
+            <ul className="flex flex-col gap-1">
+              {referenceData.properties.map((p) => (
+                <li
+                  key={`${p.propertyType}-${p.valueText}-${p.sourceName}`}
+                  className="flex flex-wrap gap-x-2"
+                >
+                  <span className="font-medium">
+                    {dict.referencePropertyTypes[p.propertyType]}
+                  </span>
+                  <span>{p.valueText}</span>
+                  <span className="text-foreground-subtle">
+                    {dict.referenceSource}: {p.sourceName}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {referenceData.sourceUrl && (
+            <a
+              href={referenceData.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs text-accent hover:underline"
+            >
+              {dict.referencePubchem}
+            </a>
+          )}
+        </section>
+      )}
 
       <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4 text-sm">
         <h2 className="font-heading text-sm font-bold">

@@ -57,6 +57,18 @@ value from model recollection (§0.7 / §7).
     point with an explicit "no VbF thresholds loaded" note. Display only; the
     VbF storage-quantity rules are referenced, not computed (§2 S5).
 
+## Recorded interpretation points (S6 — reference data)
+- **Built with real data:** PubChem is reachable and public-domain (unlike the
+  blocked EUR-Lex/RIS/TRGS sources), so S6 imports actual reference data.
+  `reference-substance.ts` fetches CID + molecular formula + IUPAC name (PUG REST)
+  and the experimental physical properties (PUG View) stored **verbatim as text**
+  (never numerically re-parsed, §0.7), each with its PubChem source name. A value
+  without a resolvable source is **skipped** (the "public-domain / skip depositor-
+  restricted" rule). Shown as "Referenzdaten" next to a substance, matched by CAS,
+  alongside — never replacing — the SDS values. Demo substances (Acetone,
+  Isopropanol, NaOH, Trichloroethylene) imported live (13–36 values each).
+  ReferenceSubstance is global/system, so a demo reset does not delete it.
+
 ## Prepared engines (to be filled in when built — §3)
 ### `clp.mixtureCalculation`
 _Not yet built._ Will implement CLP Annex I mixture calculation methods (ATE

@@ -2994,6 +2994,52 @@ model StorageCompatibilityRule {
   @@index([catalogVersion, country])
 }
 
+// P15 S6: raw-material property database. ReferenceSubstance (CAS-keyed system
+// catalogue) + one property row per value per source, stored VERBATIM as text
+// (never numerically re-parsed, §0.7). Shown as "Referenzdaten"; never replaces
+// SDS values. Global system data, shared-read RLS.
+enum ReferencePropertyType {
+  FLASH_POINT
+  BOILING_POINT
+  MELTING_POINT
+  DENSITY
+  VAPOR_PRESSURE
+  WATER_SOLUBILITY
+}
+
+model ReferenceSubstance {
+  id               String    @id @default(cuid())
+  casNumber        String?   @unique
+  ecNumber         String?
+  nameEn           String
+  nameDe           String?
+  molecularFormula String?
+  pubchemCid       Int?
+  source           String    @default("PubChem")
+  sourceUrl        String?
+  importedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  properties ReferenceSubstanceProperty[]
+
+  @@index([ecNumber])
+}
+
+model ReferenceSubstanceProperty {
+  id                   String                @id @default(cuid())
+  referenceSubstanceId String
+  propertyType         ReferencePropertyType
+  valueText            String
+  sourceName           String
+  conditions           String?
+  createdAt            DateTime              @default(now())
+
+  referenceSubstance ReferenceSubstance @relation(fields: [referenceSubstanceId], references: [id], onDelete: Restrict)
+
+  @@index([referenceSubstanceId])
+}
+
 // ---------------------------------------------------------------------------
 // P9 Begehungen & Audits (SLD_RESTRUCTURE_PLAN_platform-modules.md §7.3).
 // Configurable inspections/audits/checklists; observations become Actions via

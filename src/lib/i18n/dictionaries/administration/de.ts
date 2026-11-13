@@ -872,6 +872,20 @@ export const de: typeof en = {
     vbfFlashLabel: "Flammpunkt (SDB)",
     vbfGap:
       "VbF-Klassifizierung: keine VbF-Schwellen für diesen Standort hinterlegt.",
+    referenceHeading: "Referenzdaten",
+    referenceIntro:
+      "Öffentliche Referenzwerte (PubChem). Neben dem Lieferanten-SDB angezeigt — ersetzt dieses nie.",
+    referenceFormula: "Summenformel",
+    referenceSource: "Quelle",
+    referencePubchem: "PubChem-Eintrag",
+    referencePropertyTypes: {
+      FLASH_POINT: "Flammpunkt",
+      BOILING_POINT: "Siedepunkt",
+      MELTING_POINT: "Schmelzpunkt",
+      DENSITY: "Dichte",
+      VAPOR_PRESSURE: "Dampfdruck",
+      WATER_SOLUBILITY: "Wasserlöslichkeit",
+    },
     exposureIndicative: "Richtwert",
     storage: {
       navLabel: "Lagerung (TRGS 510)",

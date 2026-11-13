@@ -871,6 +871,20 @@ export const ro: typeof en = {
     lagerklasseLabel: "Clasă de depozitare (TRGS 510)",
     vbfFlashLabel: "Punct de aprindere (FDS)",
     vbfGap: "Clasificare VbF: niciun prag VbF încărcat pentru acest sit.",
+    referenceHeading: "Date de referință",
+    referenceIntro:
+      "Valori de referință publice (PubChem). Afișate alături de FDS furnizorului — nu îl înlocuiesc niciodată.",
+    referenceFormula: "Formulă moleculară",
+    referenceSource: "Sursă",
+    referencePubchem: "Înregistrare PubChem",
+    referencePropertyTypes: {
+      FLASH_POINT: "Punct de aprindere",
+      BOILING_POINT: "Punct de fierbere",
+      MELTING_POINT: "Punct de topire",
+      DENSITY: "Densitate",
+      VAPOR_PRESSURE: "Presiune de vapori",
+      WATER_SOLUBILITY: "Solubilitate în apă",
+    },
     exposureIndicative: "orientativ",
     storage: {
       navLabel: "Depozitare (TRGS 510)",

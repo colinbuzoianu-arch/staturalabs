@@ -888,6 +888,20 @@ export const en = {
     lagerklasseLabel: "Storage class (TRGS 510)",
     vbfFlashLabel: "Flash point (SDS)",
     vbfGap: "VbF classification: no VbF thresholds loaded for this site.",
+    referenceHeading: "Reference data",
+    referenceIntro:
+      "Public reference values (PubChem). Shown alongside the supplier SDS — never replacing it.",
+    referenceFormula: "Molecular formula",
+    referenceSource: "Source",
+    referencePubchem: "PubChem record",
+    referencePropertyTypes: {
+      FLASH_POINT: "Flash point",
+      BOILING_POINT: "Boiling point",
+      MELTING_POINT: "Melting point",
+      DENSITY: "Density",
+      VAPOR_PRESSURE: "Vapour pressure",
+      WATER_SOLUBILITY: "Water solubility",
+    },
     exposureIndicative: "indicative",
     storage: {
       navLabel: "Storage (TRGS 510)",
