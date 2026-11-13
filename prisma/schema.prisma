@@ -2699,6 +2699,96 @@ model OperatingInstruction {
 }
 
 // ---------------------------------------------------------------------------
+// P15 S1 (SLD_P15_GEFAHRSTOFFE_EXTENDED_APPROVED.md §2 S1): CLP reference data,
+// imported from official sources only (verificationMethod = "official-import",
+// §1). Global/system catalogues, versioned per CLP ATP. A version is created
+// INACTIVE and may be activated ONLY after the automated reconciliation gate
+// passes (DB CHECK: isActive => reconciliationPassed). The importer
+// (src/lib/chemicals/clp-import.ts) is the only write path; nothing is ever
+// seeded from model recollection (§0.7 / §7). Lookups degrade to code-format
+// validation while no active catalogue exists, so an empty catalogue is a
+// legitimate state (S1: "keep the format validation for codes not yet in the
+// catalogue"). No companyId: shared-read RLS (P13 §1 global_tables).
+// ---------------------------------------------------------------------------
+model ClpCatalogVersion {
+  version              String    @id
+  label                String
+  atpReference         String?
+  sourceUrl            String?
+  isActive             Boolean   @default(false)
+  reconciliationPassed Boolean   @default(false)
+  importReport         Json?
+  importedAt           DateTime?
+  activatedAt          DateTime  @default(now())
+
+  statements     ClpStatement[]
+  labelRules     ClpLabelElementRule[]
+  harmonisedRows ClpHarmonisedClassification[]
+}
+
+/// One H/P/EUH phrase in one CLP catalogue version, with official EN + DE
+/// wording (CLP Annex III for H/EUH, Annex IV for P). `sourceRef` records the
+/// annex/part/table row the text was read from. The code-shape CHECK mirrors
+/// SubstanceStatement (P8) so the catalogue and per-substance statements share
+/// one validated vocabulary.
+model ClpStatement {
+  id             String                 @id @default(cuid())
+  catalogVersion String
+  kind           SubstanceStatementKind
+  code           String
+  textEn         String
+  textDe         String
+  sourceRef      String
+  createdAt      DateTime               @default(now())
+
+  catalog ClpCatalogVersion @relation(fields: [catalogVersion], references: [version], onDelete: Restrict)
+
+  @@unique([catalogVersion, code])
+  @@index([catalogVersion, kind])
+}
+
+/// Label-element rule: hazard class/category -> pictogram + signal word
+/// (CLP Annex I/V), stored as data, not hard-coded. Used by the S3 consistency
+/// checks. `pictogram`/`signalWord` nullable because some class/category rows
+/// prescribe one without the other.
+model ClpLabelElementRule {
+  id                  String               @id @default(cuid())
+  catalogVersion      String
+  hazardClass         String
+  hazardCategory      String
+  pictogram           GhsPictogram?
+  signalWord          SubstanceSignalWord?
+  hazardStatementCode String?
+  sourceRef           String
+  createdAt           DateTime             @default(now())
+
+  catalog ClpCatalogVersion @relation(fields: [catalogVersion], references: [version], onDelete: Restrict)
+
+  @@index([catalogVersion])
+}
+
+/// A CLP Annex VI Table 3 harmonised classification entry. Used for lookups and
+/// S3 checks; NEVER to overwrite a supplier's data (§2 S1). `classification` is
+/// the published hazard-class/category + H-code + SCL/M-factor payload, stored
+/// as JSON exactly as the official table gives it.
+model ClpHarmonisedClassification {
+  id             String   @id @default(cuid())
+  catalogVersion String
+  indexNumber    String
+  name           String
+  casNumber      String?
+  ecNumber       String?
+  classification Json
+  sourceRef      String
+  createdAt      DateTime @default(now())
+
+  catalog ClpCatalogVersion @relation(fields: [catalogVersion], references: [version], onDelete: Restrict)
+
+  @@index([catalogVersion, casNumber])
+  @@index([catalogVersion, ecNumber])
+}
+
+// ---------------------------------------------------------------------------
 // P9 Begehungen & Audits (SLD_RESTRUCTURE_PLAN_platform-modules.md §7.3).
 // Configurable inspections/audits/checklists; observations become Actions via
 // the one action engine (§2.2). Person-free: inspections assess CONDITIONS,
