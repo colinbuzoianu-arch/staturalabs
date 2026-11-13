@@ -756,6 +756,33 @@ export const de: typeof en = {
       substanceRequired: "Bitte den Stoff wählen, zu dem dieses SDB gehört.",
       revisionRequired: "Ein Überarbeitungsdatum ist erforderlich.",
       back: "← Zurück zum SDB-Import",
+      hints: {
+        heading: "Prüfhinweise",
+        intro:
+          "Automatische Hinweise — niemals Korrekturen. Jeden Hinweis gegen das Dokument prüfen.",
+        aiNote: "KI-Erklärung",
+        severityWarning: "Warnung",
+        severityInfo: "Hinweis",
+        reasons: {
+          "missing-signal-word": "Das SDB nennt H-Sätze, aber kein Signalwort.",
+          "signal-word-without-hazard":
+            "Ein Signalwort ist angegeben, aber kein H-Satz und kein Piktogramm.",
+          "flammable-pictogram-no-h":
+            "Das Flammen-Piktogramm (GHS02) ist angegeben, aber kein entzündbarer H22x-Satz.",
+          "flammable-h-no-pictogram":
+            "Ein entzündbarer H22x-Satz ist angegeben, aber das Flammen-Piktogramm (GHS02) fehlt.",
+          "aquatic-flag-no-h":
+            "Als umweltgefährdend im Transport markiert, aber keine Gewässergefährdung (H400/H410/H411/H412/H413).",
+          "aquatic-h-no-flag":
+            "Ein Gewässergefährdungssatz ist angegeben, aber die Transport-Kennzeichnung „Meeresschadstoff“ ist nicht gesetzt.",
+          "not-german":
+            "Das SDB ist nicht auf Deutsch — AT/DE-Standorte verlangen ein deutsches SDB (REACH Art. 31 Abs. 5).",
+          "stale-revision":
+            "Das Überarbeitungsdatum ist älter als das Prüfintervall.",
+          "no-components":
+            "Der Stoff ist als gefährlich eingestuft, aber es sind keine Bestandteile (Abschnitt 3) angegeben.",
+        },
+      },
       fields: {
         productIdentifier: "Produktidentifikator",
         supplier: "Lieferant",

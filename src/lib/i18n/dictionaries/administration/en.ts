@@ -772,6 +772,34 @@ export const en = {
       substanceRequired: "Choose the substance this SDS belongs to.",
       revisionRequired: "A revision date is required.",
       back: "← Back to SDS import",
+      hints: {
+        heading: "Consistency checks",
+        intro:
+          "Automated hints (Prüfhinweise) — never corrections. Check each against the document.",
+        aiNote: "AI explanation",
+        severityWarning: "Warning",
+        severityInfo: "Note",
+        reasons: {
+          "missing-signal-word":
+            "The SDS lists hazard (H) statements but no signal word.",
+          "signal-word-without-hazard":
+            "A signal word is given but no H statement or pictogram.",
+          "flammable-pictogram-no-h":
+            "The flame pictogram (GHS02) is shown but no flammable H22x statement.",
+          "flammable-h-no-pictogram":
+            "A flammable H22x statement is given but the flame pictogram (GHS02) is missing.",
+          "aquatic-flag-no-h":
+            "Marked environmentally hazardous for transport but no aquatic hazard (H400/H410/H411/H412/H413).",
+          "aquatic-h-no-flag":
+            "An aquatic hazard statement is given but the transport marine-pollutant flag is not set.",
+          "not-german":
+            "The SDS is not in German — AT/DE sites require a German SDS (REACH Art. 31(5)).",
+          "stale-revision":
+            "The revision date is older than the review interval.",
+          "no-components":
+            "The substance is classified hazardous but no components (section 3) are listed.",
+        },
+      },
       fields: {
         productIdentifier: "Product identifier",
         supplier: "Supplier",

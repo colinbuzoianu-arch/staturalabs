@@ -755,6 +755,34 @@ export const ro: typeof en = {
       substanceRequired: "Alegeți substanța căreia îi aparține această FDS.",
       revisionRequired: "Data reviziei este obligatorie.",
       back: "← Înapoi la import FDS",
+      hints: {
+        heading: "Verificări de coerență",
+        intro:
+          "Indicii automate (Prüfhinweise) — niciodată corecții. Verificați fiecare față de document.",
+        aiNote: "Explicație IA",
+        severityWarning: "Avertisment",
+        severityInfo: "Observație",
+        reasons: {
+          "missing-signal-word":
+            "FDS listează fraze de pericol (H) dar niciun cuvânt de avertizare.",
+          "signal-word-without-hazard":
+            "Este dat un cuvânt de avertizare dar nicio frază H sau pictogramă.",
+          "flammable-pictogram-no-h":
+            "Pictograma de flacără (GHS02) este afișată dar nicio frază H22x de inflamabilitate.",
+          "flammable-h-no-pictogram":
+            "O frază H22x de inflamabilitate este dată dar pictograma de flacără (GHS02) lipsește.",
+          "aquatic-flag-no-h":
+            "Marcat periculos pentru mediu la transport dar niciun pericol acvatic (H400/H410/H411/H412/H413).",
+          "aquatic-h-no-flag":
+            "O frază de pericol acvatic este dată dar indicatorul de poluant marin pentru transport nu este setat.",
+          "not-german":
+            "FDS nu este în germană — siturile AT/DE necesită o FDS în germană (REACH Art. 31(5)).",
+          "stale-revision":
+            "Data reviziei este mai veche decât intervalul de revizuire.",
+          "no-components":
+            "Substanța este clasificată periculoasă dar niciun component (secțiunea 3) nu este listat.",
+        },
+      },
       fields: {
         productIdentifier: "Identificator produs",
         supplier: "Furnizor",

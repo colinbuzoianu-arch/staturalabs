@@ -21,6 +21,25 @@ value from model recollection (§0.7 / §7).
   behaviour change — a documentation-accuracy note so the `sourceRef` provenance is
   truthful.
 
+## Recorded interpretation points (S3 — consistency checks)
+- **Built (deterministic, structural):** signal-word ↔ hazard presence, GHS02 ↔
+  flammable H22x code, aquatic H-code (H400/H410/H411/H412/H413) ↔ transport
+  marine-pollutant flag, German-SDS-for-AT/DE (REACH Art. 31(5)), revision age,
+  hazardous-but-no-components. These use only the regulation's fixed CODE
+  identifiers, never a recalled threshold. All results are Prüfhinweise; the AI
+  only explains them (`sds-consistency-ai.ts`), never changes them.
+- **Deferred to the S1 catalogue (honest gaps, not guessed):**
+  - The **full H ↔ pictogram ↔ signal-word** label-rule check needs
+    `ClpLabelElementRule` (CLP Annex I/V) loaded; until then only the structural
+    GHS02/flammable heuristic above runs.
+  - The **flammable-liquid flash-point / boiling-point** consistency check
+    (H224/H225/H226 vs. the numeric CLP Annex I criteria) is **not emitted** —
+    the thresholds are regulatory numbers that must come from the official text,
+    not recollection. The check is a silent gap until the criteria are imported.
+  - The **harmonised-classification-missing** check (a component with an Annex VI
+    entry whose stated classification omits a harmonised hazard) needs
+    `ClpHarmonisedClassification` loaded; the hook exists, inert until then.
+
 ## Prepared engines (to be filled in when built — §3)
 ### `clp.mixtureCalculation`
 _Not yet built._ Will implement CLP Annex I mixture calculation methods (ATE

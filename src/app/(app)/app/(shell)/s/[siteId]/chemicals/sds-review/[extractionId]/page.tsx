@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { isGefahrstoffeAiAvailable } from "@/lib/ai/anthropic";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import {
   confirmSdsExtraction,
   getPreviousConfirmedSds,
 } from "@/lib/chemicals/sds-confirm";
+import { checkSdsConsistency } from "@/lib/chemicals/sds-consistency";
+import { explainSdsHints } from "@/lib/chemicals/sds-consistency-ai";
 import { rejectSdsExtraction } from "@/lib/chemicals/sds-extraction";
 import {
   buildConfirmedPayload,
@@ -108,9 +111,21 @@ export default async function SdsReviewDetailPage({
   const prev = preselected
     ? await getPreviousConfirmedSds(preselected, companyId)
     : null;
-  const changes = prev
-    ? diffSdsRevisions(prev, buildConfirmedPayload(result))
-    : [];
+  const confirmedPreview = buildConfirmedPayload(result);
+  const changes = prev ? diffSdsRevisions(prev, confirmedPreview) : [];
+
+  // S3 deterministic consistency checks — always shown; the AI (when enabled)
+  // only explains them, never changes them.
+  const siteRequiresDe = site.country === "AT" || site.country === "DE";
+  const hints = checkSdsConsistency(confirmedPreview, {
+    siteRequiresDe,
+    now: new Date(),
+    staleYears: 3,
+  });
+  const hintExplanations =
+    hints.length > 0 && (await isGefahrstoffeAiAvailable(companyId))
+      ? await explainSdsHints(hints, confirmedPreview)
+      : {};
 
   async function confirmAction(formData: FormData) {
     "use server";
@@ -255,6 +270,46 @@ export default async function SdsReviewDetailPage({
         </h1>
         <p className="mt-1 text-sm text-foreground-muted">{dict.reviewIntro}</p>
       </div>
+
+      {hints.length > 0 && (
+        <section className={sectionCls}>
+          <h2 className="font-heading text-sm font-bold">
+            {dict.hints.heading}
+          </h2>
+          <p className="text-xs text-foreground-muted">{dict.hints.intro}</p>
+          <ul className="flex flex-col gap-2 text-sm">
+            {hints.map((h) => (
+              <li
+                key={h.code}
+                className="flex flex-col gap-0.5 border-t border-border pt-2 first:border-0 first:pt-0"
+              >
+                <span className="flex items-center gap-2">
+                  <span
+                    className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                      h.severity === "warning"
+                        ? "bg-coral/15 text-coral"
+                        : "bg-info/15 text-info"
+                    }`}
+                  >
+                    {h.severity === "warning"
+                      ? dict.hints.severityWarning
+                      : dict.hints.severityInfo}
+                  </span>
+                  <span>{dict.hints.reasons[h.code]}</span>
+                </span>
+                {hintExplanations[h.code] && (
+                  <span className="pl-1 text-xs text-foreground-muted">
+                    <span className="text-foreground-subtle">
+                      {dict.hints.aiNote}:{" "}
+                    </span>
+                    {hintExplanations[h.code]}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {preselected && (
         <section className={sectionCls}>
