@@ -2602,6 +2602,9 @@ model Substance {
   substitutionCheckDone      Boolean             @default(false)
   substitutionCheckNote      String?
   substitutionCheckedAt      DateTime?
+  // P15 S5b: Lagerklasse (TRGS 510), per product — from the confirmed SDS
+  // (section 15/7) or manual entry. Feeds the Zusammenlagerungs-check.
+  lagerklasse                String?
   excludedLowHazard          Boolean             @default(false)
   excludedLowHazardRationale String?
   environmentalAspectId      String?
@@ -2946,6 +2949,46 @@ model SubstanceExposureLimit {
   @@index([catalogVersion, jurisdiction])
   @@index([catalogVersion, casNumber])
   @@index([catalogVersion, ecNumber])
+}
+
+// P15 S5b: TRGS 510 storage-compatibility matrix (DE). Global official-import
+// catalogue; activated only after reconciliation. No data seeded (founder step).
+enum StorageCompatibilityResult {
+  ALLOWED
+  NOT_ALLOWED
+  CONDITIONAL
+}
+
+model StorageCompatibilityCatalogVersion {
+  version              String    @id
+  label                String
+  isActive             Boolean   @default(false)
+  reconciliationPassed Boolean   @default(false)
+  importReport         Json?
+  importedAt           DateTime?
+  activatedAt          DateTime  @default(now())
+
+  rules StorageCompatibilityRule[]
+}
+
+/// One TRGS 510 Zusammenlagerungs-rule: the result of storing Lagerklasse A with
+/// Lagerklasse B, with the table reference. `country` kept for extensibility
+/// (TRGS 510 is DE; AT/CH have no scheme → honest gap, §3.15).
+model StorageCompatibilityRule {
+  id             String                     @id @default(cuid())
+  catalogVersion String
+  country        String                     @default("DE")
+  lagerklasseA   String
+  lagerklasseB   String
+  result         StorageCompatibilityResult
+  conditionNote  String?
+  tableRef       String?
+  createdAt      DateTime                   @default(now())
+
+  catalog StorageCompatibilityCatalogVersion @relation(fields: [catalogVersion], references: [version], onDelete: Restrict)
+
+  @@unique([catalogVersion, country, lagerklasseA, lagerklasseB])
+  @@index([catalogVersion, country])
 }
 
 // ---------------------------------------------------------------------------

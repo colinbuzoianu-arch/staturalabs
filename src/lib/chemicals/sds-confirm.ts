@@ -127,11 +127,19 @@ export async function confirmSdsExtraction(input: {
       });
     }
 
-    // Replace the substance's classification from the SDS.
-    if (signalWord) {
+    // Replace the substance's classification from the SDS, and set the
+    // Lagerklasse (TRGS 510, S5b) from section 15 when the SDS states one.
+    const substanceUpdate: {
+      signalWord?: SubstanceSignalWord;
+      lagerklasse?: string;
+    } = {};
+    if (signalWord) substanceUpdate.signalWord = signalWord;
+    if (c.lagerklasse?.trim())
+      substanceUpdate.lagerklasse = c.lagerklasse.trim();
+    if (Object.keys(substanceUpdate).length > 0) {
       await tx.substance.update({
         where: { id: input.substanceId },
-        data: { signalWord },
+        data: substanceUpdate,
       });
     }
     await tx.substancePictogram.deleteMany({
