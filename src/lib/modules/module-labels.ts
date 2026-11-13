@@ -36,6 +36,7 @@ export const MODULE_LABELS_DE: Record<string, string> = {
   "modules.chemicals.children.register": "Verzeichnis",
   "modules.chemicals.children.safety-data-sheets": "Sicherheitsdatenblätter",
   "modules.chemicals.children.operating-instructions": "Betriebsanweisungen",
+  "modules.chemicals.children.sds-review": "SDB-Import (KI)",
   "modules.training.label": "Unterweisungen",
   "modules.training.children.matrix": "Matrix",
   "modules.training.children.sessions": "Termine",

@@ -284,6 +284,7 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     // route yet, so no sidebar child until one exists.
     children: [
       { labelKey: "modules.chemicals.children.register", slug: "register" },
+      { labelKey: "modules.chemicals.children.sds-review", slug: "sds-review" },
       {
         labelKey: "modules.chemicals.children.operating-instructions",
         slug: "operating-instructions",
