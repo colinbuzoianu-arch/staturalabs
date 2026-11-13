@@ -70,12 +70,23 @@ value from model recollection (§0.7 / §7).
   ReferenceSubstance is global/system, so a demo reset does not delete it.
 
 ## Prepared engines (to be filled in when built — §3)
-### `clp.mixtureCalculation`
-_Not yet built._ Will implement CLP Annex I mixture calculation methods (ATE
-additivity, summation with SCLs/M-factors for skin/eye/sensitisation/aquatic,
-generic concentration limits for CMR/STOT/aspiration). Physical hazards are **not**
-calculated (they need test data). Expert review target: reproduce the worked
-examples in ECHA's CLP guidance; list every ambiguity here before the flag goes on.
+### `clp.mixtureCalculation` — FRAMEWORK BUILT (flag OFF), `engines/clp-mixture.ts`
+Implements the **method arithmetic** only; the regulatory **thresholds** (generic
+concentration limits, summation cut-offs, M-factors) are **passed in as config**,
+never recalled (§0.7/§7).
+- **`computeAteMix`** — the CLP Annex I additivity formula `100/ATE_mix = Σ(C_i/ATE_i)`.
+  Pure arithmetic, fully tested (e.g. 20%@500 + 80%@5000 → 1785.7). Reports the
+  unknown-ATE fraction; the "≥10% unknown" rule is regulatory and left to the
+  config/expert.
+- **`summationMethod`** — `Σ(concentration × multiplier) ≥ cut-off`; the cut-off
+  and multipliers come from the CLP config. Tested with fixture thresholds.
+- **PENDING before the flag goes on (expert + official data):** load the real
+  CLP Annex I generic concentration limits / summation cut-offs / M-factor table,
+  then reproduce ECHA's CLP-guidance worked examples against them (the official
+  text is bot-blocked in the build env — a founder/official-source step).
+  **Physical hazards are not calculated** (need test data, §3). Open points: the
+  unknown-ATE handling, SCL vs. GCL precedence, and the aquatic chronic summation
+  tiers — all to confirm against the guidance.
 
 ### `mixture.physicalEstimates` — BUILT (flag OFF), `engines/physical-estimates.ts`
 Pure physics (no regulatory thresholds), so buildable and fixture-tested now.
@@ -94,9 +105,14 @@ Pure physics (no regulatory thresholds), so buildable and fixture-tested now.
   flash-point model is required (it is more accurate but needs reliable
   component vapour-pressure/Antoine data). Output is never for classification.
 
-### `wgk.mixtureCalculation`
-_Not yet built._ AwSV mixture rule for WGK from component WGKs + concentrations.
-Result labelled *Berechnungsvorschlag*.
+### `wgk.mixtureCalculation` — FRAMEWORK BUILT (flag OFF), `engines/wgk-mixture.ts`
+`computeMixtureWgk(components, rules)` — the AwSV **presence-threshold** framework:
+the mixture takes the highest WGK class whose summed component concentration meets
+its threshold. The threshold percentages are **passed in** (loaded from the
+official AwSV text), never recalled. Fixture-tested. **PENDING:** the full AwSV
+**additive** rule with its weighting factors (the presence-threshold version is a
+conservative simplification), and the real thresholds — both an official-text +
+expert step. Result is a *Berechnungsvorschlag*.
 
 ### `transport.classification`
 _Not yet built._ Data model for UN entries + derivation from classification. **No
@@ -108,6 +124,11 @@ _Not yet built._ 16-section SDS schema per REACH Annex II (2020/878) + mapping +
 draft render. No phrase catalogue (EuPhraC licensed); free text only. Never offered
 while OFF.
 
-### `storage.lagerklasseSuggestion`
-_Not yet built._ TRGS 510 decision scheme to *suggest* a Lagerklasse from
-classification. Suggestion only; the Phase-1 storage check (S5) never computes one.
+### `storage.lagerklasseSuggestion` — FRAMEWORK BUILT (flag OFF), `engines/lagerklasse-suggestion.ts`
+`suggestLagerklasse(input, scheme)` — evaluates a priority-ordered rule list
+(H-codes / flammable pictogram → Lagerklasse) and returns the first match. The
+**scheme is passed in** (loaded from the official TRGS 510 decision scheme),
+never recalled; an empty scheme yields no suggestion. Fixture-tested with an
+illustrative (non-official) scheme. **PENDING:** load the real TRGS 510 decision
+scheme and confirm the rule ordering with an expert. Suggestion only — the
+Phase-1 storage check (S5b) never computes a Lagerklasse.
