@@ -1010,6 +1010,9 @@ export const en = {
     },
   },
   operatingInstructions: {
+    aiDraft: "AI draft",
+    aiRedraft: "Re-draft (AI)",
+    aiDraftDone: "AI draft present",
     eyebrow: "Hazardous substances",
     heading: "Operating instructions (Betriebsanweisung)",
     intro:

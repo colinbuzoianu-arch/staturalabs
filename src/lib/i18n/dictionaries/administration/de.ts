@@ -994,6 +994,9 @@ export const de: typeof en = {
     },
   },
   operatingInstructions: {
+    aiDraft: "KI-Entwurf",
+    aiRedraft: "Neu entwerfen (KI)",
+    aiDraftDone: "KI-Entwurf vorhanden",
     eyebrow: "Gefahrstoffe",
     heading: "Betriebsanweisungen",
     intro:

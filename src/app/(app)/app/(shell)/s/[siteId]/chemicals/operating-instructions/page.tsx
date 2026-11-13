@@ -1,11 +1,13 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 import { revalidatePath } from "next/cache";
 import { createElement } from "react";
+import { isGefahrstoffeAiAvailable } from "@/lib/ai/anthropic";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import {
   createOperatingInstructionDraft,
   isOperatingInstructionReviewRequired,
 } from "@/lib/chemicals/operating-instruction";
+import { draftOperatingInstruction } from "@/lib/chemicals/operating-instruction-draft";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { prisma } from "@/lib/prisma";
@@ -86,6 +88,25 @@ export default async function OperatingInstructionsPage({
     revalidatePath(`/app/s/${siteId}/chemicals/operating-instructions`);
   }
 
+  async function draftAction(formData: FormData) {
+    "use server";
+    const { user, site: s } = await requireSiteAdministrationAccess(siteId);
+    const id = formData.get("id");
+    if (typeof id !== "string" || id.length === 0) return;
+    try {
+      await draftOperatingInstruction({
+        operatingInstructionId: id,
+        companyId: s.companyId,
+        actorUserId: user.id,
+      });
+    } catch {
+      // AI unavailable / draft failed — the page keeps working; manual approval
+      // with the default sections is still possible.
+    }
+    revalidatePath(`/app/s/${siteId}/chemicals/operating-instructions`);
+  }
+
+  const aiAvailable = await isGefahrstoffeAiAvailable(companyId);
   const [instructions, substances] = await Promise.all([
     prisma.operatingInstruction.findMany({
       where: { siteId },
@@ -205,6 +226,22 @@ export default async function OperatingInstructionsPage({
                       >
                         {dict.download}
                       </a>
+                      {oi.status !== "APPROVED" && aiAvailable && (
+                        <form action={draftAction}>
+                          <input type="hidden" name="id" value={oi.id} />
+                          <button
+                            type="submit"
+                            className="text-accent hover:underline"
+                          >
+                            {oi.draftedByAiAt ? dict.aiRedraft : dict.aiDraft}
+                          </button>
+                        </form>
+                      )}
+                      {oi.draftedByAiAt && (
+                        <span className="text-xs text-foreground-subtle">
+                          {dict.aiDraftDone}
+                        </span>
+                      )}
                       {oi.status !== "APPROVED" && (
                         <form action={approveAction}>
                           <input type="hidden" name="id" value={oi.id} />

@@ -3,6 +3,7 @@ import type {
   GhsPictogram,
   RiskAssessmentStatus,
 } from "@/generated/prisma/enums";
+import type { BaAiDraft } from "@/lib/chemicals/operating-instruction-draft";
 import { getActiveLegalReferenceCatalog } from "@/lib/country/legal-reference-catalog-version";
 import { lookupLegalReferences } from "@/lib/country/legal-reference-lookup";
 import { prisma } from "@/lib/prisma";
@@ -28,6 +29,7 @@ export type BetriebsanweisungData = {
   currentSdsRevisionDate: Date | null;
   uses: { subject: string; purpose: string; exposureRoutes: string[] }[];
   legalReferenceCode: string | null;
+  aiDraft: BaAiDraft | null;
 };
 
 export async function getBetriebsanweisungData(
@@ -101,6 +103,7 @@ export async function getBetriebsanweisungData(
       .filter((s) => s.kind === "H")
       .map((s) => ({ code: s.code, text: s.text })),
     currentSdsRevisionDate: currentSds?.revisionDate ?? null,
+    aiDraft: (oi.aiDraft as BaAiDraft | null) ?? null,
     uses: oi.substance.uses
       .filter((u) => u.activeTo === null)
       .map((u) => ({

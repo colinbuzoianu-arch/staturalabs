@@ -2764,6 +2764,11 @@ model OperatingInstruction {
   approvedAt             DateTime?
   basedOnSdsRevisionDate DateTime?
   generatedDocumentId    String?
+  // P15 S7: AI draft of the four free-text BA sections (JSON), with the SDS
+  // sections each drew from. Stays a DRAFT until a human approves it.
+  aiDraft                Json?
+  draftedByAiAt          DateTime?
+  draftModel             String?
   createdAt              DateTime             @default(now())
   updatedAt              DateTime             @updatedAt
 

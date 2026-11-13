@@ -151,29 +151,72 @@ export function BetriebsanweisungDocument({
           <Text style={styles.sectionTitle}>
             3. Schutzmaßnahmen und Verhaltensregeln
           </Text>
-          <Text style={styles.p}>
-            Technische und organisatorische Schutzmaßnahmen vorrangig vor
-            persönlicher Schutzausrüstung (STOP-Prinzip). Expositionswege:{" "}
-            {[...new Set(data.uses.flatMap((u) => u.exposureRoutes))].join(
-              ", ",
-            ) || "—"}
-            .
-          </Text>
+          {data.aiDraft?.protectiveMeasures.text ? (
+            <Text style={styles.p}>
+              {data.aiDraft.protectiveMeasures.text}
+              {data.aiDraft.protectiveMeasures.sources.length > 0
+                ? ` (Quelle: SDB-Abschnitt ${data.aiDraft.protectiveMeasures.sources.join(", ")})`
+                : ""}
+            </Text>
+          ) : (
+            <Text style={styles.p}>
+              Technische und organisatorische Schutzmaßnahmen vorrangig vor
+              persönlicher Schutzausrüstung (STOP-Prinzip). Expositionswege:{" "}
+              {[...new Set(data.uses.flatMap((u) => u.exposureRoutes))].join(
+                ", ",
+              ) || "—"}
+              .
+            </Text>
+          )}
 
           <Text style={styles.sectionTitle}>4. Verhalten im Gefahrfall</Text>
-          <Text style={styles.p}>
-            Austritt/Brand: Bereich räumen, Zündquellen entfernen, Notruf.
-          </Text>
+          {data.aiDraft?.emergency.text ? (
+            <Text style={styles.p}>
+              {data.aiDraft.emergency.text}
+              {data.aiDraft.emergency.sources.length > 0
+                ? ` (Quelle: SDB-Abschnitt ${data.aiDraft.emergency.sources.join(", ")})`
+                : ""}
+            </Text>
+          ) : (
+            <Text style={styles.p}>
+              Austritt/Brand: Bereich räumen, Zündquellen entfernen, Notruf.
+            </Text>
+          )}
 
           <Text style={styles.sectionTitle}>5. Erste Hilfe</Text>
-          <Text style={styles.p}>
-            Nach Expositionsweg handeln; Ersthelfer verständigen.
-          </Text>
+          {data.aiDraft?.firstAid.text ? (
+            <Text style={styles.p}>
+              {data.aiDraft.firstAid.text}
+              {data.aiDraft.firstAid.sources.length > 0
+                ? ` (Quelle: SDB-Abschnitt ${data.aiDraft.firstAid.sources.join(", ")})`
+                : ""}
+            </Text>
+          ) : (
+            <Text style={styles.p}>
+              Nach Expositionsweg handeln; Ersthelfer verständigen.
+            </Text>
+          )}
 
           <Text style={styles.sectionTitle}>6. Sachgerechte Entsorgung</Text>
-          <Text style={styles.p}>
-            Entsprechend dem zugeordneten Abfallstrom entsorgen.
-          </Text>
+          {data.aiDraft?.disposal.text ? (
+            <Text style={styles.p}>
+              {data.aiDraft.disposal.text}
+              {data.aiDraft.disposal.sources.length > 0
+                ? ` (Quelle: SDB-Abschnitt ${data.aiDraft.disposal.sources.join(", ")})`
+                : ""}
+            </Text>
+          ) : (
+            <Text style={styles.p}>
+              Entsprechend dem zugeordneten Abfallstrom entsorgen.
+            </Text>
+          )}
+          {data.aiDraft && (
+            <Text style={styles.p}>
+              Hinweis: Abschnitte 3–6 wurden mit KI aus dem
+              Sicherheitsdatenblatt entworfen und sind vor Freigabe fachkundig
+              zu prüfen.
+            </Text>
+          )}
 
           <Text style={styles.footer}>
             {data.currentSdsRevisionDate

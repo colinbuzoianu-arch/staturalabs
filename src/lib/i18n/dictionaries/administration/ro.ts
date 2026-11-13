@@ -993,6 +993,9 @@ export const ro: typeof en = {
     },
   },
   operatingInstructions: {
+    aiDraft: "Schiță IA",
+    aiRedraft: "Re-schițează (IA)",
+    aiDraftDone: "Schiță IA prezentă",
     eyebrow: "Substanțe periculoase",
     heading: "Instrucțiuni de lucru (Betriebsanweisung)",
     intro:
