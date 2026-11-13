@@ -2865,6 +2865,57 @@ model SdsExtraction {
   @@index([documentId])
 }
 
+// P15 S4: occupational exposure limits (DACH + EU), a global official-import
+// catalogue SEPARATE from the noise/vibration ExposureLimit. jurisdiction +
+// limitType are TEXT (not enums) so any jurisdiction / licensed source can be
+// added later without a schema change (§4.5). Lookup never falls back across
+// jurisdictions (ERGO §3.15). Activated only after reconciliation
+// (isActive ⇒ reconciliationPassed). No companyId: shared-read RLS (P13 §1).
+model SubstanceExposureLimitCatalogVersion {
+  version              String    @id
+  label                String
+  isActive             Boolean   @default(false)
+  reconciliationPassed Boolean   @default(false)
+  importReport         Json?
+  importedAt           DateTime?
+  activatedAt          DateTime  @default(now())
+
+  limits SubstanceExposureLimit[]
+}
+
+/// One occupational exposure limit for one substance in one jurisdiction.
+/// value/unit nullable: a reference-only row means "the law requires this to be
+/// evaluated but the substance-specific value is entered manually" (e.g. a
+/// source that could not be bulk-imported). notations carry skin/sensitising/
+/// carcinogenic-category/pregnancy-group flags as published.
+model SubstanceExposureLimit {
+  id              String   @id @default(cuid())
+  catalogVersion  String
+  jurisdiction    String
+  casNumber       String?
+  ecNumber        String?
+  substanceName   String
+  limitType       String
+  value           Float?
+  unit            String?
+  averagingPeriod String?
+  excursionFactor Float?
+  notations       String[] @default([])
+  binding         Boolean?
+  sourceName      String
+  sourceUrl       String?
+  sourceStand     String?
+  rowRef          String?
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  catalog SubstanceExposureLimitCatalogVersion @relation(fields: [catalogVersion], references: [version], onDelete: Restrict)
+
+  @@index([catalogVersion, jurisdiction])
+  @@index([catalogVersion, casNumber])
+  @@index([catalogVersion, ecNumber])
+}
+
 // ---------------------------------------------------------------------------
 // P9 Begehungen & Audits (SLD_RESTRUCTURE_PLAN_platform-modules.md §7.3).
 // Configurable inspections/audits/checklists; observations become Actions via

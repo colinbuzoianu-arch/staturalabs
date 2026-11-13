@@ -857,6 +857,15 @@ export const ro: typeof en = {
     substitutionNote: "Notă",
     saveSubstitution: "Salvează",
     sdsHeading: "Fișe cu date de securitate",
+    exposureHeading: "Valori limită de expunere profesională",
+    exposureIntro:
+      "După jurisdicția sitului. Valorile nu sunt niciodată amestecate între țări.",
+    exposureNone:
+      "Niciun catalog de valori limită nu este încărcat încă pentru jurisdicția acestui sit.",
+    exposureEu: "UE (suplimentar)",
+    exposureSource: "Sursă",
+    exposureBinding: "obligatoriu",
+    exposureIndicative: "orientativ",
     sdsVersionLabel: "Versiune",
     sdsRevisionDateLabel: "Data reviziei",
     sdsLanguageLabel: "Limbă (ex. de)",

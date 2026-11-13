@@ -857,6 +857,15 @@ export const de: typeof en = {
     substitutionNote: "Notiz",
     saveSubstitution: "Speichern",
     sdsHeading: "Sicherheitsdatenblätter",
+    exposureHeading: "Arbeitsplatzgrenzwerte",
+    exposureIntro:
+      "Nach der Zuständigkeit des Standorts. Werte werden nie länderübergreifend vermischt.",
+    exposureNone:
+      "Für die Zuständigkeit dieses Standorts ist noch kein Grenzwertkatalog hinterlegt.",
+    exposureEu: "EU (ergänzend)",
+    exposureSource: "Quelle",
+    exposureBinding: "verbindlich",
+    exposureIndicative: "Richtwert",
     sdsVersionLabel: "Version",
     sdsRevisionDateLabel: "Überarbeitungsdatum",
     sdsLanguageLabel: "Sprache (z. B. de)",

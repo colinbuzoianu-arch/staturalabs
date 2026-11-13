@@ -874,6 +874,15 @@ export const en = {
     substitutionNote: "Note",
     saveSubstitution: "Save",
     sdsHeading: "Safety data sheets",
+    exposureHeading: "Occupational exposure limits",
+    exposureIntro:
+      "By the site's jurisdiction. Values are never mixed across countries.",
+    exposureNone:
+      "No exposure-limit catalogue is loaded for this site's jurisdiction yet.",
+    exposureEu: "EU (supplementary)",
+    exposureSource: "Source",
+    exposureBinding: "binding",
+    exposureIndicative: "indicative",
     sdsVersionLabel: "Version",
     sdsRevisionDateLabel: "Revision date",
     sdsLanguageLabel: "Language (e.g. de)",

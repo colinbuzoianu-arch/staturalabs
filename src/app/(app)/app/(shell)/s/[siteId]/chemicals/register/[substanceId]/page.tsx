@@ -17,6 +17,7 @@ import {
   setSubstancePictograms,
   setSubstitutionCheck,
 } from "@/lib/chemicals/substance";
+import { lookupExposureLimitsForCountry } from "@/lib/chemicals/substance-exposure-limit";
 import {
   DocumentScanError,
   uploadNewDocument,
@@ -244,6 +245,11 @@ export default async function SubstanceDetailPage({
     now: new Date(),
     staleYears: 2,
   });
+  const exposureLimits = await lookupExposureLimitsForCountry({
+    country: site.country,
+    casNumber: substance.casNumber,
+    ecNumber: substance.ecNumber,
+  });
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-10">
@@ -366,6 +372,65 @@ export default async function SubstanceDetailPage({
             {dict.saveSubstitution}
           </button>
         </form>
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4 text-sm">
+        <h2 className="font-heading text-sm font-bold">
+          {dict.exposureHeading}
+        </h2>
+        <p className="text-xs text-foreground-muted">{dict.exposureIntro}</p>
+        {exposureLimits.national.length === 0 &&
+        exposureLimits.eu.length === 0 ? (
+          <p className="text-sm text-foreground-muted">{dict.exposureNone}</p>
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {exposureLimits.national.map((l) => (
+              <li
+                key={`n-${l.jurisdiction}-${l.limitType}-${l.averagingPeriod}`}
+                className="flex flex-wrap gap-x-2"
+              >
+                <span className="font-medium">{l.jurisdiction}</span>
+                <span>
+                  {l.limitType}
+                  {l.value != null
+                    ? `: ${l.value}${l.unit ? ` ${l.unit}` : ""}`
+                    : ""}
+                  {l.averagingPeriod ? ` (${l.averagingPeriod})` : ""}
+                </span>
+                {l.notations.length > 0 && (
+                  <span className="text-foreground-subtle">
+                    · {l.notations.join(", ")}
+                  </span>
+                )}
+                <span className="text-foreground-subtle">
+                  {dict.exposureSource}: {l.sourceName}
+                  {l.sourceStand ? `, ${l.sourceStand}` : ""}
+                </span>
+              </li>
+            ))}
+            {exposureLimits.eu.map((l) => (
+              <li
+                key={`eu-${l.limitType}-${l.averagingPeriod}`}
+                className="flex flex-wrap gap-x-2 text-foreground-muted"
+              >
+                <span className="font-medium">{dict.exposureEu}</span>
+                <span>
+                  {l.limitType}
+                  {l.value != null
+                    ? `: ${l.value}${l.unit ? ` ${l.unit}` : ""}`
+                    : ""}
+                  {l.averagingPeriod ? ` (${l.averagingPeriod})` : ""}
+                  {l.binding != null
+                    ? ` · ${l.binding ? dict.exposureBinding : dict.exposureIndicative}`
+                    : ""}
+                </span>
+                <span className="text-foreground-subtle">
+                  {dict.exposureSource}: {l.sourceName}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4 text-sm">
