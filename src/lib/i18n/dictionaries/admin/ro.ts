@@ -12,6 +12,7 @@ export const ro: typeof en = {
     auditNav: "Jurnal audit",
     usersNav: "Utilizatori",
     flagsNav: "Indicatoare funcții",
+    aiUsageNav: "Utilizare IA",
     pilotNav: "Date demo/pilot",
   },
   console: {
@@ -60,6 +61,19 @@ export const ro: typeof en = {
     adminsHeading: "Administratori",
     noAdmins: "Încă niciun administrator invitat.",
     dangerHeading: "Zonă periculoasă",
+  },
+  aiUsagePage: {
+    heading: "Utilizare IA (substanțe periculoase)",
+    intro:
+      "Utilizarea IA pe chiriaș luna aceasta și plafonul lunar opțional. Dreptul IA în sine este indicatorul chemicals.ai. Când se atinge un plafon, IA se întrerupe iar introducerea manuală funcționează în continuare.",
+    colTenant: "Chiriaș",
+    colCalls: "Apeluri",
+    colTokens: "Tokenuri (in/out)",
+    colCallCap: "Plafon apeluri",
+    colTokenCap: "Plafon tokenuri",
+    noCap: "fără plafon",
+    save: "Salvează plafon",
+    capHint: "Lăsați gol pentru niciun plafon.",
   },
   flagsPage: {
     heading: "Indicatoare de funcții",

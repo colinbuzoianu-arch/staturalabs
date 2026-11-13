@@ -12,6 +12,7 @@ export const de: typeof en = {
     auditNav: "Audit-Log",
     usersNav: "Benutzer",
     flagsNav: "Feature-Flags",
+    aiUsageNav: "KI-Nutzung",
     pilotNav: "Demo-/Pilotdaten",
   },
   console: {
@@ -60,6 +61,19 @@ export const de: typeof en = {
     adminsHeading: "Administratoren",
     noAdmins: "Noch keine Administratoren eingeladen.",
     dangerHeading: "Gefahrenzone",
+  },
+  aiUsagePage: {
+    heading: "KI-Nutzung (Gefahrstoffe)",
+    intro:
+      "KI-Nutzung je Mandant in diesem Monat und das optionale Monatslimit. Die KI-Berechtigung selbst ist das Feature-Flag chemicals.ai. Bei Erreichen des Limits pausiert die KI; die manuelle Erfassung funktioniert weiter.",
+    colTenant: "Mandant",
+    colCalls: "Aufrufe",
+    colTokens: "Tokens (ein/aus)",
+    colCallCap: "Aufruf-Limit",
+    colTokenCap: "Token-Limit",
+    noCap: "kein Limit",
+    save: "Limit speichern",
+    capHint: "Leer lassen für kein Limit.",
   },
   flagsPage: {
     heading: "Feature-Flags",

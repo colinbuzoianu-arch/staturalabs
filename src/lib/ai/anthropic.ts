@@ -2,6 +2,7 @@ import "server-only";
 
 import Anthropic from "@anthropic-ai/sdk";
 import { isFeatureEnabled } from "@/lib/admin/feature-flags";
+import { isWithinAiCap } from "@/lib/ai/usage";
 
 // P15 S2/S3/S7: the one server-side Anthropic client seam. AI is used only
 // inside fixed functions (SDS extraction, hint explanations, Betriebsanweisung
@@ -50,5 +51,7 @@ export async function isGefahrstoffeAiAvailable(
   companyId: string,
 ): Promise<boolean> {
   if (!isAiConfigured()) return false;
-  return isFeatureEnabled(GEFAHRSTOFFE_AI_FLAG, companyId);
+  if (!(await isFeatureEnabled(GEFAHRSTOFFE_AI_FLAG, companyId))) return false;
+  // S8: an exhausted monthly cap pauses AI (manual entry still works).
+  return isWithinAiCap(companyId);
 }

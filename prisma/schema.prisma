@@ -57,6 +57,8 @@ model Company {
   incidents            Incident[]
   vehicles             Vehicle[]
   sdsExtractions       SdsExtraction[]
+  aiUsageCounters      AiUsageCounter[]
+  aiUsageCap           AiUsageCap?
 }
 
 /// A physical location/department within a company (conversationally
@@ -3038,6 +3040,36 @@ model ReferenceSubstanceProperty {
   referenceSubstance ReferenceSubstance @relation(fields: [referenceSubstanceId], references: [id], onDelete: Restrict)
 
   @@index([referenceSubstanceId])
+}
+
+// P15 S8: AI entitlement + cost control. The entitlement is the chemicals.ai
+// feature flag (P13 §2.5); these two tables add per-tenant usage metering and an
+// optional monthly cap. Person-free, company-scoped RLS.
+model AiUsageCounter {
+  id           String   @id @default(cuid())
+  companyId    String
+  periodYear   Int
+  periodMonth  Int
+  feature      String
+  calls        Int      @default(0)
+  inputTokens  BigInt   @default(0)
+  outputTokens BigInt   @default(0)
+  updatedAt    DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, periodYear, periodMonth, feature])
+  @@index([companyId])
+}
+
+model AiUsageCap {
+  companyId       String   @id
+  monthlyCallCap  Int?
+  monthlyTokenCap BigInt?
+  updatedByUserId String?  @db.Uuid
+  updatedAt       DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
 }
 
 // ---------------------------------------------------------------------------

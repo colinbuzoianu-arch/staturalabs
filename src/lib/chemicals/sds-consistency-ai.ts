@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getAiModel, getAnthropicClient } from "@/lib/ai/anthropic";
+import { recordAiUsage } from "@/lib/ai/usage";
 import type { SdsHint } from "./sds-consistency";
 import type { ConfirmedSdsData } from "./sds-extraction-schema";
 
@@ -22,6 +23,7 @@ const SYSTEM = [
 export async function explainSdsHints(
   hints: SdsHint[],
   confirmed: ConfirmedSdsData,
+  companyId?: string,
 ): Promise<Record<string, string>> {
   if (hints.length === 0) return {};
   const context = {
@@ -47,6 +49,14 @@ export async function explainSdsHints(
         },
       ],
     });
+    if (companyId) {
+      await recordAiUsage({
+        companyId,
+        feature: "hint-explanation",
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+      });
+    }
     const text = response.content
       .map((b) => (b.type === "text" ? b.text : ""))
       .join("")

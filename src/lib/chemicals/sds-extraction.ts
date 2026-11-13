@@ -6,6 +6,7 @@ import {
   getAnthropicClient,
   isGefahrstoffeAiAvailable,
 } from "@/lib/ai/anthropic";
+import { recordAiUsage } from "@/lib/ai/usage";
 import { recordAuditEvent } from "@/lib/audit/audit-event";
 import { prisma } from "@/lib/prisma";
 import {
@@ -112,6 +113,12 @@ export async function createPendingSdsExtraction(input: {
       createdByUserId: input.createdByUserId,
     },
     select: { id: true },
+  });
+  await recordAiUsage({
+    companyId: input.companyId,
+    feature: "sds-extraction",
+    inputTokens: input.run.inputTokens,
+    outputTokens: input.run.outputTokens,
   });
   await recordAuditEvent({
     actorUserId: input.createdByUserId,

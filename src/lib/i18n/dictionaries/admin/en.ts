@@ -20,6 +20,7 @@ export const en = {
     auditNav: "Audit log",
     usersNav: "Users",
     flagsNav: "Feature flags",
+    aiUsageNav: "AI usage",
     pilotNav: "Demo/pilot data",
   },
   console: {
@@ -67,6 +68,19 @@ export const en = {
     adminsHeading: "Administrators",
     noAdmins: "No administrators invited yet.",
     dangerHeading: "Danger zone",
+  },
+  aiUsagePage: {
+    heading: "AI usage (Gefahrstoffe)",
+    intro:
+      "Per-tenant AI usage this month and the optional monthly cap. The AI entitlement itself is the chemicals.ai feature flag. When a cap is reached AI pauses and manual entry keeps working.",
+    colTenant: "Tenant",
+    colCalls: "Calls",
+    colTokens: "Tokens (in/out)",
+    colCallCap: "Call cap",
+    colTokenCap: "Token cap",
+    noCap: "no cap",
+    save: "Save cap",
+    capHint: "Leave blank for no cap.",
   },
   flagsPage: {
     heading: "Feature flags",

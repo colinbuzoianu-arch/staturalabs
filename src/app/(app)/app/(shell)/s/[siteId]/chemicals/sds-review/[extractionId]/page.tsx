@@ -124,7 +124,7 @@ export default async function SdsReviewDetailPage({
   });
   const hintExplanations =
     hints.length > 0 && (await isGefahrstoffeAiAvailable(companyId))
-      ? await explainSdsHints(hints, confirmedPreview)
+      ? await explainSdsHints(hints, confirmedPreview, companyId)
       : {};
 
   async function confirmAction(formData: FormData) {
