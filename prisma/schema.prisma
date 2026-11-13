@@ -56,6 +56,7 @@ model Company {
   inspectionTemplates  InspectionTemplate[]
   incidents            Incident[]
   vehicles             Vehicle[]
+  sdsExtractions       SdsExtraction[]
 }
 
 /// A physical location/department within a company (conversationally
@@ -1993,6 +1994,7 @@ model Document {
   site             Site              @relation(fields: [siteId], references: [id], onDelete: Restrict)
   versions         DocumentVersion[]
   safetyDataSheets SafetyDataSheet[]
+  sdsExtractions   SdsExtraction[]
 
   @@index([siteId, category])
   @@index([companyId])
@@ -2589,6 +2591,7 @@ model Substance {
   uses                  SubstanceUse[]
   findingLinks          FindingSubstance[]
   operatingInstructions OperatingInstruction[]
+  sdsExtractions        SdsExtraction[]
 
   @@index([companyId])
 }
@@ -2786,6 +2789,46 @@ model ClpHarmonisedClassification {
 
   @@index([catalogVersion, casNumber])
   @@index([catalogVersion, ecNumber])
+}
+
+// P15 S2: SDS ingestion with AI. An uploaded supplier SDS (PDF) is extracted by
+// Claude (server-side, tenant-scoped, behind the KI-Funktionen entitlement) into
+// a PRE-FILLED REVIEW FORM; nothing is confirmed as SDS data until a user accepts
+// it field by field. SdsExtraction is that review record (AI draft + per-field
+// evidence + token usage + creating/confirming PlatformUser ids). Person-free
+// (SDS are product documents). extractedData shape: sds-extraction-schema.ts.
+enum SdsExtractionStatus {
+  PENDING_REVIEW
+  CONFIRMED
+  REJECTED
+  FAILED
+}
+
+model SdsExtraction {
+  id                String              @id @default(cuid())
+  companyId         String
+  substanceId       String?
+  documentId        String?
+  fileName          String?
+  status            SdsExtractionStatus @default(PENDING_REVIEW)
+  aiModel           String?
+  inputTokens       Int?
+  outputTokens      Int?
+  extractedData     Json?
+  errorMessage      String?
+  createdByUserId   String              @db.Uuid
+  confirmedByUserId String?             @db.Uuid
+  confirmedAt       DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  substance Substance? @relation(fields: [substanceId], references: [id], onDelete: Restrict)
+  document  Document?  @relation(fields: [documentId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
+  @@index([substanceId])
+  @@index([documentId])
 }
 
 // ---------------------------------------------------------------------------
