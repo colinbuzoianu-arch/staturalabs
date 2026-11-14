@@ -2190,6 +2190,7 @@ model Person {
   company             Company                  @relation(fields: [companyId], references: [id], onDelete: Restrict)
   assignments         PersonAssignment[]
   trainingRecords     TrainingRecord[]
+  trainingParticipations TrainingSessionParticipant[]
   involvedInIncidents IncidentInvolvedPerson[]
 
   @@index([companyId])
@@ -2251,21 +2252,63 @@ model TrainingRequirementType {
   @@index([companyId])
 }
 
+// P17 §4: a session has a lifecycle — a leader PLANs it (date/place/trainer +
+// an invited roster), then records attendance to COMPLETE it (or CANCELs).
+// recordTrainingSession (the after-the-fact quick path) creates a COMPLETED
+// session directly. `completedAt` is set when attendance is recorded.
+enum TrainingSessionStatus {
+  PLANNED
+  COMPLETED
+  CANCELLED
+}
+
+enum TrainingParticipantStatus {
+  INVITED
+  ATTENDED
+  ABSENT
+}
+
 model TrainingSession {
-  id                String   @id @default(cuid())
+  id                String                @id @default(cuid())
   companyId         String
   requirementTypeId String
   date              DateTime
   instructor        String
   topics            String?
   notes             String?
-  createdAt         DateTime @default(now())
+  status            TrainingSessionStatus @default(PLANNED)
+  location          String?
+  plannedByUserId   String?               @db.Uuid
+  completedAt       DateTime?
+  createdAt         DateTime              @default(now())
 
-  requirementType TrainingRequirementType @relation(fields: [requirementTypeId], references: [id], onDelete: Restrict)
+  requirementType TrainingRequirementType      @relation(fields: [requirementTypeId], references: [id], onDelete: Restrict)
   records         TrainingRecord[]
+  participants    TrainingSessionParticipant[]
 
   @@index([companyId])
   @@index([requirementTypeId])
+}
+
+// P17 §4: the invited/attendance roster for a session. On completion each
+// ATTENDED participant yields a TrainingRecord (in completeTrainingSession).
+// signatureConfirmed = the person signed the on-screen/paper attendance list
+// (the MVP of the §4 "optional signature"; an image capture is deferred).
+model TrainingSessionParticipant {
+  id                 String                    @id @default(cuid())
+  trainingSessionId  String
+  personId           String
+  status             TrainingParticipantStatus @default(INVITED)
+  signatureConfirmed Boolean                   @default(false)
+  invitedAt          DateTime                  @default(now())
+  recordedAt         DateTime?
+
+  trainingSession TrainingSession @relation(fields: [trainingSessionId], references: [id], onDelete: Restrict)
+  person          Person          @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@unique([trainingSessionId, personId])
+  @@index([trainingSessionId])
+  @@index([personId])
 }
 
 model TrainingRecord {

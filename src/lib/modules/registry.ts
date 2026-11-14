@@ -308,6 +308,7 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     // they get their own pages (a sidebar link must never 404).
     children: [
       { labelKey: "modules.training.children.matrix", slug: "matrix" },
+      { labelKey: "modules.training.children.sessions", slug: "sessions" },
     ],
     badge: "due-trainings",
   },
