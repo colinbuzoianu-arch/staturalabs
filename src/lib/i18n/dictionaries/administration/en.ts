@@ -453,6 +453,7 @@ export const en = {
       BETRIEBSANWEISUNG: "Operating instruction",
       GEFAHRSTOFFVERZEICHNIS: "Hazardous substance register",
       INCIDENT_NOTIFICATION: "Statutory notification data sheet",
+      SDS_DRAFT_PREVIEW: "SDS draft (preview)",
     },
   },
   usersPage: {
@@ -945,6 +946,7 @@ export const en = {
       statusDeviation: "check deviation",
       refusedPrefix: "not computable",
       noEngines: "No calculation engine is enabled for this tenant.",
+      sdsDraftButton: "Generate SDS draft (PDF)",
       back: "← Back to substance",
     },
     referencePropertyTypes: {

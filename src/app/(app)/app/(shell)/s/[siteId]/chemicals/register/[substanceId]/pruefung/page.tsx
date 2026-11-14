@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import { getEngineComparisons } from "@/lib/chemicals/engines/comparison";
+import { isEnginePreviewable } from "@/lib/chemicals/engines/engine-flags";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { prisma } from "@/lib/prisma";
@@ -31,6 +32,10 @@ export default async function PruefungPage({
     site.country,
   );
   const showBanner = comparisons.some((c) => c.state === "PREVIEW");
+  const sdsDraftAvailable = await isEnginePreviewable(
+    "sds.authoring",
+    site.companyId,
+  );
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-10">
@@ -53,6 +58,15 @@ export default async function PruefungPage({
         <p className="rounded-lg border border-amber/40 bg-amber/10 p-3 text-sm font-medium text-foreground">
           {dict.banner}
         </p>
+      )}
+
+      {sdsDraftAvailable && (
+        <a
+          href={`/api/sites/${siteId}/substances/${substanceId}/sds-draft`}
+          className="self-start rounded-[var(--radius-md)] border border-border px-3 py-1.5 text-sm hover:border-accent"
+        >
+          {dict.sdsDraftButton}
+        </a>
       )}
 
       {comparisons.length === 0 ? (

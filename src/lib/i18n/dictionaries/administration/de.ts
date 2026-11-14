@@ -428,6 +428,7 @@ export const de: typeof en = {
       BETRIEBSANWEISUNG: "Betriebsanweisung",
       GEFAHRSTOFFVERZEICHNIS: "Gefahrstoffverzeichnis",
       INCIDENT_NOTIFICATION: "Datenblatt Unfallmeldung",
+      SDS_DRAFT_PREVIEW: "SDB-Entwurf (Vorschau)",
     },
   },
   usersPage: {
@@ -930,6 +931,7 @@ export const de: typeof en = {
       statusDeviation: "Abweichung prüfen",
       refusedPrefix: "nicht berechenbar",
       noEngines: "Für diesen Mandanten ist keine Berechnungs-Engine aktiviert.",
+      sdsDraftButton: "SDB-Entwurf erzeugen (PDF)",
       back: "← Zurück zum Stoff",
     },
     referencePropertyTypes: {

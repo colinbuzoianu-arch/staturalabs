@@ -426,6 +426,7 @@ export const ro: typeof en = {
       BETRIEBSANWEISUNG: "Instrucțiune de lucru",
       GEFAHRSTOFFVERZEICHNIS: "Registru de substanțe",
       INCIDENT_NOTIFICATION: "Fișă notificare legală",
+      SDS_DRAFT_PREVIEW: "Schiță FDS (previzualizare)",
     },
   },
   usersPage: {
@@ -928,6 +929,7 @@ export const ro: typeof en = {
       statusDeviation: "verifică abaterea",
       refusedPrefix: "necalculabil",
       noEngines: "Niciun motor de calcul activat pentru acest chiriaș.",
+      sdsDraftButton: "Generează schiță FDS (PDF)",
       back: "← Înapoi la substanță",
     },
     referencePropertyTypes: {
