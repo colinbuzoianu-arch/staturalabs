@@ -142,3 +142,52 @@ never recalled; an empty scheme yields no suggestion. Fixture-tested with an
 illustrative (non-official) scheme. **PENDING:** load the real TRGS 510 decision
 scheme and confirm the rule ordering with an expert. Suggestion only — the
 Phase-1 storage check (S5b) never computes a Lagerklasse.
+
+---
+
+## Per-engine test cases (expert review package — P16 §6/§7)
+
+The cases below are what the unit tests cover today (the method/arithmetic) plus
+the **open interpretation points** an expert must close before an engine's flag is
+set to VALIDATED. Loading the real regulatory data (CLP Annex I, AwSV, TRGS 510,
+ADR) is a prerequisite; the demo/sandbox runs everything at PREVIEW only.
+
+### `mixture.physicalEstimates`
+- **Covered:** mass-weighted ideal-mixing density (ethanol/water binary →
+  ~0.881), boiling-range lower bound = min component bp, flash-point = min
+  component fp; refuses when a density/fp is missing.
+- **Open:** is ideal mixing (no excess volume) acceptable for the intended use?
+  Should the flash point use the Raoult/Le Chatelier model (needs vapour-pressure
+  data)? These are Näherungswerte, never for classification.
+
+### `clp.mixtureCalculation`
+- **Covered:** ATE additivity `100/ATE_mix = Σ(C/ATE)` (20%@500 + 80%@5000 →
+  1785.7; unknown-ATE fraction reported); summation `Σ(conc×multiplier) ≥ cut-off`
+  with the cut-off/multipliers supplied by config.
+- **Open (needs CLP Annex I data + review):** the generic concentration limits,
+  summation cut-offs and M-factor table; the ≥10%-unknown rule; SCL vs. GCL
+  precedence; aquatic chronic summation tiers; reproduce ECHA CLP-guidance worked
+  examples. Physical hazards not calculated.
+
+### `wgk.mixtureCalculation`
+- **Covered:** presence-threshold framework (highest WGK class whose summed
+  concentration meets its threshold), thresholds from config.
+- **Open:** the full AwSV additive rule + weighting factors (vs. the conservative
+  presence-threshold simplification) and the real AwSV thresholds.
+
+### `storage.lagerklasseSuggestion`
+- **Covered:** priority rule list (H-codes / flammable pictogram → Lagerklasse),
+  scheme from config; empty scheme → no suggestion.
+- **Open:** the real TRGS 510 decision scheme + rule ordering. Suggestion only.
+
+### `transport.classification`
+- **Covered:** UN-entry model + lookup against the loaded list; curated DEMO_LIST
+  (not ADR-verified); outside it → "Gefahrgutliste nicht geladen".
+- **Open:** classification→UN-class derivation needs the official ADR criteria; a
+  licensed/official Table A must replace the DEMO_LIST.
+
+### `sds.authoring`
+- **Covered:** 16-section REACH Annex II skeleton + mapping from confirmed SDS
+  data; unfilled sections explicitly empty; watermarked draft render.
+- **Open:** a proper PDF layout, the EuPhraC phrase catalogue (licensed), and
+  sections 10/11/12/16 (no source data held). Never authoritative.

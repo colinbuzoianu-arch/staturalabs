@@ -18,6 +18,7 @@ Contents:
 | `TOMs-template.md` | Technical & organisational measures | Art. 32 GDPR — reflects what the system actually does |
 | `subprocessors-template.md` | Sub-processor list | Stub to be completed per deployment |
 | `works-council-information-pack-template.md` | Betriebsrat/works-council information pack | Extends the in-app worker-briefing (`/api/sites/[siteId]/worker-briefing`) |
+| `preview-calculations-terms-clause-template.md` | Terms-of-use clause: the Gefahrstoffe preview calculations are checking aids, not classifications/legal advice (P16 §7) | Clause to fold into the main terms |
 
 The **worker-briefing** is already generated live, per site, by the app
 (`src/lib/report/WorkerBriefingDocument.tsx`). The works-council template here is
