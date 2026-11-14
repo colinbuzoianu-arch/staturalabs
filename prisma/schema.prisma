@@ -59,6 +59,7 @@ model Company {
   sdsExtractions       SdsExtraction[]
   aiUsageCounters      AiUsageCounter[]
   aiUsageCap           AiUsageCap?
+  engineFlagSettings   EngineFlagSetting[]
 }
 
 /// A physical location/department within a company (conversationally
@@ -3075,6 +3076,44 @@ model AiUsageCap {
   updatedAt       DateTime @updatedAt
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+}
+
+// P16 §2: three-state engine flags + the VALIDATED review guard. EngineFlagSetting
+// is per-tenant (company-scoped); EngineReview is per engine VERSION (global). A
+// VALIDATED state requires a matching EngineReview (guarded in the lib + UI).
+enum EngineFlagState {
+  OFF
+  PREVIEW
+  VALIDATED
+}
+
+model EngineFlagSetting {
+  id          String          @id @default(cuid())
+  engineKey   String
+  companyId   String
+  state       EngineFlagState @default(OFF)
+  setByUserId String?         @db.Uuid
+  updatedAt   DateTime        @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([engineKey, companyId])
+  @@index([companyId])
+}
+
+model EngineReview {
+  id                    String   @id @default(cuid())
+  engineKey             String
+  engineVersion         String
+  reviewerName          String
+  reviewerQualification String
+  reviewedAt            DateTime
+  scope                 String
+  notes                 String?
+  createdByUserId       String?  @db.Uuid
+  createdAt             DateTime @default(now())
+
+  @@unique([engineKey, engineVersion])
 }
 
 // ---------------------------------------------------------------------------

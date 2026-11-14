@@ -91,6 +91,28 @@ export const de: typeof en = {
     empty: "Keine Feature-Flags gesetzt.",
     on: "an",
     off: "aus",
+    enginesHeading: "Chemie-Engines (Vorschau)",
+    enginesIntro:
+      "Pro Mandant, drei Zustände: OFF (nichts), PREVIEW (schreibgeschützter Vergleich + Banner „nicht fachlich geprüft“, PDFs mit Wasserzeichen), VALIDATED (Übernahme erlaubt — erfordert einen Fachprüfungs-Datensatz für die Engine-Version; wird noch von niemandem gesetzt).",
+    colEngine: "Engine",
+    colState: "Zustand",
+    colReview: "Prüfung",
+    stateOff: "Aus",
+    statePreview: "Vorschau",
+    stateValidated: "Validiert",
+    reviewYes: "ja",
+    reviewNo: "keine",
+    saveState: "Setzen",
+    validatedNeedsReview:
+      "VALIDATED erfordert eine Engine-Prüfung für diese Version",
+    engineLabels: {
+      "clp.mixtureCalculation": "CLP-Gemischeinstufung",
+      "mixture.physicalEstimates": "Physikalische Schätzwerte",
+      "wgk.mixtureCalculation": "WGK-Gemisch",
+      "storage.lagerklasseSuggestion": "Lagerklassen-Vorschlag",
+      "transport.classification": "Transport / UN-Suche",
+      "sds.authoring": "SDB-Erstellung",
+    },
   },
   pilotPage: {
     heading: "Demo-/Pilotdaten",

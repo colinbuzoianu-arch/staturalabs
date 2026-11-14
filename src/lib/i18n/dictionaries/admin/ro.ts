@@ -91,6 +91,28 @@ export const ro: typeof en = {
     empty: "Niciun indicator setat.",
     on: "activ",
     off: "inactiv",
+    enginesHeading: "Motoare chimice (previzualizare)",
+    enginesIntro:
+      "Pe chiriaș, trei stări: OFF (nimic), PREVIEW (comparație doar-citire + banner „neverificat de experți”, PDF-uri cu filigran), VALIDATED (permite preluarea — necesită o înregistrare de evaluare de expert pentru versiunea motorului; nimeni nu o setează încă).",
+    colEngine: "Motor",
+    colState: "Stare",
+    colReview: "Evaluare",
+    stateOff: "Oprit",
+    statePreview: "Previzualizare",
+    stateValidated: "Validat",
+    reviewYes: "da",
+    reviewNo: "niciuna",
+    saveState: "Setează",
+    validatedNeedsReview:
+      "VALIDATED necesită o evaluare a motorului pentru această versiune",
+    engineLabels: {
+      "clp.mixtureCalculation": "Clasificare amestec CLP",
+      "mixture.physicalEstimates": "Estimări fizice",
+      "wgk.mixtureCalculation": "Amestec WGK",
+      "storage.lagerklasseSuggestion": "Sugestie clasă de depozitare",
+      "transport.classification": "Transport / căutare UN",
+      "sds.authoring": "Redactare FDS",
+    },
   },
   pilotPage: {
     heading: "Date demo / pilot",

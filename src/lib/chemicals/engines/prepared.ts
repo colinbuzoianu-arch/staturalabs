@@ -39,3 +39,18 @@ export const PREPARED_ENGINE_FLAGS = {
 export const BERECHNUNGSVORSCHLAG_DE =
   "Berechnungsvorschlag — Prüfung durch Fachkundige erforderlich";
 export const NAEHERUNGSWERT_DE = "Näherungswert, nicht für Einstufung";
+
+// P16 §2: each engine carries a VERSION. A VALIDATED flag is tied to a specific
+// engine version (the EngineReview is per version); bumping a version here means
+// the prior review no longer covers it and VALIDATED falls back to PREVIEW until
+// re-reviewed. Bump when an engine's logic changes materially.
+export const ENGINE_VERSION: Record<string, string> = {
+  "clp.mixtureCalculation": "v1",
+  "mixture.physicalEstimates": "v1",
+  "wgk.mixtureCalculation": "v1",
+  "storage.lagerklasseSuggestion": "v1",
+  "transport.classification": "v1",
+  "sds.authoring": "v1",
+};
+
+export const ENGINE_KEYS = Object.values(PREPARED_ENGINE_FLAGS);
