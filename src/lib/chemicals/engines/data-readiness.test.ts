@@ -7,8 +7,11 @@ const base: ReadinessInput = {
   unNumber: null,
   flashPointKnown: false,
 };
-const byKey = (rs: ReturnType<typeof assessEngineReadiness>, k: string) =>
-  rs.find((r) => r.engineKey === k)!;
+const byKey = (rs: ReturnType<typeof assessEngineReadiness>, k: string) => {
+  const r = rs.find((x) => x.engineKey === k);
+  if (!r) throw new Error(`no readiness for ${k}`);
+  return r;
+};
 
 describe("assessEngineReadiness", () => {
   it("nothing available: only SDS authoring is ready; others list missing inputs", () => {
