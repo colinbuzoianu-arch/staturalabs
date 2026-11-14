@@ -403,8 +403,7 @@ export const de: typeof en = {
       "too-large": "Die Datei überschreitet das Limit von 20 MB.",
       "file-type-not-allowed":
         "Dieser Dateityp ist nicht zulässig — bitte PDF, Bild oder Office-Dokument hochladen.",
-      "malware-detected":
-        "Die Datei wurde von der Malware-Prüfung abgewiesen.",
+      "malware-detected": "Die Datei wurde von der Malware-Prüfung abgewiesen.",
       "scan-unavailable":
         "Die Malware-Prüfung ist derzeit nicht verfügbar — bitte später erneut versuchen.",
       other: "Der Upload konnte nicht angenommen werden.",
@@ -455,11 +454,11 @@ export const de: typeof en = {
     roleLabels: {
       SUPER_ADMIN: "Super-Admin",
       L3_SUPPORT: "L3-Support",
-      COMPANY_ADMIN: "Firmen-Admin",
-      SITE_ADMIN: "Standort-Admin",
-      EHS_SPECIALIST: "Sicherheitsfachkraft",
+      COMPANY_ADMIN: "Administrator",
+      SITE_ADMIN: "Standortadministrator (EHS-Management)",
+      EHS_SPECIALIST: "EHS-Fachkraft",
       MANAGER: "Führungskraft",
-      EMPLOYEE: "Mitarbeiter/in",
+      EMPLOYEE: "Mitarbeitende",
       OCCUPATIONAL_PHYSICIAN: "Arbeitsmediziner/in",
       WORKS_COUNCIL: "Betriebsrat",
     },
@@ -514,8 +513,7 @@ export const de: typeof en = {
     substanceIntro:
       "Sicherheitsdatenblätter und Verwendungsnachweise dürfen gelöscht werden, sobald die REACH-Art.-36-Frist (10 Jahre nach der letzten Verwendung) abgelaufen ist. Dies sind keine personenbezogenen Daten; die Freigabe löscht die fälligen Datensätze.",
     substanceRunCheck: "Auf löschbare Gefahrstoff-Datensätze prüfen",
-    substanceNoCandidates:
-      "Keine Gefahrstoff-Datensätze zur Löschung fällig.",
+    substanceNoCandidates: "Keine Gefahrstoff-Datensätze zur Löschung fällig.",
     substanceProposedBanner:
       "Gefahrstoff-Datensätze zur Löschung vorgeschlagen.",
     substanceBatchesHeading: "Löschstapel",
@@ -770,8 +768,7 @@ export const de: typeof en = {
         severityWarning: "Warnung",
         severityInfo: "Hinweis",
         reasons: {
-          "missing-signal-word":
-            "Das SDB nennt H-Sätze, aber kein Signalwort.",
+          "missing-signal-word": "Das SDB nennt H-Sätze, aber kein Signalwort.",
           "signal-word-without-hazard":
             "Ein Signalwort ist angegeben, aber kein H-Satz und kein Piktogramm.",
           "flammable-pictogram-no-h":
@@ -943,8 +940,7 @@ export const de: typeof en = {
       colEngine: "Berechnung (Vorschau)",
       statusDeviation: "Abweichung prüfen",
       refusedPrefix: "nicht berechenbar",
-      noEngines:
-        "Für diesen Mandanten ist keine Berechnungs-Engine aktiviert.",
+      noEngines: "Für diesen Mandanten ist keine Berechnungs-Engine aktiviert.",
       sdsDraftButton: "SDB-Entwurf erzeugen (PDF)",
       back: "← Zurück zum Stoff",
     },
@@ -1740,8 +1736,7 @@ export const de: typeof en = {
     colFindings: "Befunde",
     viewLink: "Ansehen →",
     assessedAtRequired: "Datum/Uhrzeit der Beurteilung ist erforderlich",
-    futureDevelopmentLabel:
-      "Einschätzung der künftigen Entwicklung (optional)",
+    futureDevelopmentLabel: "Einschätzung der künftigen Entwicklung (optional)",
     futureDevelopmentHeading: "Künftige Entwicklung",
     awkLink: "Abfallwirtschaftskonzept (AWK, PDF) erstellen →",
     emasExemptNote:

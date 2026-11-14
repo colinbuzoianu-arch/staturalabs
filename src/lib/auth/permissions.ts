@@ -109,31 +109,53 @@ export const ROLE_PERMISSIONS: Readonly<
     "people.read",
     "people.write",
     "legal.read",
+    // P17 §2: EHS staff evaluate the Rechtskataster (E). Releasing a risk
+    // assessment / legal evaluation stays the site admin's by default (§2
+    // approval note) — enforced at the approval step (slice 2), not here.
+    "legal.write",
     "documents.read",
     "documents.write",
     "reports.read",
   ]),
+  // P17 §2 "Leader" (Führungskraft), scope = own org units (ORG_UNIT). Reads
+  // across the EHS modules for their units, organises training for their people
+  // (training.write), updates/proposes actions. No settings, environment, legal,
+  // no health. chemicals.read = R substances used in own units; inspections.read
+  // = R own units.
   [PlatformRole.MANAGER]: new Set<Permission>([
     "cockpit.read",
     "my-tasks.read",
     "calendar.read",
     "risk.read",
-    // P10c: a line manager reports events for their own org units (scope in
-    // rbac/scope.ts). No health_data.*.
+    "inspections.read",
     "incidents.read",
     "incidents.write",
     "actions.read",
     "actions.write",
+    "chemicals.read",
     "training.read",
     "training.write",
     "people.read",
     "documents.read",
     "reports.read",
   ]),
+  // P17 §2 "Employee" (Mitarbeitende), scope = SELF. Own tasks/calendar, own
+  // training status, reports events (incidents.write) and sees own reports
+  // (incidents.read), updates actions assigned to them personally, reads
+  // documents published to them, reads their own person record. Everything is
+  // confined to SELF by the scope layer (canAccessSite is false for a SELF-only
+  // user, so no site page opens regardless of these reads). The assigned-
+  // workstation briefing/Betriebsanweisung read is a targeted slice-5 feature.
   [PlatformRole.EMPLOYEE]: new Set<Permission>([
     "my-tasks.read",
     "calendar.read",
     "training.read",
+    "incidents.read",
+    "incidents.write",
+    "actions.read",
+    "actions.write",
+    "documents.read",
+    "people.read",
   ]),
   // P10c: the sole holder of health_data.* (§3.18(b)). Reads incidents to
   // attach the medical record; no risk/people write, no settings.
@@ -155,6 +177,29 @@ export const ROLE_PERMISSIONS: Readonly<
     "reports.read",
   ]),
 };
+
+// P17 §2: the effective permission set of a user who holds SEVERAL roles (one
+// per RoleAssignment — a leader on their own units who is ALSO an EHS
+// specialist on a site, say) is the UNION of their bundles. Pure, so the
+// overlapping-role matrix can be tested without a DB; scope still answers
+// "where" per assignment (scope.ts), independently of this "what". An unknown
+// role contributes nothing (fail-closed), same posture as hasPermission.
+export function permissionsForRoles(
+  roles: readonly PlatformRole[],
+): ReadonlySet<Permission> {
+  const union = new Set<Permission>();
+  for (const role of roles) {
+    const bundle = ROLE_PERMISSIONS[role];
+    if (!bundle) {
+      console.error(
+        `Unrecognized platform role, contributing no permissions: ${String(role)}`,
+      );
+      continue;
+    }
+    for (const permission of bundle) union.add(permission);
+  }
+  return union;
+}
 
 // Pure permission check. A role not present in ROLE_PERMISSIONS (e.g. a
 // hand-edited DB row with an unknown value) is denied, fail-closed — same
