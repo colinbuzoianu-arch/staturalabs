@@ -68,6 +68,20 @@ reconcile.
 |---|---|---|---|---|
 | Anthropic Claude (official SDK, server-side, tenant-scoped) | SDS field extraction, plain-German hint text, BA draft free text | Sub-processor; SDS carry no worker data, supplier contacts are business data | Used inside fixed functions only (§0.6) | To build (S2/S7); add Anthropic to sub-processor list + TOMs (P13 §7) |
 
+## Transport / ADR dangerous-goods list (P16 §3.3)
+Investigation (2026-11-14): **no official UNECE machine-readable ADR Table A under
+open reuse terms was found.** UNECE publishes ADR (ECE/TRANS/…) as PDF under UN
+copyright; third-party machine-readable datasets (e.g. Labeline-licensed CSVs,
+carrier Excel tables) are licensed or have unclear reuse terms. IMDG and IATA DGR
+stay excluded (licensed), per §0.1/§0.3.
+
+**Decision:** keep a small **curated `DEMO_LIST`** (`TRANSPORT_DEMO_LIST` in
+`src/lib/chemicals/engines/transport-classification.ts`, `TRANSPORT_LIST_IS_DEMO =
+true`) for the prospect sandbox — **not ADR-verified, not authoritative.** It is
+available in both environments; a UN number outside it resolves to the honest
+"Gefahrgutliste nicht geladen" gap. Replace it with a licensed/official list (ADR
+only) before any real transport use.
+
 ## Licensed, not imported (prepared only)
 GESTIS international limit values, IMDG Code, IATA DGR, EuPhraC phrase catalogue —
 model prepared so they can be plugged in once licensed (§0.3, §3).

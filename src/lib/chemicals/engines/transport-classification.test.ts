@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   lookupUnEntry,
-  TRANSPORT_FIXTURE_LIST,
+  TRANSPORT_DEMO_LIST,
+  TRANSPORT_LIST_IS_DEMO,
 } from "./transport-classification";
 
 describe("lookupUnEntry", () => {
@@ -26,7 +27,9 @@ describe("lookupUnEntry", () => {
     ]);
     expect(r.value?.properShippingName).toBe("METHANOL");
   });
-  it("ships only the tiny illustrative fixture", () => {
-    expect(TRANSPORT_FIXTURE_LIST.length).toBeLessThanOrEqual(3);
+  it("ships a small curated DEMO list, marked as demo (not ADR-verified)", () => {
+    expect(TRANSPORT_LIST_IS_DEMO).toBe(true);
+    expect(TRANSPORT_DEMO_LIST.length).toBeGreaterThan(0);
+    expect(TRANSPORT_DEMO_LIST.length).toBeLessThanOrEqual(20);
   });
 });
