@@ -19,6 +19,10 @@ import { prisma } from "@/lib/prisma";
 export const ACTION_STATUS_TRANSITIONS: Readonly<
   Record<ActionStatus, readonly ActionStatus[]>
 > = {
+  // P17 §2: a leader's proposal. EHS staff confirm it into the normal
+  // lifecycle (→ OPEN) or reject it (→ CANCELLED). Terminal otherwise — a
+  // proposal is never implemented/verified without first being confirmed.
+  [ActionStatus.PROPOSED]: [ActionStatus.OPEN, ActionStatus.CANCELLED],
   [ActionStatus.OPEN]: [ActionStatus.IN_PROGRESS, ActionStatus.CANCELLED],
   [ActionStatus.IN_PROGRESS]: [
     ActionStatus.OPEN,

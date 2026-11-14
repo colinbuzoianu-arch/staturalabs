@@ -48,6 +48,7 @@ export const en = {
     ARCHIVED: "Archived",
   },
   actionStatusLabels: {
+    PROPOSED: "Proposed",
     OPEN: "Open",
     IN_PROGRESS: "In progress",
     IMPLEMENTED: "Implemented",

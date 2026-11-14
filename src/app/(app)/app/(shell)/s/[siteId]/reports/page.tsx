@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { HazardCategory } from "@/generated/prisma/enums";
+import type { ActionStatus, HazardCategory } from "@/generated/prisma/enums";
 import { requireSiteAccess } from "@/lib/auth/require-access";
 import { getCommonDictionary } from "@/lib/i18n/dictionaries/common";
 import { getDashboardDictionary } from "@/lib/i18n/dictionaries/dashboard";
@@ -239,7 +239,7 @@ function ActionTable({
   actions: Array<{
     id: string;
     title: string;
-    status: "OPEN" | "IN_PROGRESS" | "IMPLEMENTED" | "VERIFIED" | "CANCELLED";
+    status: ActionStatus;
     dueDate: Date | null;
     subject: string;
   }>;
@@ -251,10 +251,7 @@ function ActionTable({
     colStatus: string;
     viewLink: string;
   };
-  actionStatusLabels: Record<
-    "OPEN" | "IN_PROGRESS" | "IMPLEMENTED" | "VERIFIED" | "CANCELLED",
-    string
-  >;
+  actionStatusLabels: Record<ActionStatus, string>;
 }) {
   return (
     <section className="flex flex-col gap-3">

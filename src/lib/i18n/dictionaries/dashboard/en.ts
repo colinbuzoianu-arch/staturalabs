@@ -59,6 +59,7 @@ export const en = {
     RADIATION: "Radiation",
   },
   actionStatusLabels: {
+    PROPOSED: "Proposed",
     OPEN: "Open",
     IN_PROGRESS: "In progress",
     IMPLEMENTED: "Implemented",

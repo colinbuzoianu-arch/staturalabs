@@ -1421,6 +1421,9 @@ model PsychosocialFindingDetail {
 }
 
 enum ActionStatus {
+  // P17 §2: a leader proposes (PROPOSED); EHS staff confirm → OPEN, or reject
+  // → CANCELLED. Every other creation path still starts at OPEN.
+  PROPOSED
   OPEN
   IN_PROGRESS
   IMPLEMENTED

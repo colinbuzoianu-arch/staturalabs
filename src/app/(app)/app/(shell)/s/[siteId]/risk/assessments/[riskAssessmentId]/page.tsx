@@ -16,6 +16,7 @@ import {
   PsychosocialMethod,
   RiskAssessmentStatus,
 } from "@/generated/prisma/enums";
+import { hasPermission } from "@/lib/auth/permissions";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import { getActiveLegalReferenceCatalog } from "@/lib/country/legal-reference-catalog-version";
 import { resolveHazardName } from "@/lib/i18n/catalog-labels";
@@ -88,7 +89,11 @@ export default async function RiskAssessmentDetailPage({
   const { present, actionId, workstationId, from } = await searchParams;
   const presentMode = isPresentMode(present);
   const initial = await loadRiskAssessment(riskAssessmentId);
-  const { site } = await requireSiteAdministrationAccess(initial.siteId);
+  const { site, user } = await requireSiteAdministrationAccess(initial.siteId);
+  // P17 §2: approving (releasing) an assessment is the A column — site admin
+  // by default. EHS staff may edit and submit for review (risk.write) but see
+  // no approve control unless their company bundle grants risk.approve (§3).
+  const canApprove = hasPermission(user, "risk.approve");
   const locale = await getLocale();
   const administrationDict = getAdministrationDictionary(locale);
   const dict = administrationDict.riskAssessmentDetailPage;
@@ -187,6 +192,11 @@ export default async function RiskAssessmentDetailPage({
     const dict = getAdministrationDictionary(
       await getLocale(),
     ).riskAssessmentDetailPage;
+
+    // P17 §2: the A column, re-checked server-side (the button is hidden, but
+    // the action is reachable by POST). EHS staff without risk.approve cannot
+    // release even if they can submit.
+    if (!hasPermission(user, "risk.approve")) notFound();
 
     if (current.status !== RiskAssessmentStatus.IN_REVIEW) {
       throw new Error(dict.illegalTransition);
@@ -858,7 +868,7 @@ export default async function RiskAssessmentDetailPage({
             </button>
           </form>
         )}
-        {initial.status === RiskAssessmentStatus.IN_REVIEW && (
+        {initial.status === RiskAssessmentStatus.IN_REVIEW && canApprove && (
           <form action={approveAction}>
             <button
               type="submit"

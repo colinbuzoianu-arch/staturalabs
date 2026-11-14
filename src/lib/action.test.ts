@@ -37,6 +37,36 @@ describe("validateActionTransition (pure)", () => {
     ).toThrow(/Illegal Action status transition/);
   });
 
+  it("allows a leader's proposal to be confirmed (PROPOSED -> OPEN)", () => {
+    expect(() =>
+      validateActionTransition({ fromStatus: "PROPOSED", toStatus: "OPEN" }),
+    ).not.toThrow();
+  });
+
+  it("allows a proposal to be rejected (PROPOSED -> CANCELLED)", () => {
+    expect(() =>
+      validateActionTransition({
+        fromStatus: "PROPOSED",
+        toStatus: "CANCELLED",
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects implementing/verifying a proposal before it is confirmed", () => {
+    expect(() =>
+      validateActionTransition({
+        fromStatus: "PROPOSED",
+        toStatus: "IMPLEMENTED",
+      }),
+    ).toThrow(/Illegal Action status transition/);
+    expect(() =>
+      validateActionTransition({
+        fromStatus: "PROPOSED",
+        toStatus: "IN_PROGRESS",
+      }),
+    ).toThrow(/Illegal Action status transition/);
+  });
+
   it("rejects any transition out of a terminal state (VERIFIED)", () => {
     expect(() =>
       validateActionTransition({

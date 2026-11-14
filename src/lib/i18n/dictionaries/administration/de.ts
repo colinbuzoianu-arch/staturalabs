@@ -31,6 +31,7 @@ export const de: typeof en = {
     ARCHIVED: "Archiviert",
   },
   actionStatusLabels: {
+    PROPOSED: "Vorgeschlagen",
     OPEN: "Offen",
     IN_PROGRESS: "In Bearbeitung",
     IMPLEMENTED: "Umgesetzt",

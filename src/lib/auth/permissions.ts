@@ -32,6 +32,11 @@ export const PERMISSIONS = [
   "calendar.read",
   "risk.read",
   "risk.write",
+  // P17 §2: the A column — releasing/approving a risk assessment
+  // (DRAFT→IN_REVIEW is write; IN_REVIEW→APPROVED is approve). Site admin and
+  // the admin roles hold it by default; EHS staff can be granted it per
+  // company via a bundle edit (§3, slice 3), never by default.
+  "risk.approve",
   "inspections.read",
   "inspections.write",
   "incidents.read",
@@ -48,6 +53,11 @@ export const PERMISSIONS = [
   "people.write",
   "legal.read",
   "legal.write",
+  // P17 §2: the A column for the Rechtskataster — confirming/releasing a
+  // compliance evaluation. EHS staff evaluate (legal.write) but do not
+  // release by default; same site-admin default + per-company extension as
+  // risk.approve.
+  "legal.approve",
   "documents.read",
   "documents.write",
   "reports.read",

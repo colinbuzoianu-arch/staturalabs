@@ -35,6 +35,7 @@ export const ro: typeof en = {
     RADIATION: "Radiații",
   },
   actionStatusLabels: {
+    PROPOSED: "Propusă",
     OPEN: "Deschisă",
     IN_PROGRESS: "În desfășurare",
     IMPLEMENTED: "Implementată",

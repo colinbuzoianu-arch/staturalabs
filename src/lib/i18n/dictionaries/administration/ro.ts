@@ -30,6 +30,7 @@ export const ro: typeof en = {
     ARCHIVED: "Arhivat",
   },
   actionStatusLabels: {
+    PROPOSED: "Propusă",
     OPEN: "Deschisă",
     IN_PROGRESS: "În desfășurare",
     IMPLEMENTED: "Implementată",

@@ -35,6 +35,7 @@ export const de: typeof en = {
     RADIATION: "Strahlung",
   },
   actionStatusLabels: {
+    PROPOSED: "Vorgeschlagen",
     OPEN: "Offen",
     IN_PROGRESS: "In Bearbeitung",
     IMPLEMENTED: "Umgesetzt",

@@ -66,6 +66,7 @@ export const CATEGORY_CHECK_TONE: Record<string, BadgeTone> = {
 };
 
 export const ACTION_STATUS_TONE: Record<string, BadgeTone> = {
+  PROPOSED: "info",
   OPEN: "outline",
   IN_PROGRESS: "info",
   IMPLEMENTED: "moderate",
