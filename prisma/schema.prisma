@@ -2628,6 +2628,7 @@ model Substance {
   findingLinks          FindingSubstance[]
   operatingInstructions OperatingInstruction[]
   sdsExtractions        SdsExtraction[]
+  mixtureComponents     MixtureComponent[]
 
   @@index([companyId])
 }
@@ -3029,9 +3030,40 @@ model ReferenceSubstance {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  properties ReferenceSubstanceProperty[]
+  properties        ReferenceSubstanceProperty[]
+  mixtureComponents MixtureComponent[]
 
   @@index([ecNumber])
+}
+
+// P16 §3.1: one component of a mixture (Substance). Concentration is exact OR a
+// range (min/max %); engines use the conservative end. Auto-filled from the
+// confirmed SDS section 3, or entered/corrected in the composition editor.
+model MixtureComponent {
+  id                          String   @id @default(cuid())
+  substanceId                 String
+  referenceSubstanceId        String?
+  casNumber                   String?
+  name                        String
+  concentrationExactPct       Float?
+  concentrationMinPct         Float?
+  concentrationMaxPct         Float?
+  classification              String?
+  specificConcentrationLimits String?
+  mFactor                     Float?
+  ateOral                     Float?
+  ateDermal                   Float?
+  ateInhalation               Float?
+  wgk                         Int?
+  source                      String   @default("MANUAL")
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  substance          Substance           @relation(fields: [substanceId], references: [id], onDelete: Restrict)
+  referenceSubstance ReferenceSubstance? @relation(fields: [referenceSubstanceId], references: [id], onDelete: Restrict)
+
+  @@index([substanceId])
+  @@index([referenceSubstanceId])
 }
 
 model ReferenceSubstanceProperty {
