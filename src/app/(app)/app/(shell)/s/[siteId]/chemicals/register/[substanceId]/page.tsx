@@ -291,6 +291,12 @@ export default async function SubstanceDetailPage({
         <h1 className="mt-1 font-[family-name:var(--font-heading)] text-2xl font-bold text-foreground">
           {substance.tradeName}
         </h1>
+        <Link
+          href={`/app/s/${siteId}/chemicals/register/${substance.id}/composition`}
+          className="mt-1 inline-block text-sm text-accent hover:underline"
+        >
+          {dict.composition.heading} →
+        </Link>
         {alerts.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
             {alerts.map((a) => (
