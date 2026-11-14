@@ -933,6 +933,16 @@ export const en = {
         "sds.authoring": "SDS authoring",
       },
     },
+    deviations: {
+      navLabel: "Deviations SDS ↔ calc",
+      heading: "Deviations: SDS ↔ calculation",
+      intro:
+        "Products where a preview calculation differs from the supplier SDS. Preview only — a checking aid.",
+      empty: "No deviations found (or no engine enabled).",
+      colProduct: "Product",
+      colDeviations: "Deviations",
+      open: "Open",
+    },
     pruefung: {
       navLabel: "Check & calculation",
       heading: "Check & calculation",

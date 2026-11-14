@@ -38,6 +38,7 @@ export const MODULE_LABELS_DE: Record<string, string> = {
   "modules.chemicals.children.operating-instructions": "Betriebsanweisungen",
   "modules.chemicals.children.sds-review": "SDB-Import (KI)",
   "modules.chemicals.children.storage": "Lagerung (TRGS 510)",
+  "modules.chemicals.children.deviations": "Abweichungen SDB/Berechnung",
   "modules.training.label": "Unterweisungen",
   "modules.training.children.matrix": "Matrix",
   "modules.training.children.sessions": "Termine",

@@ -49,6 +49,37 @@ function num(s: string | null | undefined): number | null {
   return parseNumericProperty(s ?? null);
 }
 
+// P16 §4 (site overview): products with at least one engine↔SDS deviation.
+export type SiteDeviation = {
+  substanceId: string;
+  tradeName: string;
+  items: string[];
+};
+
+export async function getSiteDeviations(
+  companyId: string,
+  country: CountryCode,
+): Promise<SiteDeviation[]> {
+  // Only substances with a confirmed SDS can deviate; bound the work to those.
+  const subs = await prisma.substance.findMany({
+    where: { companyId, safetyDataSheets: { some: { supersededAt: null } } },
+    select: { id: true, tradeName: true },
+    orderBy: { tradeName: "asc" },
+  });
+  const out: SiteDeviation[] = [];
+  for (const s of subs) {
+    const comparisons = await getEngineComparisons(s.id, companyId, country);
+    const items = comparisons.flatMap((c) =>
+      c.rows
+        .filter((r) => r.status === "deviation")
+        .map((r) => `${c.engineKey}: ${r.label}`),
+    );
+    if (items.length > 0)
+      out.push({ substanceId: s.id, tradeName: s.tradeName, items });
+  }
+  return out;
+}
+
 export async function getEngineComparisons(
   substanceId: string,
   companyId: string,

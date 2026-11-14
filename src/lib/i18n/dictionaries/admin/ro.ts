@@ -13,6 +13,7 @@ export const ro: typeof en = {
     usersNav: "Utilizatori",
     flagsNav: "Indicatoare funcții",
     aiUsageNav: "Utilizare IA",
+    engineSandboxNav: "Sandbox motoare",
     pilotNav: "Date demo/pilot",
   },
   console: {
@@ -61,6 +62,18 @@ export const ro: typeof en = {
     adminsHeading: "Administratori",
     noAdmins: "Încă niciun administrator invitat.",
     dangerHeading: "Zonă periculoasă",
+  },
+  engineSandboxPage: {
+    heading: "Sandbox motoare chimice",
+    intro:
+      "Lipiți o compoziție ca JSON și rulați toate cele șase motoare pregătite (fără a atinge date de chiriaș). Doar super-admin; rezultatele sunt previzualizări, niciodată validate.",
+    inputLabel: "Compoziție (JSON)",
+    run: "Rulează motoarele",
+    resultsHeading: "Rezultate motoare",
+    unavailable: "necalculabil",
+    shape:
+      '{"components":[{"name":"Acetona","concentrationPct":60,"ate":5800,"density":0.79,"flashPoint":-17,"boilingPoint":56,"wgk":1}],"hCodes":["H225"],"unNumber":"UN1090"}',
+    parseError: "Nu s-a putut analiza JSON-ul.",
   },
   aiUsagePage: {
     heading: "Utilizare IA (substanțe periculoase)",

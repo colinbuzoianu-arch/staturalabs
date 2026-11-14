@@ -286,6 +286,7 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
       { labelKey: "modules.chemicals.children.register", slug: "register" },
       { labelKey: "modules.chemicals.children.sds-review", slug: "sds-review" },
       { labelKey: "modules.chemicals.children.storage", slug: "storage" },
+      { labelKey: "modules.chemicals.children.deviations", slug: "deviations" },
       {
         labelKey: "modules.chemicals.children.operating-instructions",
         slug: "operating-instructions",

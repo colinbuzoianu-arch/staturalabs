@@ -13,6 +13,7 @@ export const de: typeof en = {
     usersNav: "Benutzer",
     flagsNav: "Feature-Flags",
     aiUsageNav: "KI-Nutzung",
+    engineSandboxNav: "Engine-Sandbox",
     pilotNav: "Demo-/Pilotdaten",
   },
   console: {
@@ -61,6 +62,18 @@ export const de: typeof en = {
     adminsHeading: "Administratoren",
     noAdmins: "Noch keine Administratoren eingeladen.",
     dangerHeading: "Gefahrenzone",
+  },
+  engineSandboxPage: {
+    heading: "Chemie-Engine-Sandbox",
+    intro:
+      "Zusammensetzung als JSON einfügen und alle sechs vorbereiteten Engines darauf ausführen (keine Mandantendaten betroffen). Nur Super-Admin; Ausgaben sind Vorschauen, nie validiert.",
+    inputLabel: "Zusammensetzung (JSON)",
+    run: "Engines ausführen",
+    resultsHeading: "Engine-Ausgaben",
+    unavailable: "nicht berechenbar",
+    shape:
+      '{"components":[{"name":"Aceton","concentrationPct":60,"ate":5800,"density":0.79,"flashPoint":-17,"boilingPoint":56,"wgk":1}],"hCodes":["H225"],"unNumber":"UN1090"}',
+    parseError: "JSON-Eingabe konnte nicht gelesen werden.",
   },
   aiUsagePage: {
     heading: "KI-Nutzung (Gefahrstoffe)",

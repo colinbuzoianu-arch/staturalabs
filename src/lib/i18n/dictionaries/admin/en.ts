@@ -21,6 +21,7 @@ export const en = {
     usersNav: "Users",
     flagsNav: "Feature flags",
     aiUsageNav: "AI usage",
+    engineSandboxNav: "Engine sandbox",
     pilotNav: "Demo/pilot data",
   },
   console: {
@@ -68,6 +69,18 @@ export const en = {
     adminsHeading: "Administrators",
     noAdmins: "No administrators invited yet.",
     dangerHeading: "Danger zone",
+  },
+  engineSandboxPage: {
+    heading: "Chemistry engine sandbox",
+    intro:
+      "Paste a composition as JSON and run all six prepared engines on it (no tenant data touched). Super-admin only; outputs are previews, never validated.",
+    inputLabel: "Composition (JSON)",
+    run: "Run engines",
+    resultsHeading: "Engine outputs",
+    unavailable: "not computable",
+    shape:
+      '{"components":[{"name":"Acetone","concentrationPct":60,"ate":5800,"density":0.79,"flashPoint":-17,"boilingPoint":56,"wgk":1}],"hCodes":["H225"],"unNumber":"UN1090"}',
+    parseError: "Could not parse the JSON input.",
   },
   aiUsagePage: {
     heading: "AI usage (Gefahrstoffe)",

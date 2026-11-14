@@ -35,6 +35,7 @@ export default async function AdminLayout({
     { href: "/admin/audit", label: l.auditNav },
     { href: "/admin/flags", label: l.flagsNav },
     { href: "/admin/ai-usage", label: l.aiUsageNav },
+    { href: "/admin/engine-sandbox", label: l.engineSandboxNav },
     { href: "/admin/pilot-data", label: l.pilotNav },
     { href: "/admin/demo-reset", label: l.demoResetNav },
   ];
