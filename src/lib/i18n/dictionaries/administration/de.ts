@@ -917,6 +917,21 @@ export const de: typeof en = {
         "sds.authoring": "SDB-Erstellung",
       },
     },
+    pruefung: {
+      navLabel: "Prüfung & Berechnung",
+      heading: "Prüfung & Berechnung",
+      intro:
+        "Vorschau-Berechnungen neben den Angaben des Lieferanten-SDB — ersetzen keine Registerdaten.",
+      banner:
+        "Vorschau-Berechnung — nicht fachlich geprüft. Nicht für Kennzeichnung, SDB oder Weitergabe verwenden.",
+      colItem: "Angabe",
+      colSds: "SDB (Lieferant)",
+      colEngine: "Berechnung (Vorschau)",
+      statusDeviation: "Abweichung prüfen",
+      refusedPrefix: "nicht berechenbar",
+      noEngines: "Für diesen Mandanten ist keine Berechnungs-Engine aktiviert.",
+      back: "← Zurück zum Stoff",
+    },
     referencePropertyTypes: {
       FLASH_POINT: "Flammpunkt",
       BOILING_POINT: "Siedepunkt",

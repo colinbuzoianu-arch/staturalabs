@@ -114,3 +114,18 @@ export function conservativeConcentrationPct(c: {
     return { value: c.concentrationMinPct, basis: "range-max" };
   return { value: null, basis: "unknown" };
 }
+
+// P16 §4: parse a leading numeric value from a verbatim reference-property string
+// (e.g. "0.79 g/cm³", "-17 °C", "56 °C (closed cup)", "−95 °C"). Returns null when
+// no leading number is present. Pure. Used to turn PubChem reference properties
+// into numeric engine inputs; it never fabricates a value.
+export function parseNumericProperty(
+  text: string | null | undefined,
+): number | null {
+  if (!text) return null;
+  // normalise unicode minus and take the first number (optionally signed/decimal)
+  const m = /(-?\d+(?:[.,]\d+)?)/.exec(text.replace(/[−–]/g, "-"));
+  if (!m) return null;
+  const n = Number(m[1].replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+}

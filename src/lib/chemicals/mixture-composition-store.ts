@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import {
   type CompositionComponentInput,
   parseConcentration,
+  parseNumericProperty,
   validateComposition,
 } from "./mixture-composition";
 import type { ConfirmedSdsData } from "./sds-extraction-schema";
@@ -54,9 +55,16 @@ export async function autoFillFromSds(input: {
       const ref = c.casNumber
         ? await tx.referenceSubstance.findUnique({
             where: { casNumber: c.casNumber.trim() },
-            select: { id: true },
+            select: {
+              id: true,
+              properties: { select: { propertyType: true, valueText: true } },
+            },
           })
         : null;
+      const firstNum = (type: string) =>
+        parseNumericProperty(
+          ref?.properties.find((p) => p.propertyType === type)?.valueText,
+        );
       const mFactor =
         c.mFactor && /^\d+(?:[.,]\d+)?$/.test(c.mFactor.trim())
           ? Number(c.mFactor.replace(",", "."))
@@ -74,6 +82,9 @@ export async function autoFillFromSds(input: {
           specificConcentrationLimits:
             c.specificConcentrationLimits?.trim() || null,
           mFactor,
+          densityGCm3: firstNum("DENSITY"),
+          flashPointC: firstNum("FLASH_POINT"),
+          boilingPointC: firstNum("BOILING_POINT"),
           source: "SDS_SECTION_3",
         },
       });

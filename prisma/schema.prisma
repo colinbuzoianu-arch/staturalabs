@@ -3055,6 +3055,9 @@ model MixtureComponent {
   ateDermal                   Float?
   ateInhalation               Float?
   wgk                         Int?
+  densityGCm3                 Float?
+  flashPointC                 Float?
+  boilingPointC               Float?
   source                      String   @default("MANUAL")
   createdAt                   DateTime @default(now())
   updatedAt                   DateTime @updatedAt

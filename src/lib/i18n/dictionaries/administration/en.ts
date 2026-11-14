@@ -932,6 +932,21 @@ export const en = {
         "sds.authoring": "SDS authoring",
       },
     },
+    pruefung: {
+      navLabel: "Check & calculation",
+      heading: "Check & calculation",
+      intro:
+        "Preview calculations next to what the supplier SDS declares — never replacing register data.",
+      banner:
+        "Vorschau-Berechnung — nicht fachlich geprüft. Nicht für Kennzeichnung, SDB oder Weitergabe verwenden.",
+      colItem: "Item",
+      colSds: "SDS (supplier)",
+      colEngine: "Calculation (preview)",
+      statusDeviation: "check deviation",
+      refusedPrefix: "not computable",
+      noEngines: "No calculation engine is enabled for this tenant.",
+      back: "← Back to substance",
+    },
     referencePropertyTypes: {
       FLASH_POINT: "Flash point",
       BOILING_POINT: "Boiling point",

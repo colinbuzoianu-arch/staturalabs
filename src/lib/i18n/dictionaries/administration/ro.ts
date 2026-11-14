@@ -915,6 +915,21 @@ export const ro: typeof en = {
         "sds.authoring": "Redactare FDS",
       },
     },
+    pruefung: {
+      navLabel: "Verificare & calcul",
+      heading: "Verificare & calcul",
+      intro:
+        "Calcule în previzualizare alături de ce declară FDS furnizorului — nu înlocuiesc datele din registru.",
+      banner:
+        "Vorschau-Berechnung — nicht fachlich geprüft. Nicht für Kennzeichnung, SDB oder Weitergabe verwenden.",
+      colItem: "Element",
+      colSds: "FDS (furnizor)",
+      colEngine: "Calcul (previzualizare)",
+      statusDeviation: "verifică abaterea",
+      refusedPrefix: "necalculabil",
+      noEngines: "Niciun motor de calcul activat pentru acest chiriaș.",
+      back: "← Înapoi la substanță",
+    },
     referencePropertyTypes: {
       FLASH_POINT: "Punct de aprindere",
       BOILING_POINT: "Punct de fierbere",

@@ -50,6 +50,18 @@ export async function isEnginePreviewable(
   return s === "PREVIEW" || s === "VALIDATED";
 }
 
+// Any engine at PREVIEW+ — gates the "Prüfung & Berechnung" tab's visibility.
+export async function anyEnginePreviewable(
+  companyId: string,
+): Promise<boolean> {
+  const states = await Promise.all(
+    Object.keys(ENGINE_VERSION).map((k) =>
+      resolveEngineFlagState(k, companyId),
+    ),
+  );
+  return states.some((s) => s === "PREVIEW" || s === "VALIDATED");
+}
+
 // super_admin-gated at the call site. VALIDATED requires a current EngineReview.
 export async function setEngineFlagState(input: {
   engineKey: string;

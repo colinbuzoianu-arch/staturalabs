@@ -116,3 +116,19 @@ describe("conservativeConcentrationPct", () => {
     });
   });
 });
+
+import { parseNumericProperty } from "./mixture-composition";
+
+describe("parseNumericProperty", () => {
+  it("parses a leading number with units/unicode minus", () => {
+    expect(parseNumericProperty("0.79 g/cm³")).toBe(0.79);
+    expect(parseNumericProperty("-17 °C")).toBe(-17);
+    expect(parseNumericProperty("−95 °C")).toBe(-95);
+    expect(parseNumericProperty("56 °C (closed cup)")).toBe(56);
+    expect(parseNumericProperty("0,82 g/cm³")).toBe(0.82);
+  });
+  it("returns null when there is no number", () => {
+    expect(parseNumericProperty("insoluble")).toBeNull();
+    expect(parseNumericProperty(null)).toBeNull();
+  });
+});

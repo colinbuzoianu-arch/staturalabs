@@ -9,6 +9,7 @@ import {
 } from "@/generated/prisma/enums";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import { substanceSdsAlerts } from "@/lib/chemicals/alerts";
+import { anyEnginePreviewable } from "@/lib/chemicals/engines/engine-flags";
 import { getReferenceSubstanceByCas } from "@/lib/chemicals/reference-substance";
 import {
   listStorageLocations,
@@ -278,6 +279,7 @@ export default async function SubstanceDetailPage({
   // S6: public reference data (PubChem), matched by CAS — shown alongside, never
   // replacing, the SDS values.
   const referenceData = await getReferenceSubstanceByCas(substance.casNumber);
+  const enginesPreviewable = await anyEnginePreviewable(companyId);
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-10">
@@ -291,12 +293,22 @@ export default async function SubstanceDetailPage({
         <h1 className="mt-1 font-[family-name:var(--font-heading)] text-2xl font-bold text-foreground">
           {substance.tradeName}
         </h1>
-        <Link
-          href={`/app/s/${siteId}/chemicals/register/${substance.id}/composition`}
-          className="mt-1 inline-block text-sm text-accent hover:underline"
-        >
-          {dict.composition.heading} →
-        </Link>
+        <div className="mt-1 flex flex-wrap gap-4">
+          <Link
+            href={`/app/s/${siteId}/chemicals/register/${substance.id}/composition`}
+            className="inline-block text-sm text-accent hover:underline"
+          >
+            {dict.composition.heading} →
+          </Link>
+          {enginesPreviewable && (
+            <Link
+              href={`/app/s/${siteId}/chemicals/register/${substance.id}/pruefung`}
+              className="inline-block text-sm text-accent hover:underline"
+            >
+              {dict.pruefung.heading} →
+            </Link>
+          )}
+        </div>
         {alerts.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
             {alerts.map((a) => (
