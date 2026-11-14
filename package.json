@@ -15,7 +15,9 @@
     "seed:dev": "node scripts/seed-dev-fixture.mjs",
     "seed:demo": "node scripts/seed-demo-fixture.mjs",
     "reset:demo": "node scripts/reset-demo-fixture.mjs",
-    "check:basepath": "node scripts/check-basepath-build.mjs"
+    "check:basepath": "node scripts/check-basepath-build.mjs",
+    "seed:prospect": "node scripts/seed-prospect-fixture.mjs",
+    "reset:prospect": "node scripts/reset-prospect-fixture.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",
