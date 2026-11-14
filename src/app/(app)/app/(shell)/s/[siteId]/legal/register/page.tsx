@@ -2,7 +2,7 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ComplianceState, LegalDomain } from "@/generated/prisma/enums";
-import { hasPermission } from "@/lib/auth/permissions";
+import { userCan } from "@/lib/auth/company-role-bundle";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
@@ -117,13 +117,13 @@ export default async function LegalRegisterPage({
     ) {
       return;
     }
-    // P17 §2: evaluating the Rechtskataster is EHS staff's work (legal.write).
-    // Signing a duty off as COMPLIANT is the release (A column) — site admin by
-    // default; EHS need legal.approve (grantable per company, §3). Recording
-    // partial/non-compliance or not-applicable stays within legal.write so EHS
-    // can flag gaps and raise actions.
-    if (!hasPermission(user, "legal.write")) notFound();
-    if (state === "COMPLIANT" && !hasPermission(user, "legal.approve")) {
+    // P17 §2/§3: evaluating the Rechtskataster is EHS staff's work
+    // (legal.write). Signing a duty off as COMPLIANT is the release (A column)
+    // — site admin by default; EHS need legal.approve (grantable per company,
+    // §3; userCan is override-aware). Recording partial/non-compliance or
+    // not-applicable stays within legal.write so EHS can flag gaps.
+    if (!(await userCan(user, "legal.write"))) notFound();
+    if (state === "COMPLIANT" && !(await userCan(user, "legal.approve"))) {
       notFound();
     }
     await evaluateCompliance({

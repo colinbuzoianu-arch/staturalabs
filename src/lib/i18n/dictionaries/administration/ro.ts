@@ -469,6 +469,29 @@ export const ro: typeof en = {
     },
     none: "—",
   },
+  rolesPage: {
+    eyebrow: "Setări",
+    heading: "Permisiuni pe roluri",
+    intro:
+      "Ajustați pachetele implicite de permisiuni ale rolurilor de chiriaș pentru compania dvs. Domeniul (ce situri/unități) rămâne neschimbat și este rezolvat separat.",
+    guardrailsNote:
+      "Limitele sunt aplicate în cod: datele de sănătate nu pot fi adăugate niciunui rol; drepturile de aprobare pot fi acordate personalului SSM, niciodată conducătorului sau angajatului; drepturile de catalog/configurare rămân la administrație. Fiecare modificare este înregistrată.",
+    readOnlyNote:
+      "Doar administratorii companiei pot edita pachetele de permisiuni.",
+    defaultTag: "Implicit",
+    customTag: "Personalizat",
+    permissionsHeading: "Permisiuni",
+    save: "Salvează pachetul",
+    reset: "Resetează la implicit",
+    savedMsg: "Pachet salvat.",
+    resetMsg: "Resetat la valoarea implicită.",
+    errorPrefix: "Eroare",
+    roleLabels: {
+      EHS_SPECIALIST: "Personal SSM",
+      MANAGER: "Conducător",
+      EMPLOYEE: "Angajat",
+    },
+  },
   retentionPage: {
     eyebrow: "Setări",
     heading: "Păstrarea datelor",

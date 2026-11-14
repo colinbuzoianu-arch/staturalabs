@@ -495,6 +495,28 @@ export const en = {
     },
     none: "—",
   },
+  rolesPage: {
+    eyebrow: "Settings",
+    heading: "Role permissions",
+    intro:
+      "Adjust the default permission bundles of the tenant roles for your company. Scope (which sites / units a user reaches) is unaffected and resolved separately.",
+    guardrailsNote:
+      "Guardrails are enforced in code: health-compartment data can never be added to any role; approval (release) rights can be extended to EHS staff but never to a leader or employee; catalogue/configuration rights stay with administrators. Every change is written to the audit log.",
+    readOnlyNote: "Only a company administrator can edit role bundles.",
+    defaultTag: "Default",
+    customTag: "Customised",
+    permissionsHeading: "Permissions",
+    save: "Save bundle",
+    reset: "Reset to default",
+    savedMsg: "Bundle saved.",
+    resetMsg: "Reset to the system default.",
+    errorPrefix: "Error",
+    roleLabels: {
+      EHS_SPECIALIST: "EHS staff",
+      MANAGER: "Leader",
+      EMPLOYEE: "Employee",
+    },
+  },
   retentionPage: {
     eyebrow: "Settings",
     heading: "Data retention",

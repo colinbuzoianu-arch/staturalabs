@@ -59,6 +59,11 @@ export const de: typeof en = {
     sitesHeading: "Standorte",
     manageSites: "Standorte verwalten",
     noSites: "Noch keine Standorte.",
+    roleBundlesHeading: "Angepasste Rollenbündel",
+    roleBundlesHint:
+      "Mandantenrollen, deren Berechtigungsbündel dieses Unternehmen gegenüber dem Systemstandard geändert hat (§3).",
+    roleBundlesDefault: "Systemstandard",
+    roleBundlesCustom: "Angepasst",
     adminsHeading: "Administratoren",
     noAdmins: "Noch keine Administratoren eingeladen.",
     dangerHeading: "Gefahrenzone",

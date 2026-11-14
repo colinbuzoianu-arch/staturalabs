@@ -391,6 +391,10 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
         slug: "users",
       },
       {
+        labelKey: "modules.settings.children.roles",
+        slug: "roles",
+      },
+      {
         labelKey: "modules.settings.children.data-retention",
         slug: "retention",
       },

@@ -66,6 +66,11 @@ export const en = {
     sitesHeading: "Sites",
     manageSites: "Manage sites",
     noSites: "No sites yet.",
+    roleBundlesHeading: "Role bundle customizations",
+    roleBundlesHint:
+      "Tenant roles whose permission bundle this company has changed from the system default (§3).",
+    roleBundlesDefault: "System default",
+    roleBundlesCustom: "Customised",
     adminsHeading: "Administrators",
     noAdmins: "No administrators invited yet.",
     dangerHeading: "Danger zone",

@@ -471,6 +471,29 @@ export const de: typeof en = {
     },
     none: "—",
   },
+  rolesPage: {
+    eyebrow: "Einstellungen",
+    heading: "Rollenberechtigungen",
+    intro:
+      "Passen Sie die Standard-Berechtigungsbündel der Mandantenrollen für Ihr Unternehmen an. Der Geltungsbereich (welche Standorte/Einheiten) bleibt unberührt und wird getrennt aufgelöst.",
+    guardrailsNote:
+      "Die Leitplanken werden im Code durchgesetzt: Gesundheitsdaten können keiner Rolle hinzugefügt werden; Freigaberechte können der EHS-Fachkraft erteilt werden, nie der Führungskraft oder Mitarbeitenden; Katalog-/Konfigurationsrechte bleiben der Administration vorbehalten. Jede Änderung wird protokolliert.",
+    readOnlyNote:
+      "Nur Unternehmensadministratoren können Berechtigungsbündel bearbeiten.",
+    defaultTag: "Standard",
+    customTag: "Angepasst",
+    permissionsHeading: "Berechtigungen",
+    save: "Bündel speichern",
+    reset: "Auf Standard zurücksetzen",
+    savedMsg: "Bündel gespeichert.",
+    resetMsg: "Auf Systemstandard zurückgesetzt.",
+    errorPrefix: "Fehler",
+    roleLabels: {
+      EHS_SPECIALIST: "EHS-Fachkraft",
+      MANAGER: "Führungskraft",
+      EMPLOYEE: "Mitarbeitende",
+    },
+  },
   retentionPage: {
     eyebrow: "Einstellungen",
     heading: "Datenaufbewahrung",

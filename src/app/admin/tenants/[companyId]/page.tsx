@@ -22,6 +22,10 @@ import {
   setCompanyDefaults,
 } from "@/lib/admin/tenant";
 import { deleteTenant } from "@/lib/admin/tenant-delete";
+import {
+  COMPANY_EDITABLE_ROLES,
+  getCompanyRoleBundles,
+} from "@/lib/auth/company-role-bundle";
 import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 import { getAdminDictionary } from "@/lib/i18n/dictionaries/admin";
 import { getLocale } from "@/lib/i18n/get-locale";
@@ -60,6 +64,7 @@ export default async function TenantDetailPage({
   if (!company) notFound();
 
   const enabled = new Set(company.companyModules.map((m) => m.moduleKey));
+  const roleBundleOverrides = await getCompanyRoleBundles(companyId);
   const moduleKeys = entitlementModuleKeys();
   const archived = company.status === CompanyStatus.ARCHIVED;
   const countries = [...new Set(company.sites.map((s) => s.country))];
@@ -348,6 +353,34 @@ export default async function TenantDetailPage({
               {cDict.inviteButton}
             </Button>
           </form>
+        </CardBody>
+      </Card>
+
+      {/* P17 §3: role bundle customizations (read-only overview) */}
+      <Card>
+        <CardHeader
+          title={t.roleBundlesHeading}
+          description={t.roleBundlesHint}
+        />
+        <CardBody className="flex flex-col gap-3">
+          {COMPANY_EDITABLE_ROLES.map((role) => {
+            const override = roleBundleOverrides.get(role) ?? null;
+            return (
+              <div key={role} className="flex flex-col gap-1 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">{role}</span>
+                  <Badge tone={override ? "info" : "neutral"}>
+                    {override ? t.roleBundlesCustom : t.roleBundlesDefault}
+                  </Badge>
+                </div>
+                {override && (
+                  <p className="font-mono text-xs text-foreground/70">
+                    {override.slice().sort().join(", ")}
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </CardBody>
       </Card>
 

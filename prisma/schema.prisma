@@ -51,6 +51,7 @@ model Company {
   hazards              Hazard[]
   environmentalAspects EnvironmentalAspect[]
   companyModules       CompanyModule[]
+  companyRoleBundles   CompanyRoleBundle[]
   persons              Person[]
   substances           Substance[]
   inspectionTemplates  InspectionTemplate[]
@@ -1880,6 +1881,29 @@ model CompanyModule {
   company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
 
   @@unique([companyId, moduleKey])
+  @@index([companyId])
+}
+
+/// P17 §3: a company's override of a tenant-role permission bundle. The system
+/// defaults live in code (src/lib/auth/permissions.ts); a row here REPLACES the
+/// default bundle for (companyId, role) with the full set in `permissions`
+/// (not a delta). Only the three tenant roles (EHS_SPECIALIST / MANAGER /
+/// EMPLOYEE) are editable, and every write is guardrail-checked and audited by
+/// setCompanyRoleBundle (src/lib/auth/company-role-bundle.ts). `permissions`
+/// are the Permission code-constants (not a DB enum): the vocabulary is
+/// versioned in code. No row = the system default applies.
+model CompanyRoleBundle {
+  id              String       @id @default(cuid())
+  companyId       String
+  role            PlatformRole
+  permissions     String[]     @default([])
+  updatedByUserId String?      @db.Uuid
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, role])
   @@index([companyId])
 }
 

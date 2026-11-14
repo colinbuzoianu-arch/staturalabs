@@ -59,6 +59,11 @@ export const ro: typeof en = {
     sitesHeading: "Locații",
     manageSites: "Gestionează locațiile",
     noSites: "Încă nicio locație.",
+    roleBundlesHeading: "Personalizări pachete de rol",
+    roleBundlesHint:
+      "Roluri de chiriaș al căror pachet de permisiuni a fost modificat de această companie față de valoarea implicită (§3).",
+    roleBundlesDefault: "Implicit sistem",
+    roleBundlesCustom: "Personalizat",
     adminsHeading: "Administratori",
     noAdmins: "Încă niciun administrator invitat.",
     dangerHeading: "Zonă periculoasă",
