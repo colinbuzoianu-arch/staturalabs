@@ -2,6 +2,7 @@ import "server-only";
 
 import { cookies } from "next/headers";
 import { recordAuditEvent } from "@/lib/audit/audit-event";
+import { scopedCookieName } from "@/lib/config/base-path";
 
 // P13 §2.4 read-only impersonation. A super_admin can view a tenant's dashboard
 // "as" one of its company_admins, for support. The target id is held in an
@@ -11,7 +12,7 @@ import { recordAuditEvent } from "@/lib/audit/audit-event";
 // 403s mutating methods) — read-only in v1. Start/stop are audited; the shell
 // shows a persistent banner.
 
-export const IMPERSONATION_COOKIE = "sld-impersonate";
+export const IMPERSONATION_COOKIE = scopedCookieName("sld-impersonate");
 
 export async function getImpersonationTargetId(): Promise<string | null> {
   const store = await cookies();

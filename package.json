@@ -14,7 +14,8 @@
     "test": "vitest run",
     "seed:dev": "node scripts/seed-dev-fixture.mjs",
     "seed:demo": "node scripts/seed-demo-fixture.mjs",
-    "reset:demo": "node scripts/reset-demo-fixture.mjs"
+    "reset:demo": "node scripts/reset-demo-fixture.mjs",
+    "check:basepath": "node scripts/check-basepath-build.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",

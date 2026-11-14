@@ -4,6 +4,11 @@ import { MODULE_MIGRATION_REDIRECTS } from "./src/lib/routes/module-redirects";
 import { SECURITY_HEADERS } from "./src/lib/security/headers";
 
 const nextConfig: NextConfig = {
+  // Sandbox-readiness (SLD_SANDBOX_READINESS_RULES.md): the sandbox builds the
+  // same codebase with BASE_PATH=/sandbox. Unset today → no base path. Next
+  // applies basePath to redirects()/headers() sources and to <Link>/redirect()
+  // automatically, so the maps below stay base-path-safe.
+  basePath: process.env.BASE_PATH || undefined,
   // Permanent redirects: the pre-/app URL structure (legacy-redirects.ts) and
   // intra-/app module re-homings from the P2 migration (module-redirects.ts).
   // Both are shared data so they stay the single source and are unit-tested.

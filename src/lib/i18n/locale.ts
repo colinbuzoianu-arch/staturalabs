@@ -1,3 +1,4 @@
+import { scopedCookieName } from "@/lib/config/base-path";
 export const LOCALES = ["en", "de", "ro"] as const;
 export type Locale = (typeof LOCALES)[number];
 
@@ -20,7 +21,7 @@ export const LOCALE_LABELS: Record<Locale, string> = {
 // runs) — a cookie instead of localStorage, but still no server-side
 // account setting, no route prefix, exactly the "saved preference" model
 // asked for.
-export const LOCALE_COOKIE = "statura-locale";
+export const LOCALE_COOKIE = scopedCookieName("statura-locale");
 
 export function isLocale(value: string | undefined | null): value is Locale {
   return !!value && (LOCALES as readonly string[]).includes(value);

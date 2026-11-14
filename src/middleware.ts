@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { scopedCookieName } from "@/lib/config/base-path";
 
 // P13 §2.4: read-only impersonation. While the impersonation cookie is set,
 // block every mutating request to the app/API surface — the super_admin is
@@ -15,7 +16,7 @@ const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 export function middleware(request: NextRequest) {
   if (
-    request.cookies.get("sld-impersonate") &&
+    request.cookies.get(scopedCookieName("sld-impersonate")) &&
     MUTATING_METHODS.has(request.method)
   ) {
     const p = request.nextUrl.pathname;
