@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
+import { MeNav } from "@/components/me-nav";
 import { ACTION_STATUS_TONE, Badge } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/misc";
@@ -19,6 +20,8 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/lib/notifications/service";
+import { countDueSelfInstructions } from "@/lib/people/self-instructions";
+import { getSelfInstructions, getSelfPerson } from "@/lib/people/self-service";
 import { prisma } from "@/lib/prisma";
 
 // Meine Aufgaben: the signed-in user's personal inbox across every site they
@@ -34,7 +37,19 @@ export default async function MyTasksPage() {
 
   const sites = await getAccessibleSites(user);
   const siteIds = sites.map((s) => s.id);
+  const accessibleSiteIds = new Set(siteIds);
   const siteName = new Map(sites.map((s) => [s.id, s.name]));
+
+  // P17 §5: the employee self-service summary. A SELF-scoped employee has no
+  // accessible site, so their data is anchored on their linked Person, not on
+  // siteIds. The summary + nav tabs appear only when a Person is linked.
+  const selfDict = getAdministrationDictionary(locale).selfService;
+  const selfPerson = await getSelfPerson(user);
+  const selfInstructionsDue = selfPerson
+    ? countDueSelfInstructions(
+        (await getSelfInstructions(selfPerson)).instructions,
+      )
+    : 0;
 
   // P5: generate the signed-in user's due notifications on demand (a manual
   // "check" button; a scheduled EU job is the production trigger — deferred).
@@ -90,9 +105,11 @@ export default async function MyTasksPage() {
   const upcoming = allCalendarEntries.slice(0, 8);
 
   const [myActions, awaitingApproval] = await Promise.all([
+    // Scoped to responsibleUserId, NOT to accessible sites — an action assigned
+    // to the user personally is theirs to see and update even when it sits in a
+    // site they can't otherwise browse (the SELF-scoped employee case).
     prisma.action.findMany({
       where: {
-        siteId: { in: siteIds },
         responsibleUserId: user.id,
         status: { in: ["OPEN", "IN_PROGRESS"] },
       },
@@ -105,10 +122,34 @@ export default async function MyTasksPage() {
     }),
   ]);
 
+  // Site names for actions that sit outside the user's accessible sites
+  // (employees), so the list can still show where each action belongs.
+  const missingSiteIds = [
+    ...new Set(
+      myActions.map((a) => a.siteId).filter((id) => !siteName.has(id)),
+    ),
+  ];
+  if (missingSiteIds.length > 0) {
+    const extra = await prisma.site.findMany({
+      where: { id: { in: missingSiteIds } },
+      select: { id: true, name: true },
+    });
+    for (const s of extra) siteName.set(s.id, s.name);
+  }
+
   const now = new Date();
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
+      <MeNav
+        labels={{
+          navOverview: selfDict.navOverview,
+          navInstructions: selfDict.navInstructions,
+          navDocuments: selfDict.navDocuments,
+          navIncidents: selfDict.navIncidents,
+        }}
+        hasPerson={selfPerson !== null}
+      />
       <div>
         <p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">
           {dict.eyebrow}
@@ -117,6 +158,39 @@ export default async function MyTasksPage() {
           {dict.heading}
         </h1>
       </div>
+
+      {selfPerson && (
+        <Card>
+          <CardHeader title={selfDict.summaryHeading} />
+          <CardBody>
+            <p className="text-sm text-foreground-muted">
+              {selfInstructionsDue > 0
+                ? `${selfInstructionsDue} ${selfDict.summaryInstructionsDue}`
+                : selfDict.summaryInstructionsAllValid}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2 text-sm">
+              <Link
+                href="/app/me/instructions"
+                className="rounded-[var(--radius-md)] border border-border px-3 py-1.5 text-foreground-muted hover:bg-surface-raised"
+              >
+                {selfDict.summaryViewInstructions}
+              </Link>
+              <Link
+                href="/app/me/documents"
+                className="rounded-[var(--radius-md)] border border-border px-3 py-1.5 text-foreground-muted hover:bg-surface-raised"
+              >
+                {selfDict.summaryViewDocuments}
+              </Link>
+              <Link
+                href="/app/me/incidents"
+                className="rounded-[var(--radius-md)] border border-border px-3 py-1.5 text-foreground-muted hover:bg-surface-raised"
+              >
+                {selfDict.summaryReportEvent}
+              </Link>
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       <Card>
         <CardHeader
@@ -214,7 +288,11 @@ export default async function MyTasksPage() {
                 return (
                   <li key={a.id}>
                     <Link
-                      href={`/app/s/${a.siteId}/actions/${a.id}`}
+                      href={
+                        accessibleSiteIds.has(a.siteId)
+                          ? `/app/s/${a.siteId}/actions/${a.id}`
+                          : `/app/me/actions/${a.id}`
+                      }
                       className="flex items-center justify-between gap-3 px-1 py-2.5 text-sm hover:text-accent"
                     >
                       <span className="flex min-w-0 items-center gap-2">

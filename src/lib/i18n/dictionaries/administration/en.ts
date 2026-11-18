@@ -1708,6 +1708,83 @@ export const en = {
       LEGAL_REQUIREMENT_REVIEW_DUE: "Legal requirement review due",
     },
   },
+  // P17 §5: the employee self-service surface under /app/me. Own instructions
+  // (with the "why" and self-confirmation), the Betriebsanweisungen + briefing
+  // for assigned workstations, and own reported events.
+  selfService: {
+    navOverview: "Overview",
+    navInstructions: "My instructions",
+    navDocuments: "My documents",
+    navIncidents: "Report an event",
+    noPersonLinked:
+      "This account is not linked to an employee record yet. Ask your EHS manager to link it so your instructions and documents appear here.",
+
+    instructionsHeading: "My instructions",
+    instructionsIntro:
+      "The safety instructions required for the workstations you are assigned to, and their status.",
+    instructionsEmpty: "No instructions are required for you right now.",
+    statusValid: "Valid",
+    statusDueSoon: "Due soon",
+    statusOverdue: "Overdue",
+    statusMissing: "Missing",
+    validUntilLabel: "Valid until",
+    reasonLabel: "Required because:",
+    sourceWorkstation: "assigned workstation",
+    sourceOrgUnit: "your department",
+    sourceProcess: "a process you work in",
+    sourceSubstance: "a hazardous substance you work with",
+    confirmReceivedButton: "Confirm I have read this",
+    confirmedToast: "Instruction confirmed.",
+
+    invitationsHeading: "Upcoming training invitations",
+    invitationsEmpty: "You have no open training invitations.",
+    invitationDateLabel: "Date",
+    invitationLocationLabel: "Location",
+    invitationTrainerLabel: "Trainer",
+
+    documentsHeading: "My documents",
+    documentsIntro:
+      "Operating instructions (Betriebsanweisungen) for substances at your workstations, and the worker briefing for your site.",
+    baHeading: "Operating instructions (Betriebsanweisungen)",
+    baEmpty: "No operating instructions apply to your workstations.",
+    baUsedAtLabel: "Used at",
+    baDownload: "Download PDF",
+    briefingHeading: "Worker briefing",
+    briefingEmpty: "No worker briefing is available for your site.",
+    briefingDownload: "Download briefing",
+
+    incidentsHeading: "Report an event",
+    incidentsIntro:
+      "Report a near miss, accident or other event at your workstation. Do not enter anyone's name — describe what happened.",
+    reportHeading: "New report",
+    reportTypeLabel: "Type of event",
+    reportWorkstationLabel: "Workstation",
+    reportTitleLabel: "Short title",
+    reportDescriptionLabel: "What happened?",
+    reportOccurredAtLabel: "When did it happen?",
+    reportSubmit: "Submit report",
+    reportNoWorkstations:
+      "You have no assigned workstation to report an event against.",
+    reportSuccess: "Your report was submitted. Thank you.",
+    reportIncomplete: "Please fill in a title and a description.",
+    myReportsHeading: "My reports",
+    myReportsEmpty: "You have not reported any events yet.",
+    incidentTypeLabels: {
+      BEINAHEUNFALL: "Near miss",
+      ARBEITSUNFALL: "Accident",
+      ERSTE_HILFE: "First aid",
+      SACHSCHADEN: "Property damage",
+      UMWELTEREIGNIS: "Environmental event",
+      SONSTIGES: "Other",
+    },
+
+    summaryHeading: "My safety",
+    summaryInstructionsDue: "instruction(s) need your attention",
+    summaryInstructionsAllValid: "All your instructions are up to date.",
+    summaryViewInstructions: "View my instructions",
+    summaryViewDocuments: "My documents",
+    summaryReportEvent: "Report an event",
+  },
   floorPlansPage: {
     eyebrow: "Floor plans //",
     heading: "Floor plans",

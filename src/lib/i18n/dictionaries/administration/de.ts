@@ -1700,6 +1700,82 @@ export const de: typeof en = {
       LEGAL_REQUIREMENT_REVIEW_DUE: "Prüfung Rechtspflicht fällig",
     },
   },
+  selfService: {
+    navOverview: "Übersicht",
+    navInstructions: "Meine Unterweisungen",
+    navDocuments: "Meine Dokumente",
+    navIncidents: "Ereignis melden",
+    noPersonLinked:
+      "Dieses Konto ist noch keinem Mitarbeitenden-Datensatz zugeordnet. Bitten Sie Ihre EHS-Leitung um die Verknüpfung, damit Ihre Unterweisungen und Dokumente hier erscheinen.",
+
+    instructionsHeading: "Meine Unterweisungen",
+    instructionsIntro:
+      "Die für Ihre zugewiesenen Arbeitsplätze erforderlichen Unterweisungen und deren Status.",
+    instructionsEmpty:
+      "Derzeit sind für Sie keine Unterweisungen erforderlich.",
+    statusValid: "Gültig",
+    statusDueSoon: "Bald fällig",
+    statusOverdue: "Überfällig",
+    statusMissing: "Fehlt",
+    validUntilLabel: "Gültig bis",
+    reasonLabel: "Erforderlich wegen:",
+    sourceWorkstation: "zugewiesener Arbeitsplatz",
+    sourceOrgUnit: "Ihre Organisationseinheit",
+    sourceProcess: "ein Prozess, in dem Sie arbeiten",
+    sourceSubstance: "ein Gefahrstoff, mit dem Sie arbeiten",
+    confirmReceivedButton: "Kenntnisnahme bestätigen",
+    confirmedToast: "Unterweisung bestätigt.",
+
+    invitationsHeading: "Anstehende Unterweisungseinladungen",
+    invitationsEmpty: "Sie haben keine offenen Unterweisungseinladungen.",
+    invitationDateLabel: "Datum",
+    invitationLocationLabel: "Ort",
+    invitationTrainerLabel: "Unterweisende/r",
+
+    documentsHeading: "Meine Dokumente",
+    documentsIntro:
+      "Betriebsanweisungen für Stoffe an Ihren Arbeitsplätzen sowie die Belegschaftsinformation für Ihren Standort.",
+    baHeading: "Betriebsanweisungen",
+    baEmpty: "Für Ihre Arbeitsplätze gelten keine Betriebsanweisungen.",
+    baUsedAtLabel: "Verwendet an",
+    baDownload: "PDF herunterladen",
+    briefingHeading: "Belegschaftsinformation",
+    briefingEmpty:
+      "Für Ihren Standort ist keine Belegschaftsinformation verfügbar.",
+    briefingDownload: "Information herunterladen",
+
+    incidentsHeading: "Ereignis melden",
+    incidentsIntro:
+      "Melden Sie einen Beinaheunfall, Unfall oder ein anderes Ereignis an Ihrem Arbeitsplatz. Nennen Sie keine Namen — beschreiben Sie, was passiert ist.",
+    reportHeading: "Neue Meldung",
+    reportTypeLabel: "Art des Ereignisses",
+    reportWorkstationLabel: "Arbeitsplatz",
+    reportTitleLabel: "Kurztitel",
+    reportDescriptionLabel: "Was ist passiert?",
+    reportOccurredAtLabel: "Wann ist es passiert?",
+    reportSubmit: "Meldung absenden",
+    reportNoWorkstations:
+      "Sie haben keinen zugewiesenen Arbeitsplatz, für den Sie ein Ereignis melden können.",
+    reportSuccess: "Ihre Meldung wurde übermittelt. Vielen Dank.",
+    reportIncomplete: "Bitte Titel und Beschreibung ausfüllen.",
+    myReportsHeading: "Meine Meldungen",
+    myReportsEmpty: "Sie haben noch keine Ereignisse gemeldet.",
+    incidentTypeLabels: {
+      BEINAHEUNFALL: "Beinaheunfall",
+      ARBEITSUNFALL: "Arbeitsunfall",
+      ERSTE_HILFE: "Erste Hilfe",
+      SACHSCHADEN: "Sachschaden",
+      UMWELTEREIGNIS: "Umweltereignis",
+      SONSTIGES: "Sonstiges",
+    },
+
+    summaryHeading: "Meine Sicherheit",
+    summaryInstructionsDue: "Unterweisung(en) benötigen Ihre Aufmerksamkeit",
+    summaryInstructionsAllValid: "Alle Ihre Unterweisungen sind aktuell.",
+    summaryViewInstructions: "Meine Unterweisungen ansehen",
+    summaryViewDocuments: "Meine Dokumente",
+    summaryReportEvent: "Ereignis melden",
+  },
   floorPlansPage: {
     eyebrow: "Lagepläne //",
     heading: "Lagepläne",
