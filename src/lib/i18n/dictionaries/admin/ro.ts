@@ -274,6 +274,27 @@ export const ro: typeof en = {
     daysLeft: "zile rămase",
     seededMarker: "date de exemplu",
     sdsFootnote: "{count} fișe de securitate în toate accesurile de test.",
+    lifecycleHeading: "Ciclu de viață",
+    lifecycleIntro:
+      "Mementouri cu 7 și 2 zile înainte de expirare, blocarea la expirare și o propunere de ștergere după perioada de grație de 30 de zile. Nu se șterge nimic fără aprobarea dumneavoastră.",
+    lifecycleRun: "Rulează acum pasul zilnic",
+    lifecycleRan:
+      "{reminders} memento(uri) trimise, {locked} acces(uri) blocate, {proposed} ștergere(i) propuse.",
+    proposalsHeading: "Propuneri de ștergere",
+    proposalsIntro:
+      "Perioada de grație a expirat. Tastați numele companiei pentru confirmare — aceasta șterge tenantul și toate datele și nu poate fi anulată.",
+    proposalGraceEnded: "perioada a expirat la {date}",
+    proposalConfirmLabel: "Tastați numele companiei",
+    proposalApprove: "Aprobă și șterge",
+    proposalKeep: "Păstrează",
+    proposalNameMismatch: "Numele tastat nu corespunde. Nu s-a șters nimic.",
+    proposalDeleted: "Tenantul de test și toate datele au fost șterse.",
+    colActions: "Acțiuni",
+    extend: "Prelungește",
+    extendLabel: "Prelungire în zile",
+    reset: "Resetează",
+    convert: "Convertește în client",
+    convertedNote: "Convertit",
   },
   companiesPage: {
     heading: "Tenanți",

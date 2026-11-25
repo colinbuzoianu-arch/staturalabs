@@ -55,6 +55,12 @@ const NEVER_DELETE = new Set([
   "FeatureFlag",
   // The audit trail outlives the tenant (it records that the deletion happened).
   "AuditEvent",
+  // P18 A.4: so does the trial-deletion proposal. Its companyId is a plain
+  // column, so the generic scoping would have swept it up — destroying the very
+  // record that authorised the deletion, and (found by the slice-3 live run)
+  // crashing the approval right after it. Like AuditEvent, this row is the
+  // lasting proof of what was deleted and who approved it.
+  "TrialDeletionProposal",
 ]);
 
 type ColumnInfo = Map<string, Set<string>>; // table -> column names

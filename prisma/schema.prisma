@@ -68,6 +68,10 @@ model Company {
   trialNotes              String?
   trialLockedAt           DateTime?
   trialSeeded             Boolean    @default(false)
+  /// A.5: set once, the first time anyone from this trial reaches an
+  /// authenticated page — what makes the founder's "they have started"
+  /// notification fire exactly once.
+  trialFirstSignInAt      DateTime?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
@@ -2117,6 +2121,9 @@ enum NotificationEventType {
   INSTRUCTION_DUE
   INSTRUCTION_OVERDUE
   LEGAL_REQUIREMENT_REVIEW_DUE
+  // P18 A.4: a prospect trial nearing its end, and one that has been locked.
+  TRIAL_EXPIRING_SOON
+  TRIAL_EXPIRED
   // Sicherheitsinformationen (safety broadcasts): published to a recipient,
   // and the two confirmation reminders.
   BROADCAST_PUBLISHED
@@ -4224,4 +4231,30 @@ model BroadcastRecipient {
 
   @@index([broadcastId])
   @@index([platformUserId])
+}
+
+
+/// P18 A.4: after a locked trial's grace period, its data is deleted — but the
+/// daily job only PROPOSES; the founder approves, exactly like every retention
+/// batch (P7d §C.4). Its own table, not a RetentionBatch row: this deletes a
+/// whole TENANT through the P13 path, not matured records inside one.
+///
+/// companyId/companyName are PLAIN columns so the proposal outlives the tenant
+/// it deleted — together with the AuditEvent, that is the lasting record that
+/// the deletion happened. A hand-added partial unique index allows only one
+/// PROPOSED row per company, and a CHECK keeps the stamps matching the status.
+model TrialDeletionProposal {
+  id               String               @id @default(cuid())
+  companyId        String
+  companyName      String
+  status           RetentionBatchStatus @default(PROPOSED)
+  lockedAt         DateTime
+  graceEndedAt     DateTime
+  proposedAt       DateTime             @default(now())
+  approvedByUserId String?              @db.Uuid
+  approvedAt       DateTime?
+  executedAt       DateTime?
+  cancelledAt      DateTime?
+
+  @@index([status])
 }

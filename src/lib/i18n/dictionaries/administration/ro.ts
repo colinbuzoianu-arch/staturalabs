@@ -1933,6 +1933,8 @@ export const ro: typeof en = {
       BROADCAST_PUBLISHED: "Informare de siguranță",
       BROADCAST_CONFIRMATION_DUE_SOON: "Confirmare scadentă în curând",
       BROADCAST_CONFIRMATION_OVERDUE: "Confirmare restantă",
+      TRIAL_EXPIRING_SOON: "Accesul de test expiră curând",
+      TRIAL_EXPIRED: "Acces de test expirat",
     },
   },
   selfService: {

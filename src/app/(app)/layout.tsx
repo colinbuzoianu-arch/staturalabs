@@ -4,6 +4,8 @@ import { BroadcastAlertBanner } from "@/components/broadcast-alert-banner";
 import { BroadcastBlockingCard } from "@/components/broadcast-blocking-card";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { TrialBand } from "@/components/trial-band";
+import { TrialExpiredCard } from "@/components/trial-expired-card";
+import { noteTrialFirstSignIn } from "@/lib/admin/trial-sign-in";
 import { mfaRedirectTarget } from "@/lib/auth/mfa";
 import { requireAuthenticatedUser } from "@/lib/auth/require-access";
 import { listOutstandingForUser } from "@/lib/broadcasts/my-broadcasts";
@@ -42,9 +44,43 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const company = user.companyId
     ? await prisma.company.findUnique({
         where: { id: user.companyId },
-        select: { name: true, tenantKind: true, trialExpiresAt: true },
+        select: {
+          name: true,
+          tenantKind: true,
+          trialExpiresAt: true,
+          trialLockedAt: true,
+          trialFirstSignInAt: true,
+        },
       })
     : null;
+
+  // A.4: a LOCKED trial shows a closed door instead of the app. The data is
+  // still there (the grace period is running), so this is not a deletion
+  // notice — and it is checked here, in the one authenticated gate, so no
+  // route can be a way around it.
+  if (company?.tenantKind === "TRIAL" && company.trialLockedAt) {
+    return (
+      <TrialExpiredCard
+        companyName={company.name}
+        contactHref={trialContactMailto(company.name)}
+        labels={{
+          heading: administration.trial.expiredHeading,
+          body: administration.trial.expiredBody,
+          contact: administration.trial.expiredContact,
+        }}
+      />
+    );
+  }
+
+  // A.5: the founder hears once when a trial actually starts being used. Fire
+  // and forget — a failed notification must never block the page.
+  if (
+    company?.tenantKind === "TRIAL" &&
+    company.trialFirstSignInAt === null &&
+    user.companyId
+  ) {
+    await noteTrialFirstSignIn(user.companyId, company.name);
+  }
   const trialBand =
     company?.tenantKind === "TRIAL"
       ? {

@@ -1941,6 +1941,8 @@ export const en = {
       BROADCAST_PUBLISHED: "Safety information",
       BROADCAST_CONFIRMATION_DUE_SOON: "Confirmation due soon",
       BROADCAST_CONFIRMATION_OVERDUE: "Confirmation overdue",
+      TRIAL_EXPIRING_SOON: "Trial expiring soon",
+      TRIAL_EXPIRED: "Trial expired",
     },
   },
   // P17 §5: the employee self-service surface under /app/me. Own instructions

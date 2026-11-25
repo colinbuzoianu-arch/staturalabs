@@ -8,10 +8,18 @@ import type { CountryCode } from "@/generated/prisma/enums";
 import { trialDaysLeft, trialState } from "@/lib/admin/tenant-kind";
 import {
   createTrial,
+  reseedTrial,
   TRIAL_COUNTRIES,
   TRIAL_DEFAULT_DURATION_DAYS,
   TrialGateError,
 } from "@/lib/admin/trial";
+import {
+  approveTrialDeletion,
+  cancelTrialDeletion,
+  convertTrialToCustomer,
+  extendTrial,
+  runTrialLifecycle,
+} from "@/lib/admin/trial-lifecycle";
 import { trialUserLimit } from "@/lib/admin/trial-limits";
 import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 import { getAdminDictionary } from "@/lib/i18n/dictionaries/admin";
@@ -23,10 +31,15 @@ import { prisma } from "@/lib/prisma";
 export default async function TrialsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ created?: string; error?: string }>;
+  searchParams: Promise<{
+    created?: string;
+    error?: string;
+    ran?: string;
+    deleted?: string;
+  }>;
 }) {
   await requireSuperAdmin();
-  const { created, error } = await searchParams;
+  const { created, error, ran, deleted } = await searchParams;
   const locale = await getLocale();
   const dict = getAdminDictionary(locale).trialsPage;
   const companiesDict = getAdminDictionary(locale).companiesPage;
@@ -81,7 +94,89 @@ export default async function TrialsPage({
     }
   }
 
+  // --- A.4 founder actions. Each is audited in its gate and redirects, so the
+  // result is visible rather than silently applied.
+  async function runLifecycleAction() {
+    "use server";
+    const actor = await requireSuperAdmin();
+    const result = await runTrialLifecycle({ actorUserId: actor.id });
+    const { redirect } = await import("next/navigation");
+    redirect(
+      `/admin/trials?ran=${result.reminders.created}-${result.locked}-${result.proposed}`,
+    );
+  }
+
+  async function extendAction(formData: FormData) {
+    "use server";
+    const actor = await requireSuperAdmin();
+    const companyId = formData.get("companyId");
+    const days = formData.get("days");
+    if (typeof companyId !== "string") return;
+    await extendTrial({
+      companyId,
+      days:
+        typeof days === "string" && days.length > 0
+          ? Number.parseInt(days, 10)
+          : 30,
+      actorUserId: actor.id,
+    });
+    revalidatePath("/admin/trials");
+  }
+
+  async function convertAction(formData: FormData) {
+    "use server";
+    const actor = await requireSuperAdmin();
+    const companyId = formData.get("companyId");
+    if (typeof companyId !== "string") return;
+    await convertTrialToCustomer({ companyId, actorUserId: actor.id });
+    revalidatePath("/admin/trials");
+  }
+
+  async function reseedAction(formData: FormData) {
+    "use server";
+    const actor = await requireSuperAdmin();
+    const companyId = formData.get("companyId");
+    if (typeof companyId !== "string") return;
+    await reseedTrial({ companyId, actorUserId: actor.id });
+    revalidatePath("/admin/trials");
+  }
+
+  async function approveDeletionAction(formData: FormData) {
+    "use server";
+    const actor = await requireSuperAdmin();
+    const proposalId = formData.get("proposalId");
+    const confirmName = formData.get("confirmName");
+    const expectedName = formData.get("expectedName");
+    const { redirect } = await import("next/navigation");
+    if (typeof proposalId !== "string") return;
+    // Double confirm (A.4 "Löschen (double confirm)"): the founder types the
+    // tenant's name. An irreversible cross-tenant delete is not a one-click.
+    if (
+      typeof confirmName !== "string" ||
+      typeof expectedName !== "string" ||
+      confirmName.trim() !== expectedName.trim()
+    ) {
+      redirect("/admin/trials?error=name-mismatch");
+      return;
+    }
+    await approveTrialDeletion({ proposalId, actorUserId: actor.id });
+    redirect("/admin/trials?deleted=1");
+  }
+
+  async function cancelDeletionAction(formData: FormData) {
+    "use server";
+    const actor = await requireSuperAdmin();
+    const proposalId = formData.get("proposalId");
+    if (typeof proposalId !== "string") return;
+    await cancelTrialDeletion({ proposalId, actorUserId: actor.id });
+    revalidatePath("/admin/trials");
+  }
+
   const now = new Date();
+  const proposals = await prisma.trialDeletionProposal.findMany({
+    where: { status: "PROPOSED" },
+    orderBy: { proposedAt: "asc" },
+  });
   const trials = await prisma.company.findMany({
     where: {
       OR: [{ tenantKind: "TRIAL" }, { trialConvertedAt: { not: null } }],
@@ -159,7 +254,16 @@ export default async function TrialsPage({
       )}
       {error && (
         <p className="rounded-[var(--radius-md)] border border-coral bg-surface p-3 text-sm text-coral">
-          {error === "seed" ? dict.seedFailed : dict.createFailed}
+          {error === "seed"
+            ? dict.seedFailed
+            : error === "name-mismatch"
+              ? dict.proposalNameMismatch
+              : dict.createFailed}
+        </p>
+      )}
+      {deleted && (
+        <p className="rounded-[var(--radius-md)] border border-border bg-surface p-3 text-sm">
+          {dict.proposalDeleted}
         </p>
       )}
 
@@ -248,6 +352,90 @@ export default async function TrialsPage({
         </CardBody>
       </Card>
 
+      <Card>
+        <CardHeader title={dict.lifecycleHeading} />
+        <CardBody className="flex flex-col gap-3">
+          <p className="text-sm text-foreground-muted">{dict.lifecycleIntro}</p>
+          <form action={runLifecycleAction}>
+            <Button type="submit">{dict.lifecycleRun}</Button>
+          </form>
+          {ran && (
+            <p className="text-sm text-foreground">
+              {(() => {
+                const [reminders, locked, proposed] = ran.split("-");
+                return dict.lifecycleRan
+                  .replace("{reminders}", reminders ?? "0")
+                  .replace("{locked}", locked ?? "0")
+                  .replace("{proposed}", proposed ?? "0");
+              })()}
+            </p>
+          )}
+          {proposals.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <h3 className="font-heading text-xs font-bold uppercase tracking-wide text-foreground-subtle">
+                {dict.proposalsHeading}
+              </h3>
+              <p className="text-xs text-foreground-muted">
+                {dict.proposalsIntro}
+              </p>
+              {proposals.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex flex-wrap items-end gap-3 rounded border border-coral p-3 text-sm"
+                >
+                  <span className="font-medium text-foreground">
+                    {p.companyName}
+                  </span>
+                  <span className="text-xs text-foreground-muted">
+                    {dict.proposalGraceEnded.replace(
+                      "{date}",
+                      p.graceEndedAt.toLocaleDateString(locale),
+                    )}
+                  </span>
+                  <form
+                    action={approveDeletionAction}
+                    className="flex items-end gap-2"
+                  >
+                    <input type="hidden" name="proposalId" value={p.id} />
+                    <input
+                      type="hidden"
+                      name="expectedName"
+                      value={p.companyName}
+                    />
+                    <div className="flex flex-col gap-1">
+                      <Label htmlFor={`confirm-${p.id}`}>
+                        {dict.proposalConfirmLabel}
+                      </Label>
+                      <Input
+                        id={`confirm-${p.id}`}
+                        name="confirmName"
+                        required
+                        className="w-64"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="rounded-[var(--radius-md)] bg-coral px-3 py-2 text-xs font-medium text-white"
+                    >
+                      {dict.proposalApprove}
+                    </button>
+                  </form>
+                  <form action={cancelDeletionAction}>
+                    <input type="hidden" name="proposalId" value={p.id} />
+                    <button
+                      type="submit"
+                      className="pb-2 text-xs text-foreground-subtle hover:text-accent hover:underline"
+                    >
+                      {dict.proposalKeep}
+                    </button>
+                  </form>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardBody>
+      </Card>
+
       {trials.length === 0 ? (
         <p className="text-sm text-foreground-muted">{dict.empty}</p>
       ) : (
@@ -267,9 +455,10 @@ export default async function TrialsPage({
                   <th className="px-3 py-3 font-medium">
                     {dict.colLastActivity}
                   </th>
-                  <th className="px-5 py-3 text-right font-medium">
+                  <th className="px-3 py-3 text-right font-medium">
                     {dict.colAiCalls}
                   </th>
+                  <th className="px-5 py-3 font-medium">{dict.colActions}</th>
                 </tr>
               </thead>
               <tbody>
@@ -333,8 +522,71 @@ export default async function TrialsPage({
                       <td className="px-3 py-3 text-foreground-muted">
                         {last ? last.toLocaleDateString(locale) : "—"}
                       </td>
-                      <td className="px-5 py-3 text-right tabular-nums">
+                      <td className="px-3 py-3 text-right tabular-nums">
                         {aiCalls.get(t.id) ?? 0}
+                      </td>
+                      <td className="px-5 py-3">
+                        {t.tenantKind === "TRIAL" ? (
+                          <div className="flex flex-wrap items-center gap-3 text-xs">
+                            <form
+                              action={extendAction}
+                              className="flex items-center gap-1"
+                            >
+                              <input
+                                type="hidden"
+                                name="companyId"
+                                value={t.id}
+                              />
+                              <input
+                                name="days"
+                                type="number"
+                                min={1}
+                                max={365}
+                                defaultValue={30}
+                                aria-label={dict.extendLabel}
+                                className="w-16 rounded border border-border bg-background px-1 py-0.5"
+                              />
+                              <button
+                                type="submit"
+                                className="text-accent hover:underline"
+                              >
+                                {dict.extend}
+                              </button>
+                            </form>
+                            {t.trialSeeded && (
+                              <form action={reseedAction}>
+                                <input
+                                  type="hidden"
+                                  name="companyId"
+                                  value={t.id}
+                                />
+                                <button
+                                  type="submit"
+                                  className="text-accent hover:underline"
+                                >
+                                  {dict.reset}
+                                </button>
+                              </form>
+                            )}
+                            <form action={convertAction}>
+                              <input
+                                type="hidden"
+                                name="companyId"
+                                value={t.id}
+                              />
+                              <button
+                                type="submit"
+                                className="text-accent hover:underline"
+                              >
+                                {dict.convert}
+                              </button>
+                            </form>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-foreground-subtle">
+                            {dict.convertedNote}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );

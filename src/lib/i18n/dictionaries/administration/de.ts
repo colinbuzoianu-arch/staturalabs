@@ -1940,6 +1940,8 @@ export const de: typeof en = {
       BROADCAST_PUBLISHED: "Sicherheitsinformation",
       BROADCAST_CONFIRMATION_DUE_SOON: "Bestätigung bald fällig",
       BROADCAST_CONFIRMATION_OVERDUE: "Bestätigung überfällig",
+      TRIAL_EXPIRING_SOON: "Testzugang läuft bald ab",
+      TRIAL_EXPIRED: "Testzugang abgelaufen",
     },
   },
   selfService: {

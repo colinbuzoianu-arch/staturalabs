@@ -279,6 +279,27 @@ export const en = {
     daysLeft: "days left",
     seededMarker: "sample data",
     sdsFootnote: "{count} safety data sheets across all trials.",
+    lifecycleHeading: "Lifecycle",
+    lifecycleIntro:
+      "Reminders 7 and 2 days before expiry, the lock at expiry, and a deletion proposal once the 30-day grace period has run. Nothing is ever deleted without your approval.",
+    lifecycleRun: "Run the daily pass now",
+    lifecycleRan:
+      "{reminders} reminder(s) sent, {locked} trial(s) locked, {proposed} deletion(s) proposed.",
+    proposalsHeading: "Deletion proposals",
+    proposalsIntro:
+      "The grace period has run. Type the company name to confirm — this deletes the tenant and all its data, and cannot be undone.",
+    proposalGraceEnded: "grace ended {date}",
+    proposalConfirmLabel: "Type the company name",
+    proposalApprove: "Approve and delete",
+    proposalKeep: "Keep",
+    proposalNameMismatch: "The typed name did not match. Nothing was deleted.",
+    proposalDeleted: "The trial tenant and all its data were deleted.",
+    colActions: "Actions",
+    extend: "Extend",
+    extendLabel: "Days to extend by",
+    reset: "Reset",
+    convert: "Convert to customer",
+    convertedNote: "Converted",
   },
   companiesPage: {
     heading: "Tenants",

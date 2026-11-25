@@ -273,6 +273,28 @@ export const de: typeof en = {
     daysLeft: "Tage übrig",
     seededMarker: "Beispieldaten",
     sdsFootnote: "{count} Sicherheitsdatenblätter über alle Testzugänge.",
+    lifecycleHeading: "Lebenszyklus",
+    lifecycleIntro:
+      "Erinnerungen 7 und 2 Tage vor Ablauf, Sperre bei Ablauf und ein Löschvorschlag, sobald die 30-tägige Aufbewahrungsfrist abgelaufen ist. Gelöscht wird nie ohne Ihre Freigabe.",
+    lifecycleRun: "Täglichen Lauf jetzt ausführen",
+    lifecycleRan:
+      "{reminders} Erinnerung(en) gesendet, {locked} Testzugang/Testzugänge gesperrt, {proposed} Löschung(en) vorgeschlagen.",
+    proposalsHeading: "Löschvorschläge",
+    proposalsIntro:
+      "Die Aufbewahrungsfrist ist abgelaufen. Zur Bestätigung den Firmennamen eintippen — damit werden der Mandant und alle Daten gelöscht; das ist nicht rückholbar.",
+    proposalGraceEnded: "Frist endete am {date}",
+    proposalConfirmLabel: "Firmennamen eintippen",
+    proposalApprove: "Freigeben und löschen",
+    proposalKeep: "Behalten",
+    proposalNameMismatch:
+      "Der eingetippte Name stimmt nicht. Es wurde nichts gelöscht.",
+    proposalDeleted: "Der Testmandant und alle Daten wurden gelöscht.",
+    colActions: "Aktionen",
+    extend: "Verlängern",
+    extendLabel: "Verlängerung in Tagen",
+    reset: "Zurücksetzen",
+    convert: "In Kunde umwandeln",
+    convertedNote: "Umgewandelt",
   },
   companiesPage: {
     heading: "Mandanten",
