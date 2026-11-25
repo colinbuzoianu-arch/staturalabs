@@ -322,7 +322,10 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     permission: "people.read",
     basePath: siteModulePath("people"),
     icon: "users",
-    children: [],
+    children: [
+      // P17 §5: employee accounts (invite / access-code sheet / offboarding).
+      { labelKey: "modules.people.children.accounts", slug: "accounts" },
+    ],
   },
   {
     key: ModuleKey.LEGAL,

@@ -130,8 +130,11 @@ export default async function EngineSandboxPage({
         <p className="mt-1 text-xs text-gray-500">{dict.intro}</p>
       </div>
       <form method="get" className="flex flex-col gap-2">
-        <label className="text-xs text-gray-600">{dict.inputLabel}</label>
+        <label htmlFor="engine-sandbox-input" className="text-xs text-gray-600">
+          {dict.inputLabel}
+        </label>
         <textarea
+          id="engine-sandbox-input"
           name="input"
           rows={6}
           defaultValue={input ?? dict.shape}

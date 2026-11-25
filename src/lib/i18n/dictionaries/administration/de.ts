@@ -618,7 +618,76 @@ export const de: typeof en = {
     exportLink: "Export (Auskunft)",
     importLink: "CSV importieren",
     importedBanner: "{created} angelegt, {updated} aktualisiert.",
+    accountsLink: "Mitarbeitenden-Konten",
     detailLink: "Öffnen",
+    none: "—",
+  },
+  employeeAccounts: {
+    eyebrow: "Personen",
+    heading: "Mitarbeitenden-Konten",
+    intro:
+      "Mitarbeitende erhalten einen eigenen Zugang: eine E-Mail-Einladung, wenn eine dienstliche E-Mail-Adresse vorliegt, sonst ein ausgedruckter Einmal-Zugangscode (Personalnummer + Code).",
+    back: "← Zurück zu Personen",
+    switchHeading: "Mitarbeitenden-Konten für dieses Unternehmen",
+    switchIntro:
+      "Standardmäßig deaktiviert — ein Unternehmen kann zunächst nur mit EHS-Rollen arbeiten. Solange deaktiviert, kann kein Konto angelegt und kein bereits ausgedruckter Code eingelöst werden.",
+    switchStateOn: "Aktiviert",
+    switchStateOff: "Deaktiviert",
+    enableButton: "Mitarbeitenden-Konten aktivieren",
+    disableButton: "Mitarbeitenden-Konten deaktivieren",
+    offboardHeading: "Offboarding",
+    offboardIntro:
+      "Ein Konto, dessen Person ausgetreten ist (Enddatum überschritten) oder deaktiviert wurde, wird bei der Anmeldung sofort abgewiesen. Dieser Lauf setzt diese Konten zusätzlich auf deaktiviert und widerruft nicht eingelöste Zugangscodes, damit der Zustand in der Benutzerliste sichtbar ist.",
+    offboardButton: "Offboarding jetzt ausführen",
+    offboardResult:
+      "{checked} verknüpfte Konten geprüft, {disabled} deaktiviert.",
+    listHeading: "Personen",
+    colSelect: "Auswahl",
+    colName: "Name",
+    colPersonnelNumber: "Personalnr.",
+    colEmail: "Dienstliche E-Mail",
+    colAccountStatus: "Konto",
+    statusNone: "Kein Konto",
+    statusCodePending: "Zugangscode ausgegeben",
+    statusEmailInvited: "Per E-Mail eingeladen",
+    statusActive: "Aktiv",
+    statusDisabled: "Deaktiviert",
+    setEmailButton: "Speichern",
+    emailPlaceholder: "dienstliche E-Mail (optional)",
+    provisionButton: "Konten für Auswahl anlegen",
+    provisioning: "Wird angelegt…",
+    provisionNoneSelected: "Mindestens eine Person auswählen.",
+    provisionFailed:
+      "Das Anlegen der Konten ist fehlgeschlagen. Es wurde nichts ausgegeben.",
+    accountsDisabledNote:
+      "Zuerst oben die Mitarbeitenden-Konten aktivieren, bevor Zugänge angelegt werden.",
+    readOnlyNote:
+      "Nur ein Unternehmensadministrator kann Mitarbeitenden-Konten anlegen.",
+    resultsHeading: "Ergebnis",
+    resultInvite: "{name}: Einladung per E-Mail an {email} gesendet",
+    resultSkipped: "{name}: übersprungen — {reason}",
+    skipReasons: {
+      "accounts-disabled":
+        "Mitarbeitenden-Konten sind für dieses Unternehmen deaktiviert",
+      "not-found": "Person in diesem Unternehmen nicht gefunden",
+      inactive: "Person ist deaktiviert",
+      anonymised: "Person ist anonymisiert",
+      offboarded: "Beschäftigung ist beendet",
+      "already-has-account": "hat bereits ein Konto",
+      "no-identifier": "keine dienstliche E-Mail und keine Personalnummer",
+    },
+    sheetHeading: "Übergabeblatt Zugangscodes",
+    codesOnceWarning:
+      "Diese Codes werden nur einmal angezeigt und nicht gespeichert. Jetzt ausdrucken oder notieren, persönlich übergeben und bei Verlust einen neuen Code ausgeben.",
+    sheetPersonnelNumber: "Personalnummer",
+    sheetCode: "Zugangscode",
+    sheetExpires: "Gültig bis",
+    sheetUrl: "Anmeldung unter",
+    sheetSteps:
+      "Anmeldeseite öffnen, „Personalnr. & Zugangscode“ wählen, die beiden Werte oben eingeben und ein eigenes Passwort festlegen.",
+    sheetUrlMissing:
+      "Anmeldeadresse nicht konfiguriert (APP_BASE_URL) — vor der Übergabe handschriftlich ergänzen.",
+    printButton: "Drucken",
     none: "—",
   },
   personDetail: {

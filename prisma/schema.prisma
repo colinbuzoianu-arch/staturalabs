@@ -43,6 +43,10 @@ model Company {
   // Site.country (a tenant may operate in several countries).
   defaultLocale         String?
   homeCountry           CountryCode?
+  // P17 §5: tenant-level switch "Mitarbeitenden-Konten aktivieren". Default
+  // OFF — a company can start with EHS roles only, and no employee account
+  // (e-mail invite or access code) can be provisioned until it is on.
+  employeeAccountsEnabled Boolean    @default(false)
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
@@ -2168,6 +2172,10 @@ model Person {
   firstName            String
   lastName             String
   personnelNumber      String?
+  // P17 §5: optional work e-mail, people-compartment data. Used ONLY to decide
+  // the provisioning path for an employee account (invite where an e-mail
+  // exists, access code otherwise); never joined to the assessment chain.
+  email                String?
   // Home org unit — plain column, validated via the subject helper, never a FK.
   orgUnitId            String?
   employmentStart      DateTime?
@@ -2192,8 +2200,40 @@ model Person {
   trainingRecords     TrainingRecord[]
   trainingParticipations TrainingSessionParticipant[]
   involvedInIncidents IncidentInvolvedPerson[]
+  accessCodes         EmployeeAccessCode[]
 
   @@index([companyId])
+  // P17 §5: the self-service link is read on every authenticated request
+  // (offboarding enforcement in getCurrentPlatformUser) and by the employee
+  // surface — indexed rather than a table scan per request.
+  @@index([platformUserId])
+}
+
+/// P17 §5: a one-time access code that lets an employee WITHOUT a company
+/// e-mail claim their account (personnel number + code → set own password).
+/// Lives in the people compartment (FK to Person only, people→people, never
+/// into the assessment chain). The code itself is NEVER stored — only its
+/// SHA-256 hash, so a leaked table cannot be used to sign in; the plaintext is
+/// shown once on the printable hand-over sheet. Single use (usedAt) and
+/// expiring (expiresAt, default 14 days).
+model EmployeeAccessCode {
+  id              String    @id @default(cuid())
+  companyId       String
+  personId        String
+  // The account the code claims. Plain @db.Uuid, same discipline as
+  // Person.platformUserId / Action.responsibleUserId — no FK.
+  platformUserId  String    @db.Uuid
+  codeHash        String    @unique
+  expiresAt       DateTime
+  usedAt          DateTime?
+  revokedAt       DateTime?
+  createdByUserId String?   @db.Uuid
+  createdAt       DateTime  @default(now())
+
+  person Person @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
+  @@index([personId])
 }
 
 // person ↔ workstation OR org unit (hand-added exactly-one CHECK), with

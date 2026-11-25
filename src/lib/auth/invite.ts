@@ -1,6 +1,7 @@
 import "server-only";
 
 import { PlatformRole } from "@/generated/prisma/enums";
+import { appUrl } from "@/lib/config/base-url";
 import { prisma } from "@/lib/prisma";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -28,10 +29,16 @@ export async function invitePlatformUser(input: InvitePlatformUserInput) {
   assertRoleCompanyInvariant(input.role, input.companyId);
 
   const supabase = createAdminClient();
+  // Sandbox-readiness rule 2: the invite link's origin comes from the ONE
+  // configured base URL, never a hard-coded domain. Unset (today) → omitted,
+  // so Supabase falls back to its own configured site URL rather than this
+  // code inventing one.
+  const redirectTo = appUrl("/login") ?? undefined;
   const { data, error } = await supabase.auth.admin.inviteUserByEmail(
     input.email,
     {
       data: { name: input.name, role: input.role, companyId: input.companyId },
+      redirectTo,
     },
   );
 

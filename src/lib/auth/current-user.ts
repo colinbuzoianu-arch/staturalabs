@@ -6,6 +6,7 @@ import type { PlatformUserModel } from "@/generated/prisma/models";
 import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { getImpersonationTargetId } from "./impersonation";
+import { isPersonOffboarded } from "./offboarding";
 
 // Data Access Layer entry point: the one place that turns a Supabase auth
 // session into a platform_user row. `cache()` memoizes it for the lifetime
@@ -37,6 +38,19 @@ async function loadActivePlatformUser(
       select: { status: true },
     });
     if (company?.status === "ARCHIVED") return null;
+
+    // P17 §5 offboarding: an account linked to a Person whose employment has
+    // ended (or who was deactivated/anonymised) is closed from that day on —
+    // enforced here, every request, so it does not depend on a batch job
+    // having run. The disableOffboardedAccounts batch makes the same state
+    // visible as disabledAt; this is the authoritative gate.
+    const linkedPerson = await prisma.person.findFirst({
+      where: { platformUserId: platformUser.id },
+      select: { active: true, employmentEnd: true, anonymisedAt: true },
+    });
+    if (linkedPerson && isPersonOffboarded(linkedPerson, new Date())) {
+      return null;
+    }
   }
 
   return platformUser;

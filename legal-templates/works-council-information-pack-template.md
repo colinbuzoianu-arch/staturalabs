@@ -46,7 +46,40 @@ already-reviewed positioning; it does not introduce new legal assertions.
 - A works-council member can be given a **read-only** platform role that excludes
   health data.
 
-## 5. Data-protection summary
+## 5. Employee accounts and what is logged (P17 §5)
+
+*Co-determination topic: BetrVG §87(1) Nr. 6 (DE) / ArbVG §96a (AT) — the
+employer should involve the works council before employee accounts are
+switched on.*
+
+- Employee accounts are **off by default** per company and are switched on
+  deliberately ("Mitarbeitenden-Konten aktivieren"). While off, no employee
+  login can be created.
+- **What an employee role can see:** their own required instructions and due
+  dates, their own instruction confirmations, the operating instructions
+  (Betriebsanweisungen) and the worker briefing for the workstations they are
+  assigned to, events they reported themselves, and corrective actions assigned
+  to them personally. Nothing about colleagues, no other organisational unit, no
+  health data, no assessment or scoring data about any person.
+- **Accounts without a company e-mail:** a one-time access code (personnel
+  number + code on a printed hand-over sheet, valid 14 days, single use) lets
+  production workers claim an account and set their own password. Only a hash of
+  the code is stored; the code itself is shown once.
+- **What is logged** (append-only audit log, retained per the retention policy):
+  that an account was created or invited, that an access code was issued and
+  that it was redeemed, that an instruction was confirmed (who, which
+  requirement, when), that an event report was filed, and that an account was
+  disabled. The logs record acts of documentation and account administration,
+  **not** behaviour, location, performance or working time.
+- **No performance monitoring:** the system holds no productivity, output,
+  presence or time-tracking data, and training/action statistics are only shown
+  in groups of at least five (the minimum-group-size rule) — never as a ranking
+  of individuals.
+- **Offboarding:** when a person's employment end date passes or the person is
+  deactivated, their login stops working from that day and any unused access
+  code is revoked.
+
+## 6. Data-protection summary
 - EU hosting; access control, audit logging, retention limits and deletion on
   contract end (see the TOMs document for specifics).
 

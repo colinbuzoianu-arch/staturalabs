@@ -45,6 +45,7 @@ export const MODULE_LABELS_DE: Record<string, string> = {
   "modules.training.children.records": "Nachweise",
   "modules.training.children.requirements": "Anforderungen",
   "modules.people.label": "Personen",
+  "modules.people.children.accounts": "Konten",
   "modules.legal.label": "Rechtskataster",
   "modules.legal.children.register": "Register",
   "modules.legal.children.reviewDue": "Überprüfung fällig",

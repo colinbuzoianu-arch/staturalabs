@@ -138,12 +138,20 @@ export default async function PeoplePage({
           {dict.heading}
         </h1>
         <p className="mt-1 text-sm text-foreground-muted">{dict.intro}</p>
-        <Link
-          href={`/app/s/${siteId}/people/import`}
-          className="mt-2 inline-block text-sm text-accent hover:underline"
-        >
-          {dict.importLink}
-        </Link>
+        <div className="mt-2 flex flex-wrap gap-4">
+          <Link
+            href={`/app/s/${siteId}/people/import`}
+            className="text-sm text-accent hover:underline"
+          >
+            {dict.importLink}
+          </Link>
+          <Link
+            href={`/app/s/${siteId}/people/accounts`}
+            className="text-sm text-accent hover:underline"
+          >
+            {dict.accountsLink}
+          </Link>
+        </div>
       </div>
 
       {imported !== undefined && (
