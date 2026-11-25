@@ -167,6 +167,52 @@ describe("people compartment schema guard (§3.18)", () => {
     }
   });
 
+  // Sicherheitsinformationen (safety broadcasts): the module deliberately
+  // keeps its PERSON references (BroadcastRecipient.personId) and its
+  // ASSESSMENT-CHAIN references (BroadcastAudience.orgUnitId/workstationId) as
+  // plain columns with no @relation. That is the whole compartment argument for
+  // this feature: a broadcast may link to a Document/Incident/Action, and it
+  // may reach people, but there must be NO schema-level join path from a
+  // person to the assessment chain through a broadcast. The moment someone
+  // adds `person Person @relation` to a recipient or `workstation Workstation
+  // @relation` to an audience, that path exists and this goes red.
+  const BROADCAST_MODELS = [
+    "Broadcast",
+    "BroadcastAudience",
+    "BroadcastRecipient",
+    "BroadcastStatusEvent",
+  ];
+  it("no broadcast model holds a relation to a person or to the assessment chain", () => {
+    for (const modelName of BROADCAST_MODELS) {
+      const block = byName.get(modelName);
+      if (!block) continue;
+      const relationLines = block.body
+        .split("\n")
+        .filter((line) => line.includes("@relation"));
+      const forbidden = [
+        // Person compartment. (Incident is a legitimate CONTENT link and is
+        // deliberately absent from this list — see the migration header: the
+        // recipient side holds no Person relation, so no bridge is formed.)
+        "Person",
+        "PersonAssignment",
+        "TrainingRecord",
+        "TrainingSession",
+        "IncidentInvolvedPerson",
+        "IncidentHealthDetail",
+        // Assessment chain.
+        ...ASSESSMENT_CHAIN_MODELS,
+      ];
+      for (const name of forbidden) {
+        for (const line of relationLines) {
+          expect(
+            new RegExp(`\\b${name}\\b`).test(line),
+            `${modelName} must not hold a relation to ${name} (broadcast compartment bridge, §3.18(a)): ${line.trim()}`,
+          ).toBe(false);
+        }
+      }
+    }
+  });
+
   it("AuditEvent carries no relation fields (append-only, outlives entities)", () => {
     const block = byName.get("AuditEvent");
     expect(block).toBeDefined();

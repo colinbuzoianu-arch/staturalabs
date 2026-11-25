@@ -179,6 +179,8 @@ describe("permissions", () => {
       "legal.write",
       "documents.read",
       "documents.write",
+      "broadcasts.read",
+      "broadcasts.write",
       "reports.read",
     ],
     [PlatformRole.MANAGER]: [
@@ -196,6 +198,8 @@ describe("permissions", () => {
       "training.write",
       "people.read",
       "documents.read",
+      "broadcasts.read",
+      "broadcasts.write",
       "reports.read",
     ],
     [PlatformRole.EMPLOYEE]: [
@@ -207,6 +211,7 @@ describe("permissions", () => {
       "actions.read",
       "actions.write",
       "documents.read",
+      "broadcasts.read",
       "people.read",
     ],
     [PlatformRole.OCCUPATIONAL_PHYSICIAN]: [
@@ -214,6 +219,7 @@ describe("permissions", () => {
       "my-tasks.read",
       "calendar.read",
       "incidents.read",
+      "broadcasts.read",
       "health_data.read",
       "health_data.write",
     ],
@@ -222,6 +228,7 @@ describe("permissions", () => {
       "calendar.read",
       "risk.read",
       "incidents.read",
+      "broadcasts.read",
       "reports.read",
     ],
   };

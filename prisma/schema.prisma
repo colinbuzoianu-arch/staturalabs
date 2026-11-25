@@ -65,6 +65,7 @@ model Company {
   aiUsageCounters      AiUsageCounter[]
   aiUsageCap           AiUsageCap?
   engineFlagSettings   EngineFlagSetting[]
+  broadcasts           Broadcast[]
 }
 
 /// A physical location/department within a company (conversationally
@@ -121,6 +122,8 @@ model Site {
   inspections              Inspection[]
   incidents                Incident[]
   vehicles                 Vehicle[]
+  broadcasts               Broadcast[]
+  broadcastAudiences       BroadcastAudience[]
 
   @@index([companyId])
 }
@@ -1510,6 +1513,7 @@ model Action {
   verificationAssessment RiskAssessment?        @relation("ActionVerificationAssessment", fields: [verificationAssessmentId], references: [id], onDelete: Restrict)
   typicalMeasure         TypicalMeasure?        @relation(fields: [typicalMeasureId], references: [id], onDelete: Restrict)
   statusEvents           ActionStatusEvent[]
+  broadcasts             Broadcast[]
 
   @@index([siteId, status])
   @@index([riskFindingId])
@@ -1862,6 +1866,7 @@ enum ModuleKey {
   DOCUMENTS
   REPORTS
   SETTINGS
+  BROADCASTS
 }
 
 /// Per-company module entitlement (SLD_RESTRUCTURE_PLAN_platform-modules.md
@@ -2031,6 +2036,7 @@ model Document {
   versions         DocumentVersion[]
   safetyDataSheets SafetyDataSheet[]
   sdsExtractions   SdsExtraction[]
+  broadcasts       Broadcast[]
 
   @@index([siteId, category])
   @@index([companyId])
@@ -2885,8 +2891,9 @@ model OperatingInstruction {
   createdAt              DateTime             @default(now())
   updatedAt              DateTime             @updatedAt
 
-  substance Substance @relation(fields: [substanceId], references: [id], onDelete: Restrict)
-  site      Site      @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  substance  Substance   @relation(fields: [substanceId], references: [id], onDelete: Restrict)
+  site       Site        @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  broadcasts Broadcast[]
 
   @@index([substanceId])
   @@index([siteId])
@@ -3542,6 +3549,7 @@ model Incident {
   involvedPersons       IncidentInvolvedPerson[]
   actions               Action[]
   statutoryNotification StatutoryNotification?
+  broadcasts            Broadcast[]
 
   @@index([siteId, status])
   @@index([companyId])
@@ -4011,4 +4019,139 @@ model SiteWorkforcePeriod {
 
   @@index([siteId, year])
   @@index([orgUnitId])
+}
+
+// ---------------------------------------------------------------------------
+// Sicherheitsinformationen (safety broadcasts). One safety message, an
+// audience, and proof that it reached everyone in it.
+//
+// Compartment rule for this whole block (ERGO_COMPLIANCE_BY_DESIGN.md
+// §3.18(a), and the migration header says it at length): content links are
+// real FKs, but the AUDIENCE org-unit/workstation targets and the RECIPIENT
+// personId are PLAIN COLUMNS with no @relation — the same discipline
+// Incident's subject columns and PersonAssignment's job columns follow. With
+// no Person relation on a recipient there is no schema-level join path from a
+// person to the assessment chain through a broadcast; the compartment guard
+// test asserts exactly that.
+// ---------------------------------------------------------------------------
+
+enum BroadcastPriority {
+  INFO
+  SAFETY_ALERT
+}
+
+enum BroadcastDomain {
+  OSH
+  ENVIRONMENT
+  GENERAL
+}
+
+enum BroadcastStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum BroadcastAudienceScope {
+  COMPANY
+  SITE
+  ORG_UNIT
+  WORKSTATION
+  ROLE
+}
+
+model Broadcast {
+  id        String @id @default(cuid())
+  companyId String
+  /// NULL = company-wide (every site).
+  siteId    String?
+  title     String
+  /// Rich text, sanitised server-side before it is ever stored.
+  body      String
+  priority  BroadcastPriority @default(INFO)
+  domain    BroadcastDomain   @default(OSH)
+  status    BroadcastStatus   @default(DRAFT)
+
+  /// At most one content link (hand-added Broadcast_link_at_most_one_check).
+  documentId             String?
+  incidentId             String?
+  operatingInstructionId String?
+  actionId               String?
+
+  requiresConfirmation Boolean   @default(false)
+  confirmationDueAt    DateTime?
+  createdByUserId      String?   @db.Uuid
+  publishedAt          DateTime?
+  archivedAt           DateTime?
+  /// When the sender last re-resolved the recipient snapshot.
+  recipientsRefreshedAt DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  company              Company               @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  site                 Site?                 @relation(fields: [siteId], references: [id], onDelete: Restrict)
+  document             Document?             @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  incident             Incident?             @relation(fields: [incidentId], references: [id], onDelete: Restrict)
+  operatingInstruction OperatingInstruction? @relation(fields: [operatingInstructionId], references: [id], onDelete: Restrict)
+  action               Action?               @relation(fields: [actionId], references: [id], onDelete: Restrict)
+  audiences            BroadcastAudience[]
+  recipients           BroadcastRecipient[]
+  statusEvents         BroadcastStatusEvent[]
+
+  @@index([companyId, status])
+  @@index([siteId])
+  @@index([confirmationDueAt])
+}
+
+/// Append-only status history. No update/delete path anywhere in the app.
+model BroadcastStatusEvent {
+  id          String           @id @default(cuid())
+  broadcastId String
+  fromStatus  BroadcastStatus?
+  toStatus    BroadcastStatus
+  note        String?
+  actorUserId String?          @db.Uuid
+  createdAt   DateTime         @default(now())
+
+  broadcast Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Restrict)
+
+  @@index([broadcastId])
+}
+
+model BroadcastAudience {
+  id          String                 @id @default(cuid())
+  broadcastId String
+  scope       BroadcastAudienceScope
+  siteId      String?
+  /// Plain columns, no FK (compartment rule above); validated in the gate.
+  orgUnitId     String?
+  workstationId String?
+  role          PlatformRole?
+  createdAt     DateTime             @default(now())
+
+  broadcast Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Restrict)
+  site      Site?     @relation(fields: [siteId], references: [id], onDelete: Restrict)
+
+  @@index([broadcastId])
+}
+
+model BroadcastRecipient {
+  id          String  @id @default(cuid())
+  broadcastId String
+  /// Login account (plain uuid, like Notification.recipientUserId).
+  platformUserId String?  @db.Uuid
+  /// Employee record — PLAIN column, no FK (compartment rule above).
+  personId       String?
+  /// The audience row that put them here; plain column so trimming an audience
+  /// never deletes delivery history.
+  audienceId     String?
+  deliveredAt    DateTime?
+  readAt         DateTime?
+  confirmedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  broadcast Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Restrict)
+
+  @@index([broadcastId])
+  @@index([platformUserId])
 }

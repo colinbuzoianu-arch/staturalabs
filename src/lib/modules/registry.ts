@@ -52,6 +52,7 @@ export type IconName =
   | "clipboard-check"
   | "search"
   | "alert-triangle"
+  | "megaphone"
   | "leaf"
   | "target"
   | "flask"
@@ -325,6 +326,25 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     children: [
       // P17 §5: employee accounts (invite / access-code sheet / offboarding).
       { labelKey: "modules.people.children.accounts", slug: "accounts" },
+    ],
+  },
+  {
+    // Sicherheitsinformationen (safety broadcasts). Filed under NACHWEISEN:
+    // the point of the module is the PROOF that information reached people
+    // (the confirmation list), which is evidence, not a control activity.
+    key: ModuleKey.BROADCASTS,
+    labelKey: "modules.broadcasts.label",
+    menuGroup: "evidence",
+    domain: "shared",
+    order: 95,
+    requiresEntitlement: true,
+    permission: "broadcasts.read",
+    basePath: siteModulePath("broadcasts"),
+    icon: "megaphone",
+    children: [
+      { labelKey: "modules.broadcasts.children.inbox", slug: "inbox" },
+      { labelKey: "modules.broadcasts.children.sent", slug: "sent" },
+      { labelKey: "modules.broadcasts.children.archive", slug: "archive" },
     ],
   },
   {

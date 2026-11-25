@@ -376,6 +376,7 @@ async function main() {
       "DOCUMENTS",
       "REPORTS",
       "SETTINGS",
+      "BROADCASTS",
     ];
     for (const moduleKey of MODULE_KEYS) {
       await selectOrInsert(

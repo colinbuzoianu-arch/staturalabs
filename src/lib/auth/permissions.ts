@@ -60,6 +60,13 @@ export const PERMISSIONS = [
   "legal.approve",
   "documents.read",
   "documents.write",
+  // Sicherheitsinformationen (safety broadcasts). read = see the messages
+  // addressed to you (every tenant role, including the employee — being
+  // reachable by a safety message is not a privilege); write = compose,
+  // publish and see the confirmation status, within your own scope, which
+  // src/lib/broadcasts/audience-scope.ts enforces separately.
+  "broadcasts.read",
+  "broadcasts.write",
   "reports.read",
   "settings.read",
   "settings.write",
@@ -125,6 +132,8 @@ export const ROLE_PERMISSIONS: Readonly<
     "legal.write",
     "documents.read",
     "documents.write",
+    "broadcasts.read",
+    "broadcasts.write",
     "reports.read",
   ]),
   // P17 §2 "Leader" (Führungskraft), scope = own org units (ORG_UNIT). Reads
@@ -147,6 +156,9 @@ export const ROLE_PERMISSIONS: Readonly<
     "training.write",
     "people.read",
     "documents.read",
+    // Sends within their own org units only (audience-scope.ts).
+    "broadcasts.read",
+    "broadcasts.write",
     "reports.read",
   ]),
   // P17 §2 "Employee" (Mitarbeitende), scope = SELF. Own tasks/calendar, own
@@ -165,6 +177,8 @@ export const ROLE_PERMISSIONS: Readonly<
     "actions.read",
     "actions.write",
     "documents.read",
+    // Receives safety information and confirms it; never sends.
+    "broadcasts.read",
     "people.read",
   ]),
   // P10c: the sole holder of health_data.* (§3.18(b)). Reads incidents to
@@ -176,6 +190,8 @@ export const ROLE_PERMISSIONS: Readonly<
     "incidents.read",
     "health_data.read",
     "health_data.write",
+    // Staff with an account are reachable by a safety message too.
+    "broadcasts.read",
   ]),
   // P10c: read-only co-determination surface (the §193 Abs. 5 SGB VII Unfall-
   // anzeige co-sign, general co-determination read). No health, no write.
@@ -184,6 +200,9 @@ export const ROLE_PERMISSIONS: Readonly<
     "calendar.read",
     "risk.read",
     "incidents.read",
+    // Reads archived broadcasts + aggregate confirmation rates (never a
+    // per-person list — enforced in the module, §3.4 min-group-size).
+    "broadcasts.read",
     "reports.read",
   ]),
 };

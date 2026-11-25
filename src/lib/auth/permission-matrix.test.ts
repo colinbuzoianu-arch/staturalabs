@@ -127,6 +127,18 @@ const MODULE_ACCESS: Record<ModuleKey, Expectation> = {
     OCCUPATIONAL_PHYSICIAN: false,
     WORKS_COUNCIL: false,
   },
+  // Sicherheitsinformationen: EVERY tenant role may open the module — being
+  // reachable by a safety message is not a privilege. Who may SEND is the
+  // write permission below, and within which audience is audience-scope.ts.
+  BROADCASTS: {
+    COMPANY_ADMIN: true,
+    SITE_ADMIN: true,
+    EHS_SPECIALIST: true,
+    MANAGER: true,
+    EMPLOYEE: true,
+    OCCUPATIONAL_PHYSICIAN: true,
+    WORKS_COUNCIL: true,
+  },
   // Rechtskataster: admins (E, A) + EHS (evaluate). "—" for leader/employee.
   LEGAL: {
     COMPANY_ADMIN: true,
@@ -233,6 +245,15 @@ describe("P17 §2 write and approve authority (system defaults)", () => {
     [PlatformRole.MANAGER, "inspections.write", false],
     [PlatformRole.MANAGER, "documents.write", false],
     [PlatformRole.MANAGER, "settings.write", false],
+    // Sicherheitsinformationen: the leader sends to their own units (the
+    // audience guard narrows it), EHS and the admins send freely, and the
+    // employee / works council / physician receive but never send.
+    [PlatformRole.MANAGER, "broadcasts.write", true],
+    [PlatformRole.EHS_SPECIALIST, "broadcasts.write", true],
+    [PlatformRole.SITE_ADMIN, "broadcasts.write", true],
+    [PlatformRole.EMPLOYEE, "broadcasts.write", false],
+    [PlatformRole.WORKS_COUNCIL, "broadcasts.write", false],
+    [PlatformRole.OCCUPATIONAL_PHYSICIAN, "broadcasts.write", false],
     // Employee: reports events, updates their own actions, reads their own
     // training — no organising, no people writes.
     [PlatformRole.EMPLOYEE, "incidents.write", true],

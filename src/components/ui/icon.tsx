@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Leaf,
   type LucideIcon,
+  Megaphone,
   Scale,
   Search,
   Settings,
@@ -25,6 +26,7 @@ import type { IconName } from "@/lib/modules/registry";
 // colour.
 const ICONS: Record<IconName, LucideIcon> = {
   cockpit: LayoutDashboard,
+  megaphone: Megaphone,
   inbox: Inbox,
   calendar: CalendarDays,
   "clipboard-check": ClipboardCheck,
