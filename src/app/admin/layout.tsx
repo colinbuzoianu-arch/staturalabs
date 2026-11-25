@@ -29,6 +29,7 @@ export default async function AdminLayout({
   const nav: AdminNavItem[] = [
     { href: "/admin", label: l.overviewNav },
     { href: "/admin/tenants", label: l.companiesNav },
+    { href: "/admin/trials", label: l.trialsNav },
     { href: "/admin/entitlements", label: l.entitlementsNav },
     { href: "/admin/catalogues", label: l.cataloguesNav },
     { href: "/admin/users", label: l.usersNav },

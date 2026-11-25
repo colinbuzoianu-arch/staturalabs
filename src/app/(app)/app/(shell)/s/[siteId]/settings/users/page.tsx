@@ -1,5 +1,7 @@
 import { revalidatePath } from "next/cache";
 import type { PlatformRole, ScopeType } from "@/generated/prisma/enums";
+import { inviteTenantUser, TenantInviteError } from "@/lib/admin/trial";
+import { trialUserLimit } from "@/lib/admin/trial-limits";
 import { canAccessCompany } from "@/lib/auth/rbac";
 import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import { grantRole, revokeRoleAssignment } from "@/lib/auth/role-assignment";
@@ -24,15 +26,19 @@ const SCOPE_TYPES: ScopeType[] = ["COMPANY", "SITE", "ORG_UNIT", "SELF"];
 // production-auth (P13); this manages roles/scopes for users that exist.
 export default async function UsersPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ siteId: string }>;
+  searchParams: Promise<{ invite?: string }>;
 }) {
   const { siteId } = await params;
+  const { invite } = await searchParams;
   const { user, site } = await requireSiteAdministrationAccess(siteId);
   const locale = await getLocale();
   const dict = getAdministrationDictionary(locale).usersPage;
   const companyId = site.companyId;
   const canManage = canAccessCompany(user, companyId);
+  const trialDict = getAdministrationDictionary(locale).trial;
 
   async function grantAction(formData: FormData) {
     "use server";
@@ -104,6 +110,49 @@ export default async function UsersPage({
     revalidatePath(`/app/s/${siteId}/settings/users`);
   }
 
+  // P18 A.2: invite a colleague with any TENANT role. Tenant-facing (a
+  // company_admin inside the app, not a super_admin), so the trial user limit
+  // is enforced in the gate, not here — this only surfaces the refusal.
+  async function inviteAction(formData: FormData) {
+    "use server";
+    const { user: actor, site: s } =
+      await requireSiteAdministrationAccess(siteId);
+    const { redirect } = await import("next/navigation");
+    if (!canAccessCompany(actor, s.companyId)) {
+      redirect(`/app/s/${siteId}/settings/users?invite=forbidden`);
+      return;
+    }
+    const email = formData.get("inviteEmail");
+    const name = formData.get("inviteName");
+    const role = formData.get("inviteRole");
+    if (
+      typeof email !== "string" ||
+      typeof name !== "string" ||
+      !GRANTABLE_ROLES.includes(role as PlatformRole)
+    ) {
+      redirect(`/app/s/${siteId}/settings/users?invite=failed`);
+      return;
+    }
+    try {
+      await inviteTenantUser({
+        companyId: s.companyId,
+        email,
+        name,
+        role: role as PlatformRole,
+        actorUserId: actor.id,
+      });
+    } catch (err) {
+      if (err instanceof TenantInviteError) {
+        redirect(
+          `/app/s/${siteId}/settings/users?invite=${err.message === "user-limit-reached" ? "limit" : "failed"}`,
+        );
+      }
+      throw err;
+    }
+    revalidatePath(`/app/s/${siteId}/settings/users`);
+    redirect(`/app/s/${siteId}/settings/users?invite=sent`);
+  }
+
   async function revokeAction(formData: FormData) {
     "use server";
     const { user: actor, site: s } =
@@ -136,6 +185,12 @@ export default async function UsersPage({
       orderBy: { name: "asc" },
     }),
   ]);
+  // Null for a customer tenant (no limit); a number for a trial.
+  const tenant = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { tenantKind: true },
+  });
+  const userLimit = tenant ? trialUserLimit(tenant.tenantKind) : null;
   const siteName = new Map(sites.map((s) => [s.id, s.name]));
   const orgUnitName = new Map(orgUnits.map((o) => [o.id, o.name]));
 
@@ -160,6 +215,73 @@ export default async function UsersPage({
         </h1>
         <p className="mt-1 text-sm text-foreground-muted">{dict.intro}</p>
       </div>
+
+      {canManage && (
+        <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+          <h2 className="font-heading text-sm font-bold">
+            {trialDict.inviteHeading}
+          </h2>
+          {userLimit !== null && (
+            <p className="text-xs text-foreground-muted">
+              {trialDict.inviteUsage
+                .replace("{current}", String(users.length))
+                .replace("{limit}", String(userLimit))}
+            </p>
+          )}
+          {invite === "sent" && (
+            <p className="text-sm text-foreground">{trialDict.inviteSent}</p>
+          )}
+          {invite === "limit" && (
+            <p className="text-sm text-coral">
+              {trialDict.inviteLimitReached.replace(
+                "{limit}",
+                String(userLimit ?? 0),
+              )}
+            </p>
+          )}
+          {(invite === "failed" || invite === "forbidden") && (
+            <p className="text-sm text-coral">{trialDict.inviteFailed}</p>
+          )}
+          <form action={inviteAction} className="flex flex-wrap gap-3 text-sm">
+            <label className="flex flex-col gap-1">
+              {trialDict.inviteName}
+              <input
+                name="inviteName"
+                required
+                className="rounded border border-border bg-background px-2 py-1"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              {trialDict.inviteEmail}
+              <input
+                name="inviteEmail"
+                type="email"
+                required
+                className="rounded border border-border bg-background px-2 py-1"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              {trialDict.inviteRole}
+              <select
+                name="inviteRole"
+                className="rounded border border-border bg-background px-2 py-1"
+              >
+                {GRANTABLE_ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {dict.roleLabels[r]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="submit"
+              className="self-end rounded-[var(--radius-md)] bg-accent px-4 py-2 font-medium text-background"
+            >
+              {trialDict.inviteButton}
+            </button>
+          </form>
+        </section>
+      )}
 
       {canManage && (
         <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">

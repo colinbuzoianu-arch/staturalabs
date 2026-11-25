@@ -17,6 +17,7 @@
     "reset:demo": "node scripts/reset-demo-fixture.mjs",
     "check:basepath": "node scripts/check-basepath-build.mjs",
     "seed:prospect": "node scripts/seed-prospect-fixture.mjs",
+    "seed:trial": "node scripts/seed-trial-fixture.mjs",
     "reset:prospect": "node scripts/reset-prospect-fixture.mjs"
   },
   "dependencies": {

@@ -3,11 +3,14 @@ import type { ReactNode } from "react";
 import { BroadcastAlertBanner } from "@/components/broadcast-alert-banner";
 import { BroadcastBlockingCard } from "@/components/broadcast-blocking-card";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
+import { TrialBand } from "@/components/trial-band";
 import { mfaRedirectTarget } from "@/lib/auth/mfa";
 import { requireAuthenticatedUser } from "@/lib/auth/require-access";
 import { listOutstandingForUser } from "@/lib/broadcasts/my-broadcasts";
+import { trialContactMailto } from "@/lib/config/contact";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
+import { prisma } from "@/lib/prisma";
 
 // Authenticated-app gate (SLD_RESTRUCTURE_PLAN_platform-modules.md §5). This
 // layout now only guards "signed in at all" — the chrome lives one level down,
@@ -28,9 +31,28 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // rather than per module, so no surface can be a hiding place from it. One
   // query per render, scoped to this user's own recipient rows.
   const outstanding = await listOutstandingForUser(user);
-  const broadcastDict = getAdministrationDictionary(
-    await getLocale(),
-  ).broadcasts;
+  const locale = await getLocale();
+  const administration = getAdministrationDictionary(locale);
+  const broadcastDict = administration.broadcasts;
+
+  // P18 A.3: a trial tenant carries its band on every page — what this tenant
+  // is, when it ends, how to reach a human, and the honest note about real
+  // personal data. Resolved here, once, next to the other bands. A customer
+  // tenant costs one indexed lookup and renders nothing.
+  const company = user.companyId
+    ? await prisma.company.findUnique({
+        where: { id: user.companyId },
+        select: { name: true, tenantKind: true, trialExpiresAt: true },
+      })
+    : null;
+  const trialBand =
+    company?.tenantKind === "TRIAL"
+      ? {
+          expiresLabel:
+            company.trialExpiresAt?.toLocaleDateString(locale) ?? "—",
+          contactHref: trialContactMailto(company.name),
+        }
+      : null;
 
   // An access-code account (P17 §5) has no deliverable e-mail address, so no
   // mail reminder can reach them at all. For those accounts an outstanding
@@ -76,6 +98,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <ImpersonationBanner />
+      {trialBand && (
+        <TrialBand
+          expiresLabel={trialBand.expiresLabel}
+          contactHref={trialBand.contactHref}
+          labels={administration.trial.band}
+        />
+      )}
       {alerts.length > 0 && (
         <BroadcastAlertBanner
           items={alerts}

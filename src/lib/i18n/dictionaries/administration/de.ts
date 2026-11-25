@@ -630,6 +630,29 @@ export const de: typeof en = {
     detailLink: "Öffnen",
     none: "—",
   },
+  // P18: prospect trial access (band, colleague invites, the expiry page).
+  trial: {
+    band: {
+      trialUntil: "Testzugang bis {date}",
+      contact: "Fragen? Kontakt aufnehmen",
+      dataNote:
+        "Für den Test empfehlen wir Beispieldaten. Wenn Sie echte Personendaten eingeben, gilt die Auftragsverarbeitungsvereinbarung (Vorlage).",
+    },
+    inviteHeading: "Kollegin oder Kollegen einladen",
+    inviteName: "Name",
+    inviteEmail: "E-Mail",
+    inviteRole: "Rolle",
+    inviteButton: "Einladung senden",
+    inviteSent: "Einladung gesendet.",
+    inviteFailed: "Die Einladung konnte nicht gesendet werden.",
+    inviteLimitReached:
+      "Dieser Testzugang hat die Grenze von {limit} Benutzenden erreicht.",
+    inviteUsage: "{current} von {limit} Benutzenden",
+    expiredHeading: "Ihr Testzugang ist abgelaufen",
+    expiredBody:
+      "Ihr Zugang zu diesem Testzugang ist beendet. Ihre Daten werden noch kurze Zeit aufbewahrt — nehmen Sie Kontakt auf, wenn Sie weitermachen oder in ein vollwertiges Konto wechseln möchten.",
+    expiredContact: "Kontakt aufnehmen",
+  },
   broadcasts: {
     eyebrow: "Sicherheitsinformationen",
     heading: "Sicherheitsinformationen",

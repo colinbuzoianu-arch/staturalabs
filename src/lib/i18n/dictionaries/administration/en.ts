@@ -650,6 +650,28 @@ export const en = {
   // P17 §5: employee accounts (e-mail invite or access-code sheet), the tenant
   // switch, and the offboarding batch.
   // Sicherheitsinformationen (safety broadcasts).
+  // P18: prospect trial access (band, colleague invites, the expiry page).
+  trial: {
+    band: {
+      trialUntil: "Trial until {date}",
+      contact: "Questions? Get in touch",
+      dataNote:
+        "We recommend sample data for the trial. If you enter real personal data, the data-processing agreement (template) applies.",
+    },
+    inviteHeading: "Invite a colleague",
+    inviteName: "Name",
+    inviteEmail: "E-mail",
+    inviteRole: "Role",
+    inviteButton: "Send invite",
+    inviteSent: "Invite sent.",
+    inviteFailed: "The invite could not be sent.",
+    inviteLimitReached: "This trial has reached its limit of {limit} users.",
+    inviteUsage: "{current} of {limit} users",
+    expiredHeading: "Your trial has expired",
+    expiredBody:
+      "Your access to this trial has ended. Your data is kept for a short period — get in touch if you would like to continue or convert to a full account.",
+    expiredContact: "Get in touch",
+  },
   broadcasts: {
     eyebrow: "Safety information",
     heading: "Safety information",

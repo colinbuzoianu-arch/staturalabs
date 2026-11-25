@@ -629,6 +629,29 @@ export const ro: typeof en = {
     detailLink: "Deschide",
     none: "—",
   },
+  // P18: prospect trial access (band, colleague invites, the expiry page).
+  trial: {
+    band: {
+      trialUntil: "Acces de test până la {date}",
+      contact: "Întrebări? Contactați-ne",
+      dataNote:
+        "Pentru test recomandăm date de exemplu. Dacă introduceți date personale reale, se aplică acordul de prelucrare a datelor (model).",
+    },
+    inviteHeading: "Invitați un coleg",
+    inviteName: "Nume",
+    inviteEmail: "E-mail",
+    inviteRole: "Rol",
+    inviteButton: "Trimite invitația",
+    inviteSent: "Invitație trimisă.",
+    inviteFailed: "Invitația nu a putut fi trimisă.",
+    inviteLimitReached:
+      "Acest acces de test a atins limita de {limit} utilizatori.",
+    inviteUsage: "{current} din {limit} utilizatori",
+    expiredHeading: "Accesul dumneavoastră de test a expirat",
+    expiredBody:
+      "Accesul la acest test s-a încheiat. Datele sunt păstrate încă o perioadă scurtă — contactați-ne dacă doriți să continuați sau să treceți la un cont complet.",
+    expiredContact: "Contactați-ne",
+  },
   broadcasts: {
     eyebrow: "Informări de siguranță",
     heading: "Informări de siguranță",
