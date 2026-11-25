@@ -6,6 +6,7 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Input, Label, Select } from "@/components/ui/field";
 import { CompanyStatus, CountryCode } from "@/generated/prisma/enums";
 import { createTenant } from "@/lib/admin/tenant";
+import { trialState } from "@/lib/admin/tenant-kind";
 import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 import { getAdminDictionary } from "@/lib/i18n/dictionaries/admin";
 import { getLocale } from "@/lib/i18n/get-locale";
@@ -130,7 +131,11 @@ export default async function TenantsPage() {
               </thead>
               <tbody>
                 {companies.map((co) => {
-                  const isDemo = co.name.startsWith("DEMO —");
+                  // P18 A.1: the kind is DATA now (tenantKind), not a guess
+                  // from the name prefix — a trial called anything at all still
+                  // reads as a trial.
+                  const isDemo = co.tenantKind === "DEMO";
+                  const state = trialState(co, new Date());
                   const isPilot = pilotCompanyIds.has(co.id);
                   const archived = co.status === CompanyStatus.ARCHIVED;
                   return (
@@ -154,6 +159,22 @@ export default async function TenantsPage() {
                       <td className="px-3 py-3 text-foreground-muted">
                         {isDemo ? (
                           <Badge tone="info">{dict.markerDemo}</Badge>
+                        ) : co.tenantKind === "TRIAL" ? (
+                          <Badge
+                            tone={
+                              state === "locked"
+                                ? "high"
+                                : state === "expiring-soon"
+                                  ? "elevated"
+                                  : "outline"
+                            }
+                          >
+                            {dict.trialStateLabels[state]}
+                          </Badge>
+                        ) : state === "converted" ? (
+                          <Badge tone="low">
+                            {dict.trialStateLabels.converted}
+                          </Badge>
                         ) : isPilot ? (
                           <Badge tone="outline">{dict.markerPilot}</Badge>
                         ) : (

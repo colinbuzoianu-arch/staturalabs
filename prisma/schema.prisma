@@ -24,6 +24,15 @@ enum CompanyStatus {
   ARCHIVED
 }
 
+/// P18 A.1: what kind of tenant this is. TRIAL tenants are excluded from
+/// customer counts, platform statistics and any future billing logic — the one
+/// helper src/lib/admin/tenant-kind.ts owns that rule so no page re-invents it.
+enum TenantKind {
+  CUSTOMER
+  DEMO
+  TRIAL
+}
+
 model Company {
   id                    String        @id @default(cuid())
   name                  String
@@ -47,6 +56,18 @@ model Company {
   // OFF — a company can start with EHS roles only, and no employee account
   // (e-mail invite or access code) can be provisioned until it is on.
   employeeAccountsEnabled Boolean    @default(false)
+  // P18 A.1 trial tenants. Every trial* field is NULL off a TRIAL (hand-added
+  // Company_trial_fields_check). trialNotes is founder-only, never shown to the
+  // tenant; trialSeeded records whether it started from the demo data, because
+  // "Zuruecksetzen" is only offered for that kind.
+  tenantKind              TenantKind @default(CUSTOMER)
+  trialExpiresAt          DateTime?
+  trialContactEmail       String?
+  trialCreatedByUserId    String?    @db.Uuid
+  trialConvertedAt        DateTime?
+  trialNotes              String?
+  trialLockedAt           DateTime?
+  trialSeeded             Boolean    @default(false)
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
@@ -66,6 +87,9 @@ model Company {
   aiUsageCap           AiUsageCap?
   engineFlagSettings   EngineFlagSetting[]
   broadcasts           Broadcast[]
+
+  @@index([tenantKind])
+  @@index([trialExpiresAt])
 }
 
 /// A physical location/department within a company (conversationally

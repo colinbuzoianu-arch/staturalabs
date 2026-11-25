@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { CompanyStatus } from "@/generated/prisma/enums";
+import { CUSTOMER_TENANT_WHERE } from "@/lib/admin/tenant-kind";
 import { requireSuperAdmin } from "@/lib/auth/require-super-admin";
 import { getAdminDictionary } from "@/lib/i18n/dictionaries/admin";
 import { getLocale } from "@/lib/i18n/get-locale";
@@ -16,10 +17,18 @@ export default async function AdminOverviewPage() {
   const dict = getAdminDictionary(locale);
   const c = dict.console;
 
-  const [active, archived, sites, users, moduleGrants, recent] =
+  // P18 A.1: the tenant counts are CUSTOMER counts. A trial is a prospect's
+  // time-limited copy and the DEMO tenant is the founder's own — neither is
+  // business, so neither inflates these numbers. Trials get their own stat.
+  const [active, archived, trials, sites, users, moduleGrants, recent] =
     await Promise.all([
-      prisma.company.count({ where: { status: CompanyStatus.ACTIVE } }),
-      prisma.company.count({ where: { status: CompanyStatus.ARCHIVED } }),
+      prisma.company.count({
+        where: { ...CUSTOMER_TENANT_WHERE, status: CompanyStatus.ACTIVE },
+      }),
+      prisma.company.count({
+        where: { ...CUSTOMER_TENANT_WHERE, status: CompanyStatus.ARCHIVED },
+      }),
+      prisma.company.count({ where: { tenantKind: "TRIAL" } }),
       prisma.site.count(),
       prisma.platformUser.count(),
       prisma.companyModule.count(),
@@ -39,6 +48,7 @@ export default async function AdminOverviewPage() {
     { label: c.sitesStat, value: sites },
     { label: c.usersStat, value: users },
     { label: c.modulesStat, value: moduleGrants },
+    { label: c.trialsStat, value: trials },
   ];
 
   return (
