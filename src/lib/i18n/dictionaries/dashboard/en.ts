@@ -550,6 +550,7 @@ export const en = {
       risk: "Assessments",
       legal: "Legal register",
       incidents: "Incidents",
+      broadcasts: "Safety information",
     },
     kinds: {
       "action-due": "Action due",
@@ -558,6 +559,7 @@ export const en = {
       "assessment-review": "Assessment review due",
       "legal-review": "Legal review due",
       "incident-notification": "Notification deadline",
+      "broadcast-confirmation": "Confirm safety information",
     },
   },
 };

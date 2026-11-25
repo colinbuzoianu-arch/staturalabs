@@ -281,6 +281,24 @@ export default async function BroadcastDetailPage({
               </form>
             </>
           )}
+          {broadcast.status !== "DRAFT" && (
+            <>
+              <Link
+                href={`/app/s/${siteId}/broadcasts/${broadcastId}/status`}
+                className="rounded-[var(--radius-md)] border border-border px-4 py-2 text-sm font-medium text-foreground"
+              >
+                {dict.openStatus}
+              </Link>
+              {/* A real file download (Content-Disposition), so a plain anchor
+                  rather than next/link — same as every other generated PDF. */}
+              <a
+                href={`/api/broadcasts/${broadcastId}/notice`}
+                className="rounded-[var(--radius-md)] border border-border px-4 py-2 text-sm font-medium text-foreground"
+              >
+                {dict.noticePdf}
+              </a>
+            </>
+          )}
           {broadcast.status === "DRAFT" && !publishable.ok && (
             <p className="self-center text-sm text-foreground-muted">
               {dict.errorNotPublishable}

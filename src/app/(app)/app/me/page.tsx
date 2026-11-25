@@ -106,12 +106,17 @@ export default async function MyTasksPage() {
     "risk",
     "legal",
     "incidents",
+    "broadcasts",
   ];
   const calModules = new Set<CalendarModule>(
     ALL_CAL_MODULES.filter((m) => hasPermission(user, `${m}.read`)),
   );
   const allCalendarEntries = hasPermission(user, "calendar.read")
-    ? await collectCalendarEntries({ siteIds, modules: calModules })
+    ? await collectCalendarEntries({
+        siteIds,
+        modules: calModules,
+        viewerUserId: user.id,
+      })
     : [];
   const upcoming = allCalendarEntries.slice(0, 8);
 

@@ -428,6 +428,7 @@ export const ro: typeof en = {
       GEFAHRSTOFFVERZEICHNIS: "Registru de substanțe",
       INCIDENT_NOTIFICATION: "Fișă notificare legală",
       SDS_DRAFT_PREVIEW: "Schiță FDS (previzualizare)",
+      BROADCAST_NOTICE: "Afiș informare de siguranță",
     },
   },
   usersPage: {
@@ -510,6 +511,12 @@ export const ro: typeof en = {
     proposedBanner: "{n} propuse pentru anonimizare.",
     batchesHeading: "Loturi propuse",
     batchesEmpty: "Niciun lot propus.",
+    broadcastBatchesHeading: "Confirmări informări de siguranță",
+    broadcastBatchesIntro:
+      "Lista nominală de confirmări se șterge după expirarea termenului stabilit de companie; mesajul și valorile agregate se păstrează. Mai întâi o propunere, apoi aprobarea unui administrator de companie; persoanele cu legal hold sunt excluse.",
+    broadcastRunCheck: "Verifică listele de confirmări expirate",
+    broadcastApprove: "Aprobă și șterge",
+    broadcastRecords: "mesaj(e)",
     batchProposed: "Propus",
     batchApproved: "Aprobat",
     batchCancelled: "Anulat",
@@ -528,6 +535,7 @@ export const ro: typeof en = {
       INCIDENT: "Înregistrare eveniment/accident",
       INCIDENT_HEALTH: "Date medicale ale evenimentului",
       FIRST_AID_RECORD: "Înregistrare prim ajutor",
+      BROADCAST_CONFIRMATION: "Confirmări informări de siguranță",
     },
     readOnlyNote: "Doar un administrator de companie gestionează păstrarea.",
     none: "—",
@@ -751,6 +759,7 @@ export const ro: typeof en = {
     blockingIntro:
       "Există o informare de siguranță pentru dumneavoastră. Deschideți-o și confirmați pentru a continua.",
     senderLabel: "Expeditor",
+    noticePdf: "Afiș pentru panou (PDF)",
     none: "—",
   },
   employeeAccounts: {
@@ -1718,6 +1727,10 @@ export const ro: typeof en = {
       "lost-day-rate-1000": "Rata zilelor pierdute la 1.000 de angajați",
       "near-miss-ratio": "Incidente evitate per accident",
       "near-miss-rate-1000": "Rata incidentelor evitate la 1.000 de angajați",
+      "broadcast-confirmation-rate":
+        "Rata de confirmare a informărilor de siguranță",
+      "broadcast-confirmations-overdue": "Confirmări restante",
+      "broadcast-days-to-confirm": "Zile medii până la confirmare",
       "open-actions": "Măsuri deschise",
       "overdue-actions": "Măsuri restante",
       "action-effectiveness": "Rata de eficacitate a măsurilor",

@@ -459,6 +459,7 @@ export const ro: typeof en = {
       risk: "Evaluări",
       legal: "Registru legal",
       incidents: "Evenimente",
+      broadcasts: "Informări de siguranță",
     },
     kinds: {
       "action-due": "Măsură scadentă",
@@ -467,6 +468,7 @@ export const ro: typeof en = {
       "assessment-review": "Revizuire a evaluării scadentă",
       "legal-review": "Revizuire legală scadentă",
       "incident-notification": "Termen de notificare",
+      "broadcast-confirmation": "Confirmare informare de siguranță",
     },
   },
 };

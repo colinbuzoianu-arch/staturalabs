@@ -34,6 +34,10 @@ export async function collectCalendarEntries(opts: {
   siteIds: string[];
   modules: ReadonlySet<CalendarModule>;
   now?: Date;
+  // The signed-in account, for the sources that are about the VIEWER's own
+  // outstanding items (safety-information confirmations). Optional so existing
+  // callers keep working unchanged.
+  viewerUserId?: string;
 }): Promise<CalendarEntry[]> {
   const { siteIds, modules } = opts;
   const now = opts.now ?? new Date();
@@ -189,6 +193,55 @@ export async function collectCalendarEntries(opts: {
         overdue: past(ev.nextReviewDue),
         href: `/app/s/${siteId}/legal/register`,
         responsibleUserId: null,
+      });
+    }
+  }
+
+  // --- Safety-information confirmations: a published broadcast with a
+  // confirmation deadline the VIEWER has not confirmed yet. Scoped to the
+  // viewer's own recipient row, so this is their own outstanding item — the
+  // cross-company "who hasn't confirmed" picture is the status view, not the
+  // calendar. Person-free in the same sense as the rest of this collector: the
+  // entry is about a message, and the only person it concerns is the viewer.
+  if (modules.has("broadcasts") && opts.viewerUserId) {
+    const outstanding = await prisma.broadcastRecipient.findMany({
+      where: {
+        platformUserId: opts.viewerUserId,
+        confirmedAt: null,
+        broadcast: {
+          status: "PUBLISHED",
+          requiresConfirmation: true,
+          confirmationDueAt: { not: null },
+          OR: [{ siteId: null }, { siteId: inSites }],
+        },
+      },
+      select: {
+        id: true,
+        broadcast: {
+          select: {
+            id: true,
+            title: true,
+            siteId: true,
+            confirmationDueAt: true,
+          },
+        },
+      },
+    });
+    for (const row of outstanding) {
+      const due = row.broadcast.confirmationDueAt;
+      if (!due) continue;
+      entries.push({
+        id: `broadcast-${row.id}`,
+        module: "broadcasts",
+        kind: "broadcast-confirmation",
+        title: row.broadcast.title,
+        // A company-wide message has no site of its own; attribute it to the
+        // first site in scope so it still appears in a site-filtered view.
+        siteId: row.broadcast.siteId ?? siteIds[0],
+        dueDate: due,
+        overdue: past(due),
+        href: `/app/me/broadcasts/${row.broadcast.id}`,
+        responsibleUserId: opts.viewerUserId,
       });
     }
   }

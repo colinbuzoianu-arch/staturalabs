@@ -455,6 +455,7 @@ export const en = {
       GEFAHRSTOFFVERZEICHNIS: "Hazardous substance register",
       INCIDENT_NOTIFICATION: "Statutory notification data sheet",
       SDS_DRAFT_PREVIEW: "SDS draft (preview)",
+      BROADCAST_NOTICE: "Safety-information notice",
     },
   },
   usersPage: {
@@ -535,6 +536,12 @@ export const en = {
     proposedBanner: "Proposed {n} for anonymisation.",
     batchesHeading: "Proposal batches",
     batchesEmpty: "No proposal batches.",
+    broadcastBatchesHeading: "Safety-information confirmations",
+    broadcastBatchesIntro:
+      "The per-person confirmation list is deleted once the company retention period has run; the message and its totals are kept. Proposed first, approved by a company administrator, and people on legal hold are excluded.",
+    broadcastRunCheck: "Check for matured confirmation lists",
+    broadcastApprove: "Approve and delete",
+    broadcastRecords: "message(s)",
     batchProposed: "Proposed",
     batchApproved: "Approved",
     batchCancelled: "Cancelled",
@@ -553,6 +560,7 @@ export const en = {
       INCIDENT: "Event / incident record",
       INCIDENT_HEALTH: "Incident medical record",
       FIRST_AID_RECORD: "First-aid record",
+      BROADCAST_CONFIRMATION: "Safety-information confirmations",
     },
     readOnlyNote: "Only a company administrator manages retention.",
     none: "—",
@@ -769,6 +777,7 @@ export const en = {
     blockingIntro:
       "There is safety information waiting for you. Open and confirm it to continue.",
     senderLabel: "Sender",
+    noticePdf: "Notice for the board (PDF)",
     none: "—",
   },
   employeeAccounts: {
@@ -1731,6 +1740,9 @@ export const en = {
       "lost-day-rate-1000": "Lost-day rate per 1,000 employees",
       "near-miss-ratio": "Near misses per accident",
       "near-miss-rate-1000": "Near-miss rate per 1,000 employees",
+      "broadcast-confirmation-rate": "Safety-information confirmation rate",
+      "broadcast-confirmations-overdue": "Overdue confirmations",
+      "broadcast-days-to-confirm": "Average days to confirm",
       "open-actions": "Open actions",
       "overdue-actions": "Overdue actions",
       "action-effectiveness": "Action effectiveness rate",

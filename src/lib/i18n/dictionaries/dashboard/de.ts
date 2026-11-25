@@ -472,6 +472,7 @@ export const de: typeof en = {
       risk: "Evaluierungen",
       legal: "Rechtskataster",
       incidents: "Ereignisse",
+      broadcasts: "Sicherheitsinformationen",
     },
     kinds: {
       "action-due": "Maßnahme fällig",
@@ -480,6 +481,7 @@ export const de: typeof en = {
       "assessment-review": "Überprüfung der Evaluierung fällig",
       "legal-review": "Rechtsprüfung fällig",
       "incident-notification": "Meldefrist",
+      "broadcast-confirmation": "Sicherheitsinformation bestätigen",
     },
   },
 };

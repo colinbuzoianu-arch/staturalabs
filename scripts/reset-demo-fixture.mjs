@@ -92,6 +92,40 @@ async function main() {
 
     console.log(`Sites: ${siteIds.join(", ")}\n`);
 
+    // Sicherheitsinformationen FIRST: a broadcast may point at an Action, a
+    // Document, an Incident, an OperatingInstruction, a Site and a Person, and
+    // every one of those FKs is Restrict — so it is the first thing deleted,
+    // not a step tucked in beside the people compartment.
+    // Recipients / audiences /
+    // status events, then the retention batches (items Cascade), then the
+    // broadcasts themselves — before Site, Person, Document, Incident and
+    // OperatingInstruction, all of which a broadcast may point at.
+    for (const [table, column] of [
+      ["BroadcastRecipient", "broadcastId"],
+      ["BroadcastAudience", "broadcastId"],
+      ["BroadcastStatusEvent", "broadcastId"],
+    ]) {
+      await del(
+        db,
+        table,
+        `DELETE FROM "${table}" WHERE "${column}" IN (
+           SELECT id FROM "Broadcast" WHERE "companyId" = $1)`,
+        [company.id],
+      );
+    }
+    await del(
+      db,
+      "BroadcastRetentionBatch",
+      `DELETE FROM "BroadcastRetentionBatch" WHERE "companyId" = $1`,
+      [company.id],
+    );
+    await del(
+      db,
+      "Broadcast",
+      `DELETE FROM "Broadcast" WHERE "companyId" = $1`,
+      [company.id],
+    );
+
     await del(
       db,
       "ActionStatusEvent",

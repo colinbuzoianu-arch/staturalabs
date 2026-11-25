@@ -1966,6 +1966,7 @@ enum GeneratedDocumentType {
   GEFAHRSTOFFVERZEICHNIS
   INCIDENT_NOTIFICATION
   SDS_DRAFT_PREVIEW
+  BROADCAST_NOTICE
 }
 
 model GeneratedDocument {
@@ -2451,6 +2452,9 @@ enum RetentionRecordType {
   INCIDENT
   INCIDENT_HEALTH
   FIRST_AID_RECORD
+  // Sicherheitsinformationen: the per-person confirmation list. No statutory
+  // period exists in DACH — company policy, 5 years from publication.
+  BROADCAST_CONFIRMATION
 }
 
 enum RetentionBasis {
@@ -4057,6 +4061,38 @@ enum BroadcastStatus {
   ARCHIVED
 }
 
+/// Slice 4: the broadcast-confirmation retention batch. A FOURTH, separate
+/// batch kind alongside person anonymisation, substance records and incidents
+/// (ERGO §3.18): the kinds of review must never be co-approved. Propose →
+/// company_admin approves → the matured BroadcastRecipient rows are
+/// HARD-DELETED after their aggregate is frozen onto the Broadcast.
+model BroadcastRetentionBatch {
+  id               String               @id @default(cuid())
+  companyId        String
+  status           RetentionBatchStatus @default(PROPOSED)
+  createdAt        DateTime             @default(now())
+  approvedByUserId String?              @db.Uuid
+  approvedAt       DateTime?
+
+  items BroadcastRetentionItem[]
+
+  @@index([companyId, status])
+}
+
+model BroadcastRetentionItem {
+  id             String    @id @default(cuid())
+  batchId        String
+  /// The matured broadcast (plain column, no FK: the batch outlives it).
+  broadcastId    String
+  recipientCount Int       @default(0)
+  maturedAt      DateTime
+  deletedAt      DateTime?
+
+  batch BroadcastRetentionBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
+}
+
 enum BroadcastAudienceScope {
   COMPANY
   SITE
@@ -4090,6 +4126,11 @@ model Broadcast {
   archivedAt           DateTime?
   /// When the sender last re-resolved the recipient snapshot.
   recipientsRefreshedAt DateTime?
+  /// The aggregate (recipients / read / confirmed) frozen onto the message
+  /// before a matured retention batch deletes its per-person confirmation
+  /// rows — so retention removes the PERSONAL list without destroying the
+  /// trace that the information was passed on at all.
+  retentionSummary      Json?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 

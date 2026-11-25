@@ -2218,6 +2218,175 @@ async function main() {
       `Gefahrstoffe: ${substanceCount} substances (1 CMR 1B, 1 low-hazard excluded), SDS + uses seeded, ${baCount} approved Betriebsanweisungen.`,
     );
 
+    // --- Sicherheitsinformationen demo (idempotent, marker = the alert title).
+    // Deliberately placed AFTER the Gefahrstoffe section: the new-rule notice
+    // links to an approved Betriebsanweisung, which does not exist yet earlier
+    // in this script (a fresh seed silently produced an unlinked notice until
+    // the slice-4 verification caught it).
+    // Three fictional messages: a SAFETY_ALERT after a fictional near miss with
+    // PARTIAL confirmations (so the status view has something to show), a
+    // new-rule notice linked to an approved Betriebsanweisung, and a general
+    // notice. Fictional content only; the text is written here, never copied
+    // out of an incident record.
+    const BROADCAST_MARKER = "Helmpflicht in Halle 2 ab sofort";
+    const broadcastMarkerRow = await db.query(
+      `SELECT id FROM "Broadcast" WHERE "companyId"=$1 AND title=$2 LIMIT 1`,
+      [company.id, BROADCAST_MARKER],
+    );
+    if (broadcastMarkerRow.rows.length === 0) {
+      const daysAgo = (n) => new Date(Date.now() - n * 86400000);
+      const inDays = (n) => new Date(Date.now() + n * 86400000);
+
+      const insertBroadcast = async (fields) =>
+        insertRow(db, "Broadcast", {
+          id: crypto.randomUUID(),
+          companyId: company.id,
+          updatedAt: new Date(),
+          ...fields,
+        });
+      const addAudience = async (broadcastId, fields) =>
+        insertRow(db, "BroadcastAudience", {
+          id: crypto.randomUUID(),
+          broadcastId,
+          ...fields,
+        });
+      const addRecipient = async (broadcastId, fields) =>
+        insertRow(db, "BroadcastRecipient", {
+          id: crypto.randomUUID(),
+          broadcastId,
+          ...fields,
+        });
+      const addStatusEvent = async (broadcastId, fromStatus, toStatus, at) =>
+        insertRow(db, "BroadcastStatusEvent", {
+          id: crypto.randomUUID(),
+          broadcastId,
+          fromStatus,
+          toStatus,
+          actorUserId: roleUserIds.siteAdmin,
+          createdAt: at,
+        });
+
+      // 1) SAFETY_ALERT after a fictional near miss, to the Montage unit, with
+      //    a live confirmation deadline and PARTIAL confirmations.
+      const alert = await insertBroadcast({
+        siteId: site.id,
+        title: BROADCAST_MARKER,
+        body:
+          "<p>Nach einem Beinahe-Unfall beim Paneeltransport gilt in Halle 2 " +
+          "<strong>ab sofort Helmpflicht</strong>.</p><ul>" +
+          "<li>Helme hängen am Eingang Halle 2.</li>" +
+          "<li>Bei Engstellen zusätzlich Einweiser anfordern.</li></ul>" +
+          "<p>Bitte bis zum Ende der Woche bestätigen.</p>",
+        priority: "SAFETY_ALERT",
+        domain: "OSH",
+        status: "PUBLISHED",
+        requiresConfirmation: true,
+        confirmationDueAt: inDays(4),
+        createdByUserId: roleUserIds.siteAdmin,
+        publishedAt: daysAgo(2),
+        createdAt: daysAgo(3),
+      });
+      const alertAudience = await addAudience(alert.id, {
+        scope: "ORG_UNIT",
+        orgUnitId: departments.Montage.id,
+      });
+      await addStatusEvent(alert.id, null, "DRAFT", daysAgo(3));
+      await addStatusEvent(alert.id, "DRAFT", "PUBLISHED", daysAgo(2));
+      // Anna (person + account) has confirmed; the leader has read but not
+      // confirmed — that mix is what makes the status view worth looking at.
+      await addRecipient(alert.id, {
+        platformUserId: roleUserIds.employee,
+        personId: personByNr["D-1001"],
+        audienceId: alertAudience.id,
+        deliveredAt: daysAgo(2),
+        readAt: daysAgo(2),
+        confirmedAt: daysAgo(1),
+      });
+      await addRecipient(alert.id, {
+        platformUserId: roleUserIds.manager,
+        audienceId: alertAudience.id,
+        deliveredAt: daysAgo(2),
+        readAt: daysAgo(1),
+      });
+
+      // 2) A new-rule notice linked to an approved Betriebsanweisung.
+      const ba = (
+        await db.query(
+          `SELECT oi.id FROM "OperatingInstruction" oi
+             JOIN "Site" s ON s.id = oi."siteId"
+            WHERE s."companyId"=$1 AND oi.status='APPROVED' LIMIT 1`,
+          [company.id],
+        )
+      ).rows[0];
+      const ruleNotice = await insertBroadcast({
+        siteId: site.id,
+        title: "Neue Betriebsanweisung für Reinigungsarbeiten",
+        body:
+          "<p>Für die Kabinenreinigung gilt eine neue Betriebsanweisung. " +
+          "Bitte vor dem nächsten Einsatz lesen.</p>",
+        priority: "INFO",
+        domain: "OSH",
+        status: "PUBLISHED",
+        operatingInstructionId: ba ? ba.id : null,
+        requiresConfirmation: true,
+        confirmationDueAt: inDays(10),
+        createdByUserId: roleUserIds.ehs,
+        publishedAt: daysAgo(5),
+        createdAt: daysAgo(6),
+      });
+      const ruleAudience = await addAudience(ruleNotice.id, {
+        scope: "SITE",
+        siteId: site.id,
+      });
+      await addStatusEvent(ruleNotice.id, null, "DRAFT", daysAgo(6));
+      await addStatusEvent(ruleNotice.id, "DRAFT", "PUBLISHED", daysAgo(5));
+      for (const nr of ["D-1001", "D-1002", "D-1003", "D-1004"]) {
+        if (!personByNr[nr]) continue;
+        await addRecipient(ruleNotice.id, {
+          personId: personByNr[nr],
+          platformUserId: nr === "D-1001" ? roleUserIds.employee : null,
+          audienceId: ruleAudience.id,
+          deliveredAt: daysAgo(5),
+          readAt: nr === "D-1001" ? daysAgo(4) : null,
+          confirmedAt: nr === "D-1001" ? daysAgo(4) : null,
+        });
+      }
+
+      // 3) A general notice, no confirmation required.
+      const general = await insertBroadcast({
+        siteId: site.id,
+        title: "Erste-Hilfe-Kurs im Dezember",
+        body:
+          "<p>Im Dezember findet ein Erste-Hilfe-Auffrischungskurs statt. " +
+          "Interessierte melden sich bei ihrer Führungskraft.</p>",
+        priority: "INFO",
+        domain: "GENERAL",
+        status: "PUBLISHED",
+        requiresConfirmation: false,
+        createdByUserId: roleUserIds.ehs,
+        publishedAt: daysAgo(9),
+        createdAt: daysAgo(9),
+      });
+      const generalAudience = await addAudience(general.id, {
+        scope: "SITE",
+        siteId: site.id,
+      });
+      await addStatusEvent(general.id, null, "DRAFT", daysAgo(9));
+      await addStatusEvent(general.id, "DRAFT", "PUBLISHED", daysAgo(9));
+      await addRecipient(general.id, {
+        platformUserId: roleUserIds.employee,
+        personId: personByNr["D-1001"],
+        audienceId: generalAudience.id,
+        deliveredAt: daysAgo(9),
+      });
+
+      console.log(
+        "Sicherheitsinformationen: 1 Sicherheitswarnung (teilweise bestätigt), 1 BA-Hinweis, 1 allgemeine Information",
+      );
+    } else {
+      console.log("Sicherheitsinformationen already seeded — skipping.");
+    }
+
     console.log("\nDemo fixture ready:");
     console.log(
       JSON.stringify(

@@ -430,6 +430,7 @@ export const de: typeof en = {
       GEFAHRSTOFFVERZEICHNIS: "Gefahrstoffverzeichnis",
       INCIDENT_NOTIFICATION: "Datenblatt Unfallmeldung",
       SDS_DRAFT_PREVIEW: "SDB-Entwurf (Vorschau)",
+      BROADCAST_NOTICE: "Aushang Sicherheitsinformation",
     },
   },
   usersPage: {
@@ -512,6 +513,12 @@ export const de: typeof en = {
     proposedBanner: "{n} zur Anonymisierung vorgeschlagen.",
     batchesHeading: "Vorschlagsstapel",
     batchesEmpty: "Keine Vorschlagsstapel.",
+    broadcastBatchesHeading: "Bestätigungen Sicherheitsinformationen",
+    broadcastBatchesIntro:
+      "Die personenbezogene Bestätigungsliste wird nach Ablauf der Unternehmensfrist gelöscht; die Mitteilung und ihre Summenwerte bleiben erhalten. Zuerst Vorschlag, Freigabe durch eine Unternehmensadministration; Personen mit Legal Hold sind ausgenommen.",
+    broadcastRunCheck: "Auf abgelaufene Bestätigungslisten prüfen",
+    broadcastApprove: "Freigeben und löschen",
+    broadcastRecords: "Mitteilung(en)",
     batchProposed: "Vorgeschlagen",
     batchApproved: "Freigegeben",
     batchCancelled: "Abgebrochen",
@@ -530,6 +537,7 @@ export const de: typeof en = {
       INCIDENT: "Ereignis-/Unfallaufzeichnung",
       INCIDENT_HEALTH: "Medizinische Ereignisdaten",
       FIRST_AID_RECORD: "Erste-Hilfe-Aufzeichnung",
+      BROADCAST_CONFIRMATION: "Bestätigungen Sicherheitsinformationen",
     },
     readOnlyNote: "Nur ein Firmen-Administrator verwaltet die Aufbewahrung.",
     none: "—",
@@ -754,6 +762,7 @@ export const de: typeof en = {
     blockingIntro:
       "Für Sie liegt eine Sicherheitsinformation vor. Bitte öffnen und bestätigen, um fortzufahren.",
     senderLabel: "Absender",
+    noticePdf: "Aushang (PDF)",
     none: "—",
   },
   employeeAccounts: {
@@ -1723,6 +1732,10 @@ export const de: typeof en = {
       "lost-day-rate-1000": "Ausfallrate je 1.000 Beschäftigte",
       "near-miss-ratio": "Beinaheunfälle je Arbeitsunfall",
       "near-miss-rate-1000": "Beinaheunfall-Quote je 1.000 Beschäftigte",
+      "broadcast-confirmation-rate":
+        "Bestätigungsquote Sicherheitsinformationen",
+      "broadcast-confirmations-overdue": "Überfällige Bestätigungen",
+      "broadcast-days-to-confirm": "Durchschnittliche Tage bis Bestätigung",
       "open-actions": "Offene Maßnahmen",
       "overdue-actions": "Überfällige Maßnahmen",
       "action-effectiveness": "Wirksamkeitsquote der Maßnahmen",

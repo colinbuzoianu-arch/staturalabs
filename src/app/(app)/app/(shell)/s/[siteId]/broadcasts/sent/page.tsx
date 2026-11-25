@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
   type AudienceScopeValue,
   BroadcastAudiencePicker,
@@ -39,7 +39,11 @@ export default async function BroadcastsSentPage({
   const locale = await getLocale();
   const administration = getAdministrationDictionary(locale);
   const dict = administration.broadcasts;
+  // The sender surface. A read-only role (works council, employee) has no
+  // business in the draft list — their surfaces are the inbox, the archive and
+  // the aggregate status. 404, not a redirect, same as every other gate here.
   const canSend = await userCan(user, "broadcasts.write");
+  if (!canSend) notFound();
   const companyId = site.companyId;
 
   async function createAction(formData: FormData) {

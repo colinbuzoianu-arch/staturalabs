@@ -65,6 +65,7 @@ export async function computeKpis(scope: KpiScope): Promise<KpiResult[]> {
     sdsCurrent,
     wasteStreams,
     significantAspects,
+    broadcastRecipients,
   ] = await Promise.all([
     prisma.incident.count({
       where: {
@@ -154,6 +155,31 @@ export async function computeKpis(scope: KpiScope): Promise<KpiResult[]> {
         significant: true,
       },
     }),
+    // Sicherheitsinformationen: the recipient rows of the broadcasts published
+    // in the period, in scope. Person-derived (each row identifies a human), so
+    // the three KPIs below pass the §3.4 gate on the number of recipients.
+    prisma.broadcastRecipient.findMany({
+      where: {
+        broadcast: {
+          companyId,
+          status: { in: ["PUBLISHED", "ARCHIVED"] },
+          publishedAt: inYear,
+          OR: [{ siteId: null }, { siteId: inSites }],
+        },
+      },
+      select: {
+        readAt: true,
+        confirmedAt: true,
+        deliveredAt: true,
+        broadcast: {
+          select: {
+            publishedAt: true,
+            requiresConfirmation: true,
+            confirmationDueAt: true,
+          },
+        },
+      },
+    }),
   ]);
 
   const { headcount, hoursWorked } = aggregateWorkforce(figures);
@@ -164,6 +190,31 @@ export async function computeKpis(scope: KpiScope): Promise<KpiResult[]> {
   const affectedPersons = new Set(
     healthDetails.map((h) => h.involvedPerson.personId),
   ).size;
+  // Confirmation KPIs, computed only over the rows that actually ASK for a
+  // confirmation — a message that needed none would otherwise drag the rate
+  // down for no reason.
+  const confirmable = broadcastRecipients.filter(
+    (r) => r.broadcast.requiresConfirmation,
+  );
+  const confirmed = confirmable.filter((r) => r.confirmedAt !== null);
+  const broadcastOverdue = confirmable.filter(
+    (r) =>
+      r.confirmedAt === null &&
+      r.broadcast.confirmationDueAt !== null &&
+      r.broadcast.confirmationDueAt.getTime() < now.getTime(),
+  ).length;
+  // Average days from publication to confirmation, over the confirmed rows.
+  const daysToConfirm =
+    confirmed.length > 0
+      ? confirmed.reduce((acc, r) => {
+          const published = r.broadcast.publishedAt;
+          if (!published || !r.confirmedAt) return acc;
+          return (
+            acc + (r.confirmedAt.getTime() - published.getTime()) / 86_400_000
+          );
+        }, 0) / confirmed.length
+      : null;
+
   const wasteTotal = wasteStreams.reduce(
     (a, w) => a + (w.annualQuantity ?? 0),
     0,
@@ -227,5 +278,23 @@ export async function computeKpis(scope: KpiScope): Promise<KpiResult[]> {
     plain("sds-currency", percentage(sdsCurrent, sdsTotal)),
     plain("waste-quantity", wasteStreams.length > 0 ? wasteTotal : null),
     plain("environmental-significance", significantAspects),
+    // Slice 4: the three broadcast KPIs. Person-derived → min-group-gated on
+    // the number of recipients, so a tiny audience never yields a rate that
+    // points at one person.
+    grouped(
+      "broadcast-confirmation-rate",
+      percentage(confirmed.length, confirmable.length),
+      confirmable.length,
+    ),
+    grouped(
+      "broadcast-confirmations-overdue",
+      confirmable.length > 0 ? broadcastOverdue : null,
+      confirmable.length,
+    ),
+    grouped(
+      "broadcast-days-to-confirm",
+      daysToConfirm === null ? null : Math.round(daysToConfirm * 10) / 10,
+      confirmed.length,
+    ),
   ];
 }

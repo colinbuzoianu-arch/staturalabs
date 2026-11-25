@@ -8,7 +8,8 @@ export type CalendarModule =
   | "inspections"
   | "risk"
   | "legal"
-  | "incidents";
+  | "incidents"
+  | "broadcasts";
 
 export type CalendarEntryKind =
   | "action-due"
@@ -16,7 +17,8 @@ export type CalendarEntryKind =
   | "inspection-planned"
   | "assessment-review"
   | "legal-review"
-  | "incident-notification";
+  | "incident-notification"
+  | "broadcast-confirmation";
 
 export type CalendarEntry = {
   // Stable per-result id (module-prefixed so two modules can't collide).

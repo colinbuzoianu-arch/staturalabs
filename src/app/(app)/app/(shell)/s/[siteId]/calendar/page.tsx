@@ -27,6 +27,7 @@ const ALL_MODULES: readonly CalendarModule[] = [
   "risk",
   "legal",
   "incidents",
+  "broadcasts",
 ];
 
 function isoDay(d: Date): string {
@@ -63,6 +64,8 @@ export default async function CalendarPage({
     siteIds: [siteId],
     modules: allowed,
     now,
+    // The broadcast source is about the VIEWER's own outstanding confirmations.
+    viewerUserId: user.id,
   });
 
   // Filters.
