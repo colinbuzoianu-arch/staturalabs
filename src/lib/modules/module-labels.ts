@@ -47,6 +47,7 @@ export const MODULE_LABELS_DE: Record<string, string> = {
   "modules.broadcasts.label": "Sicherheitsinformationen",
   "modules.broadcasts.children.inbox": "Posteingang",
   "modules.broadcasts.children.sent": "Gesendet",
+  "modules.broadcasts.children.team": "Team-Status",
   "modules.broadcasts.children.archive": "Archiv",
   "modules.people.label": "Personen",
   "modules.people.children.accounts": "Konten",

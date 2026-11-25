@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/misc";
 import { getAccessibleSites } from "@/lib/auth/accessible-sites";
 import { hasPermission } from "@/lib/auth/permissions";
 import { requireAuthenticatedUser } from "@/lib/auth/require-access";
+import { generateBroadcastReminders } from "@/lib/broadcasts/reminders";
 import {
   type CalendarModule,
   collectCalendarEntries,
@@ -62,6 +63,16 @@ export default async function MyTasksPage() {
       siteIds: accessible.map((s) => s.id),
       recipientUserId: u.id,
     });
+    // Sicherheitsinformationen: the confirmation reminders (before the
+    // deadline, and once it has passed) ride on the SAME "check for due items"
+    // trigger as the P5 generator — one trigger, not a second scheduler. It
+    // writes only to recipients of the company's own broadcasts.
+    if (u.companyId) {
+      await generateBroadcastReminders({
+        companyId: u.companyId,
+        siteIds: accessible.map((s) => s.id),
+      });
+    }
     revalidatePath("/app/me");
   }
 

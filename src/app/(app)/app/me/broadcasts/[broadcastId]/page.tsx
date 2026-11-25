@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +7,7 @@ import {
   getMyBroadcast,
   markBroadcastRead,
 } from "@/lib/broadcasts/my-broadcasts";
+import { confirmBroadcast } from "@/lib/broadcasts/status";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
 
@@ -16,6 +18,10 @@ import { getLocale } from "@/lib/i18n/get-locale";
 //
 // A recipient sees exactly the text the sender wrote: no incident fields, no
 // person data, no health data, even when the broadcast links to an event.
+//
+// Confirming is one click and is recorded once: confirmBroadcast stamps
+// confirmedAt and never clears it, because "read and understood" is a
+// statement, not a toggle.
 export default async function MyBroadcastDetailPage({
   params,
 }: {
@@ -32,6 +38,16 @@ export default async function MyBroadcastDetailPage({
   if (!broadcast) notFound();
 
   await markBroadcastRead({ user, broadcastId });
+
+  async function confirmAction() {
+    "use server";
+    const u = await requireAuthenticatedUser();
+    // The gate re-checks that THIS user is a recipient; a posted form from
+    // someone else's inbox confirms nothing.
+    await confirmBroadcast({ user: u, broadcastId });
+    revalidatePath("/app/me/broadcasts");
+    revalidatePath(`/app/me/broadcasts/${broadcastId}`);
+  }
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-10">
@@ -73,12 +89,19 @@ export default async function MyBroadcastDetailPage({
             )}
           </p>
         ) : broadcast.requiresConfirmation ? (
-          <p className="text-foreground-muted">
-            {dict.confirmButton}
-            {broadcast.confirmationDueAt
-              ? ` · ${dict.colDue}: ${broadcast.confirmationDueAt.toLocaleDateString(locale)}`
-              : ""}
-          </p>
+          <form action={confirmAction} className="flex flex-col gap-2">
+            {broadcast.confirmationDueAt && (
+              <p className="text-foreground-muted">
+                {`${dict.colDue}: ${broadcast.confirmationDueAt.toLocaleDateString(locale)}`}
+              </p>
+            )}
+            <button
+              type="submit"
+              className="self-start rounded-[var(--radius-md)] bg-accent px-4 py-2 font-medium text-background"
+            >
+              {dict.confirmButton}
+            </button>
+          </form>
         ) : (
           <p className="text-foreground-muted">{dict.confirmNotRequired}</p>
         )}

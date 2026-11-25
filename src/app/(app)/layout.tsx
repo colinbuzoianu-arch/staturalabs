@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { BroadcastAlertBanner } from "@/components/broadcast-alert-banner";
+import { BroadcastBlockingCard } from "@/components/broadcast-blocking-card";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 import { mfaRedirectTarget } from "@/lib/auth/mfa";
 import { requireAuthenticatedUser } from "@/lib/auth/require-access";
@@ -30,6 +31,34 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const broadcastDict = getAdministrationDictionary(
     await getLocale(),
   ).broadcasts;
+
+  // An access-code account (P17 §5) has no deliverable e-mail address, so no
+  // mail reminder can reach them at all. For those accounts an outstanding
+  // confirmation BLOCKS the app at their next sign-in rather than sitting in a
+  // banner they can scroll past — the only channel that actually reaches a
+  // worker without e-mail. The card links straight to /app/me/broadcasts/[id],
+  // which renders under this same layout but passes the check once nothing is
+  // outstanding, so it is never a dead end: confirming clears it.
+  const blocking =
+    user.email.endsWith("@employee.sld.invalid") && outstanding.length > 0;
+
+  if (blocking) {
+    return (
+      <BroadcastBlockingCard
+        items={outstanding.map((b) => ({
+          broadcastId: b.broadcastId,
+          title: b.title,
+        }))}
+        labels={{
+          title: broadcastDict.blockingTitle,
+          intro: broadcastDict.blockingIntro,
+          action: broadcastDict.confirmButton,
+        }}
+      >
+        {children}
+      </BroadcastBlockingCard>
+    );
+  }
 
   return (
     <>

@@ -344,6 +344,7 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
     children: [
       { labelKey: "modules.broadcasts.children.inbox", slug: "inbox" },
       { labelKey: "modules.broadcasts.children.sent", slug: "sent" },
+      { labelKey: "modules.broadcasts.children.team", slug: "team" },
       { labelKey: "modules.broadcasts.children.archive", slug: "archive" },
     ],
   },
