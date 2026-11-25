@@ -653,6 +653,25 @@ export const de: typeof en = {
       "Ihr Zugang zu diesem Testzugang ist beendet. Ihre Daten werden noch kurze Zeit aufbewahrt — nehmen Sie Kontakt auf, wenn Sie weitermachen oder in ein vollwertiges Konto wechseln möchten.",
     expiredContact: "Kontakt aufnehmen",
   },
+  // P18 B.1: the in-app handbook (Hilfe).
+  help: {
+    eyebrow: "Hilfe",
+    heading: "Benutzerhandbuch",
+    intro:
+      "Das Handbuch zur Plattform, gefiltert auf Ihre Rolle. Jedes Kapitel ist an der laufenden Anwendung geschrieben.",
+    back: "← Zurück zum Handbuch",
+    onThisPage: "Auf dieser Seite",
+    searchLabel: "Im Handbuch suchen",
+    searchPlaceholder: "z. B. Unterweisung, SDB, Meldefrist",
+    searchButton: "Suchen",
+    searchClear: "Zurücksetzen",
+    searchResults: "{count} Treffer",
+    searchEmpty: "Nichts gefunden. Versuchen Sie einen kürzeren Suchbegriff.",
+    internalBadge: "Intern",
+    pdfFull: "Gesamthandbuch herunterladen (PDF)",
+    pdfRole: "Handbuch für meine Rolle herunterladen (PDF)",
+    moduleHelp: "Hilfe zu diesem Modul",
+  },
   broadcasts: {
     eyebrow: "Sicherheitsinformationen",
     heading: "Sicherheitsinformationen",

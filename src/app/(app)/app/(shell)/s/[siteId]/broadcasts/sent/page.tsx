@@ -5,6 +5,7 @@ import {
   type AudienceScopeValue,
   BroadcastAudiencePicker,
 } from "@/components/broadcast-compose";
+import { ModuleHelpLink } from "@/components/module-help-link";
 import { Badge } from "@/components/ui/badge";
 import type {
   BroadcastDomain,
@@ -209,6 +210,14 @@ export default async function BroadcastsSentPage({
           {dict.sentHeading}
         </h1>
         <p className="mt-1 text-sm text-foreground-muted">{dict.intro}</p>
+        <div className="mt-2">
+          <ModuleHelpLink
+            module="BROADCASTS"
+            role={user.role}
+            siteId={siteId}
+            label={getAdministrationDictionary(locale).help.moduleHelp}
+          />
+        </div>
       </div>
 
       {error && (

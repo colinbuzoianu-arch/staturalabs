@@ -32,6 +32,12 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      # P18 B.1: the handbook's own checks — the generated module is current,
+      # every linked route and image exists, every legal citation comes from the
+      # verified catalogue, and no chapter uses syntax the renderer cannot show.
+      - name: Handbook checks
+        run: npm run docs:check
+
   audit:
     runs-on: ubuntu-latest
     steps:

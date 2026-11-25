@@ -67,6 +67,10 @@ export const PERMISSIONS = [
   // src/lib/broadcasts/audience-scope.ts enforces separately.
   "broadcasts.read",
   "broadcasts.write",
+  // P18 B.1: the in-app handbook. Held by EVERY role — a handbook nobody may
+  // open would be a strange thing to ship — and the role filter inside it
+  // decides which chapters a reader sees, not this permission.
+  "help.read",
   "reports.read",
   "settings.read",
   "settings.write",
@@ -134,6 +138,7 @@ export const ROLE_PERMISSIONS: Readonly<
     "documents.write",
     "broadcasts.read",
     "broadcasts.write",
+    "help.read",
     "reports.read",
   ]),
   // P17 §2 "Leader" (Führungskraft), scope = own org units (ORG_UNIT). Reads
@@ -159,6 +164,7 @@ export const ROLE_PERMISSIONS: Readonly<
     // Sends within their own org units only (audience-scope.ts).
     "broadcasts.read",
     "broadcasts.write",
+    "help.read",
     "reports.read",
   ]),
   // P17 §2 "Employee" (Mitarbeitende), scope = SELF. Own tasks/calendar, own
@@ -179,6 +185,7 @@ export const ROLE_PERMISSIONS: Readonly<
     "documents.read",
     // Receives safety information and confirms it; never sends.
     "broadcasts.read",
+    "help.read",
     "people.read",
   ]),
   // P10c: the sole holder of health_data.* (§3.18(b)). Reads incidents to
@@ -192,6 +199,7 @@ export const ROLE_PERMISSIONS: Readonly<
     "health_data.write",
     // Staff with an account are reachable by a safety message too.
     "broadcasts.read",
+    "help.read",
   ]),
   // P10c: read-only co-determination surface (the §193 Abs. 5 SGB VII Unfall-
   // anzeige co-sign, general co-determination read). No health, no write.
@@ -203,6 +211,7 @@ export const ROLE_PERMISSIONS: Readonly<
     // Reads archived broadcasts + aggregate confirmation rates (never a
     // per-person list — enforced in the module, §3.4 min-group-size).
     "broadcasts.read",
+    "help.read",
     "reports.read",
   ]),
 };

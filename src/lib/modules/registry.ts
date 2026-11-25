@@ -53,6 +53,7 @@ export type IconName =
   | "search"
   | "alert-triangle"
   | "megaphone"
+  | "help"
   | "leaf"
   | "target"
   | "flask"
@@ -427,6 +428,22 @@ export const MODULE_REGISTRY: readonly ModuleDefinition[] = [
       { labelKey: "modules.settings.children.import", slug: "import" },
       { labelKey: "modules.settings.children.catalogues", slug: "hazards" },
     ],
+  },
+  {
+    // P18 B.1: the in-app handbook. Baseline (every tenant has it), readable by
+    // every role, pinned at the very bottom of the sidebar — the slot §5.1
+    // reserved for it. The role filter inside the handbook decides which
+    // chapters a reader sees; the module itself is never hidden.
+    key: ModuleKey.HELP,
+    labelKey: "modules.help.label",
+    menuGroup: "system",
+    domain: "shared",
+    order: 990,
+    requiresEntitlement: false,
+    permission: "help.read",
+    basePath: siteModulePath("help"),
+    icon: "help",
+    children: [],
   },
 ];
 

@@ -672,6 +672,25 @@ export const en = {
       "Your access to this trial has ended. Your data is kept for a short period — get in touch if you would like to continue or convert to a full account.",
     expiredContact: "Get in touch",
   },
+  // P18 B.1: the in-app handbook (Hilfe).
+  help: {
+    eyebrow: "Help",
+    heading: "Handbook",
+    intro:
+      "The platform handbook, filtered to your role. Every chapter is written from the live application.",
+    back: "← Back to the handbook",
+    onThisPage: "On this page",
+    searchLabel: "Search the handbook",
+    searchPlaceholder: "e.g. Unterweisung, SDB, Meldefrist",
+    searchButton: "Search",
+    searchClear: "Clear",
+    searchResults: "{count} result(s)",
+    searchEmpty: "Nothing found. Try a shorter term.",
+    internalBadge: "Internal",
+    pdfFull: "Download the full handbook (PDF)",
+    pdfRole: "Download my role handbook (PDF)",
+    moduleHelp: "Help for this module",
+  },
   broadcasts: {
     eyebrow: "Safety information",
     heading: "Safety information",

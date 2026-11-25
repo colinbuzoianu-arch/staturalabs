@@ -6,6 +6,7 @@ import {
   FlaskConical,
   Folder,
   GraduationCap,
+  HelpCircle,
   Inbox,
   LayoutDashboard,
   Leaf,
@@ -27,6 +28,7 @@ import type { IconName } from "@/lib/modules/registry";
 const ICONS: Record<IconName, LucideIcon> = {
   cockpit: LayoutDashboard,
   megaphone: Megaphone,
+  help: HelpCircle,
   inbox: Inbox,
   calendar: CalendarDays,
   "clipboard-check": ClipboardCheck,

@@ -1895,6 +1895,7 @@ enum ModuleKey {
   REPORTS
   SETTINGS
   BROADCASTS
+  HELP
 }
 
 /// Per-company module entitlement (SLD_RESTRUCTURE_PLAN_platform-modules.md

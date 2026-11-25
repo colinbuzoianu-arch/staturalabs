@@ -652,6 +652,25 @@ export const ro: typeof en = {
       "Accesul la acest test s-a încheiat. Datele sunt păstrate încă o perioadă scurtă — contactați-ne dacă doriți să continuați sau să treceți la un cont complet.",
     expiredContact: "Contactați-ne",
   },
+  // P18 B.1: the in-app handbook (Hilfe).
+  help: {
+    eyebrow: "Ajutor",
+    heading: "Manual de utilizare",
+    intro:
+      "Manualul platformei, filtrat după rolul dumneavoastră. Fiecare capitol este scris pe baza aplicației reale.",
+    back: "← Înapoi la manual",
+    onThisPage: "Pe această pagină",
+    searchLabel: "Caută în manual",
+    searchPlaceholder: "ex. instruire, FDS, termen de notificare",
+    searchButton: "Caută",
+    searchClear: "Șterge",
+    searchResults: "{count} rezultat(e)",
+    searchEmpty: "Nu s-a găsit nimic. Încercați un termen mai scurt.",
+    internalBadge: "Intern",
+    pdfFull: "Descarcă manualul complet (PDF)",
+    pdfRole: "Descarcă manualul pentru rolul meu (PDF)",
+    moduleHelp: "Ajutor pentru acest modul",
+  },
   broadcasts: {
     eyebrow: "Informări de siguranță",
     heading: "Informări de siguranță",

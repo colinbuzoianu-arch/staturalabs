@@ -167,6 +167,17 @@ const MODULE_ACCESS: Record<ModuleKey, Expectation> = {
     OCCUPATIONAL_PHYSICIAN: false,
     WORKS_COUNCIL: true,
   },
+  // P18 B.1: the handbook. EVERY role may open it — the role filter inside
+  // decides which chapters they see, not the module permission.
+  HELP: {
+    COMPANY_ADMIN: true,
+    SITE_ADMIN: true,
+    EHS_SPECIALIST: true,
+    MANAGER: true,
+    EMPLOYEE: true,
+    OCCUPATIONAL_PHYSICIAN: true,
+    WORKS_COUNCIL: true,
+  },
   // Stammdaten / users & roles / catalogues — admins only.
   SETTINGS: {
     COMPANY_ADMIN: true,

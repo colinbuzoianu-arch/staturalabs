@@ -23,7 +23,7 @@ describe("module registry", () => {
     }
   });
 
-  it("marks exactly cockpit/my-tasks/calendar/actions/documents/settings as baseline", () => {
+  it("marks exactly cockpit/my-tasks/calendar/actions/documents/settings/help as baseline", () => {
     expect([...baselineModuleKeys()].sort()).toEqual(
       [
         ModuleKey.COCKPIT,
@@ -32,6 +32,8 @@ describe("module registry", () => {
         ModuleKey.ACTIONS,
         ModuleKey.DOCUMENTS,
         ModuleKey.SETTINGS,
+        // P18 B.1: the handbook needs no entitlement — every tenant has it.
+        ModuleKey.HELP,
       ].sort(),
     );
   });
@@ -54,10 +56,12 @@ describe("module registry", () => {
     );
   });
 
-  it("orders the menu by group then order, with settings pinned last", () => {
+  it("orders the menu by group then order, with settings and help pinned last", () => {
     const ordered = modulesInMenuOrder();
     expect(ordered[0].key).toBe(ModuleKey.COCKPIT);
-    expect(ordered[ordered.length - 1].key).toBe(ModuleKey.SETTINGS);
+    // P18 B.1: Hilfe sits below Einstellungen, the bottom slot §5.1 reserved.
+    expect(ordered[ordered.length - 2].key).toBe(ModuleKey.SETTINGS);
+    expect(ordered[ordered.length - 1].key).toBe(ModuleKey.HELP);
   });
 
   it("uses unique order values and stable child slugs", () => {

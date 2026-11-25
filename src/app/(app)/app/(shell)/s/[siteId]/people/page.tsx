@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
+import { ModuleHelpLink } from "@/components/module-help-link";
 import { userCan } from "@/lib/auth/company-role-bundle";
 import {
   requirePermissionOrNotFound,
@@ -163,6 +164,12 @@ export default async function PeoplePage({
           >
             {dict.accountsLink}
           </Link>
+          <ModuleHelpLink
+            module="PEOPLE"
+            role={user.role}
+            siteId={siteId}
+            label={getAdministrationDictionary(locale).help.moduleHelp}
+          />
         </div>
       </div>
 

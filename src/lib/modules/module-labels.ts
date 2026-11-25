@@ -44,6 +44,7 @@ export const MODULE_LABELS_DE: Record<string, string> = {
   "modules.training.children.sessions": "Termine",
   "modules.training.children.records": "Nachweise",
   "modules.training.children.requirements": "Anforderungen",
+  "modules.help.label": "Hilfe",
   "modules.broadcasts.label": "Sicherheitsinformationen",
   "modules.broadcasts.children.inbox": "Posteingang",
   "modules.broadcasts.children.sent": "Gesendet",
