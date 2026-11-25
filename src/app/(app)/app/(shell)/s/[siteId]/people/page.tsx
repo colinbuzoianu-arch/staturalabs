@@ -1,6 +1,10 @@
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
+import { userCan } from "@/lib/auth/company-role-bundle";
+import {
+  requirePermissionOrNotFound,
+  requireSiteAdministrationAccess,
+} from "@/lib/auth/require-access";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
 import {
@@ -24,14 +28,20 @@ export default async function PeoplePage({
 }) {
   const { siteId } = await params;
   const { imported, updated } = await searchParams;
-  const { site } = await requireSiteAdministrationAccess(siteId);
+  const { user, site } = await requireSiteAdministrationAccess(siteId);
   const locale = await getLocale();
+  // P17 §2 (slice 8): the register CREATES, DEACTIVATES and ANONYMISES people,
+  // so it needs people.write. A leader holds people.read only (§2 "R⁺ own
+  // units") — they get the list, never the forms. Their own scoped view of
+  // their people is the instruction matrix, not this register.
+  const canWritePeople = await userCan(user, "people.write");
   const dict = getAdministrationDictionary(locale).peoplePage;
   const companyId = site.companyId;
 
   async function createPersonAction(formData: FormData) {
     "use server";
     const { user, site: s } = await requireSiteAdministrationAccess(siteId);
+    await requirePermissionOrNotFound(user, "people.write");
     const d = getAdministrationDictionary(await getLocale()).peoplePage;
 
     const firstName = formData.get("firstName");
@@ -81,6 +91,7 @@ export default async function PeoplePage({
   async function deactivateAction(formData: FormData) {
     "use server";
     const { user, site: s } = await requireSiteAdministrationAccess(siteId);
+    await requirePermissionOrNotFound(user, "people.write");
     const id = formData.get("personId");
     if (typeof id === "string" && id.length > 0) {
       const person = await prisma.person.findUnique({
@@ -97,6 +108,7 @@ export default async function PeoplePage({
   async function anonymiseAction(formData: FormData) {
     "use server";
     const { user, site: s } = await requireSiteAdministrationAccess(siteId);
+    await requirePermissionOrNotFound(user, "people.write");
     const id = formData.get("personId");
     if (typeof id === "string" && id.length > 0) {
       const person = await prisma.person.findUnique({
@@ -162,7 +174,9 @@ export default async function PeoplePage({
         </div>
       )}
 
-      <section className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4">
+      <section
+        className={`flex flex-col gap-3 rounded-lg border border-border bg-surface p-4${canWritePeople ? "" : " hidden"}`}
+      >
         <h2 className="font-heading text-sm font-bold">{dict.addHeading}</h2>
         <form
           action={createPersonAction}
@@ -272,7 +286,7 @@ export default async function PeoplePage({
                     >
                       {dict.exportLink}
                     </a>
-                    {p.active && !p.anonymisedAt && (
+                    {canWritePeople && p.active && !p.anonymisedAt && (
                       <form action={deactivateAction}>
                         <input type="hidden" name="personId" value={p.id} />
                         <button
@@ -283,7 +297,7 @@ export default async function PeoplePage({
                         </button>
                       </form>
                     )}
-                    {!p.anonymisedAt && (
+                    {canWritePeople && !p.anonymisedAt && (
                       <form action={anonymiseAction}>
                         <input type="hidden" name="personId" value={p.id} />
                         <button

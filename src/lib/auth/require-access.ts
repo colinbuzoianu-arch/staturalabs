@@ -3,8 +3,11 @@ import "server-only";
 import { notFound, redirect } from "next/navigation";
 import { PlatformRole } from "@/generated/prisma/enums";
 import type { PlatformUserModel } from "@/generated/prisma/models";
+import { getModuleDefinition, type ModuleKey } from "@/lib/modules/registry";
 import { prisma } from "@/lib/prisma";
+import { userCan } from "./company-role-bundle";
 import { getCurrentPlatformUser } from "./current-user";
+import type { Permission } from "./permissions";
 import { canAccessSite } from "./rbac";
 
 // Base gate for the read-only company_admin/site_admin dashboard: any signed
@@ -84,7 +87,13 @@ export async function requireWorkstationAdministrationAccess(
   workstationId: string,
 ) {
   await requireAdministrationAccess();
-  return requireWorkstationAccess(workstationId);
+  const result = await requireWorkstationAccess(workstationId);
+  // P17 §2 (slice 8): the hub and its Server Actions WRITE an Evaluierung, so
+  // risk.write is required here — a leader holds risk.read only ("R approved
+  // assessments of own units' workstations") and must not be able to start or
+  // edit one by opening the hub URL directly.
+  await requirePermissionOrNotFound(result.user, "risk.write");
+  return result;
 }
 
 export async function requireTaskAccess(taskId: string) {
@@ -98,4 +107,38 @@ export async function requireTaskAccess(taskId: string) {
   if (!task) notFound();
   if (!(await canAccessSite(user, task.workstation.siteId))) notFound();
   return { user, task };
+}
+
+// ---------------------------------------------------------------------------
+// P17 §2 module gates (slice 8). Found while verifying the permission matrix:
+// every module page gated on canAccessSite ALONE, so a role with site access
+// but no module permission (the leader on environment/legal/settings, say)
+// could open the page by typing its URL — the sidebar hid the link, nothing
+// refused the request. Before P7b/P10c every role had every permission, so it
+// never mattered; the narrow roles made it a real hole.
+//
+// These two are used from a per-module `layout.tsx`, so every page and every
+// nested route under a module inherits the guard rather than each page having
+// to remember it. Permission resolution goes through `userCan` (override-aware,
+// §3 company-editable bundles), never the raw system default.
+export async function requireModuleAccess(
+  moduleKey: ModuleKey,
+  siteId: string,
+) {
+  const { user, site } = await requireSiteAccess(siteId);
+  const permission = getModuleDefinition(moduleKey).permission;
+  // 404, not a redirect — same reasoning as requireSiteAccess: never confirm
+  // to the wrong role that the resource exists.
+  if (!(await userCan(user, permission))) notFound();
+  return { user, site };
+}
+
+// The write-permission counterpart, for a surface that mutates. Pass the
+// explicit permission because a module's write permission is not always
+// "<module>.write" (approvals are risk.approve / legal.approve).
+export async function requirePermissionOrNotFound(
+  user: PlatformUserModel,
+  permission: Permission,
+): Promise<void> {
+  if (!(await userCan(user, permission))) notFound();
 }

@@ -5,6 +5,7 @@ import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
 import { accessibleOrgUnitIds } from "@/lib/auth/scope";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
+import { isSessionVisible } from "@/lib/people/session-visibility";
 import { planTrainingSession } from "@/lib/people/training";
 import { prisma } from "@/lib/prisma";
 
@@ -54,12 +55,17 @@ export default async function TrainingSessionsPage({
 
   const invitablePersons = persons.filter((p) => inUnit(p.orgUnitId));
   // A session is visible if the viewer planned it, is company/site-wide
-  // (unitSet null), or it touches one of their units.
-  const visibleSessions = sessions.filter(
-    (s) =>
-      unitSet === null ||
-      s.plannedByUserId === user.id ||
-      s.participants.some((pt) => inUnit(pt.person.orgUnitId)),
+  // (unitSet null), or it touches one of their units — one shared rule, also
+  // used by the Unterweisungsnachweis route (slice 8).
+  const visibleSessions = sessions.filter((s) =>
+    isSessionVisible(
+      {
+        plannedByUserId: s.plannedByUserId,
+        participantOrgUnitIds: s.participants.map((pt) => pt.person.orgUnitId),
+      },
+      unitSet,
+      user.id,
+    ),
   );
 
   async function planAction(formData: FormData) {

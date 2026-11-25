@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PersonCsvImport } from "@/components/person-csv-import";
-import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
+import {
+  requirePermissionOrNotFound,
+  requireSiteAdministrationAccess,
+} from "@/lib/auth/require-access";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
 import {
@@ -20,7 +23,9 @@ export default async function PeopleImportPage({
   params: Promise<{ siteId: string }>;
 }) {
   const { siteId } = await params;
-  const { site } = await requireSiteAdministrationAccess(siteId);
+  const { user, site } = await requireSiteAdministrationAccess(siteId);
+  // P17 §2 (slice 8): importing people is a people.write surface.
+  await requirePermissionOrNotFound(user, "people.write");
   const locale = await getLocale();
   const dict = getAdministrationDictionary(locale).peopleImport;
   const companyId = site.companyId;
@@ -51,6 +56,7 @@ export default async function PeopleImportPage({
   async function importAction(formData: FormData) {
     "use server";
     const { user, site: s } = await requireSiteAdministrationAccess(siteId);
+    await requirePermissionOrNotFound(user, "people.write");
     const csv = formData.get("csv");
     if (typeof csv !== "string" || csv.trim().length === 0) {
       redirect(`/app/s/${siteId}/people`);

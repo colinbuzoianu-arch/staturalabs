@@ -164,6 +164,12 @@ export async function confirmSelfInstruction(input: {
     (i) => i.requirementTypeId === input.requirementTypeId,
   );
   if (!target) return { ok: false, reason: "not-required" };
+  // Idempotent: a confirmation already in force is not re-recorded. Found in
+  // slice 8's walkthrough — re-posting the form wrote a second
+  // TrainingRecord for the same still-valid requirement, which inflates the
+  // proof trail with duplicates (harmless for the status, since the strongest
+  // record wins, but it is noise in a record a labour inspector may read).
+  if (target.status === "valid") return { ok: false, reason: "already-valid" };
 
   const type = await prisma.trainingRequirementType.findUnique({
     where: { id: input.requirementTypeId },

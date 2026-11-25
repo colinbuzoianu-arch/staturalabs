@@ -8,7 +8,10 @@ import {
 import { recordAuditEvent } from "@/lib/audit/audit-event";
 import { disableOffboardedAccounts } from "@/lib/auth/offboarding";
 import { canAccessCompany } from "@/lib/auth/rbac";
-import { requireSiteAdministrationAccess } from "@/lib/auth/require-access";
+import {
+  requirePermissionOrNotFound,
+  requireSiteAdministrationAccess,
+} from "@/lib/auth/require-access";
 import { getAdministrationDictionary } from "@/lib/i18n/dictionaries/administration";
 import { getLocale } from "@/lib/i18n/get-locale";
 import { prisma } from "@/lib/prisma";
@@ -31,6 +34,9 @@ export default async function EmployeeAccountsPage({
   const { siteId } = await params;
   const { checked, disabled } = await searchParams;
   const { user, site } = await requireSiteAdministrationAccess(siteId);
+  // P17 §2 (slice 8): provisioning logins is a people.write surface (and the
+  // writes below additionally require company scope).
+  await requirePermissionOrNotFound(user, "people.write");
   const locale = await getLocale();
   const dict = getAdministrationDictionary(locale).employeeAccounts;
   const companyId = site.companyId;
