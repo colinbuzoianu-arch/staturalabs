@@ -22,6 +22,7 @@
 // not relying on fine-grained event-level dedup.
 //
 // Usage: npm run seed:demo
+import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import "dotenv/config";
 import pg from "pg";
@@ -646,7 +647,7 @@ async function main() {
     }
 
     // P7c: one demo training requirement type (idempotent by companyId+title).
-    await selectOrInsert(
+    const { row: annualInstructionType } = await selectOrInsert(
       db,
       "TrainingRequirementType",
       { companyId: company.id, title: "Jährliche Sicherheitsunterweisung" },
@@ -980,6 +981,287 @@ async function main() {
     } else {
       console.log(`Reusing PlatformUser ${demoUserId} (COMPANY_ADMIN)`);
     }
+
+    // --- P17 §6: one fictional demo user per tenant role ------------------
+    // So the founder can show each role's real view (directly, or via the
+    // read-only impersonation in /admin). Every name is fictional and carries
+    // the "DEMO ·" marker; all of them share DEMO_PASSWORD, which is fine for
+    // a demo tenant whose admin password is already public in this script.
+    // Scope comes from RoleAssignment (+ SiteAssignment for the legacy
+    // site-scoped read path), exactly as a real tenant's would.
+    //
+    // The demo tenant also has employee accounts switched ON (P17 §5) — the
+    // tenant default is OFF, so a prospect sees the switch already made here.
+    await db.query(
+      `UPDATE "Company" SET "employeeAccountsEnabled" = true WHERE id = $1`,
+      [company.id],
+    );
+
+    const { data: authUsers, error: authListError } =
+      await admin.auth.admin.listUsers({ perPage: 1000 });
+    if (authListError) throw authListError;
+    const authIdByEmail = new Map(authUsers.users.map((u) => [u.email, u.id]));
+
+    async function ensureDemoUser({ email, name, role }) {
+      let id = authIdByEmail.get(email);
+      if (!id) {
+        const { data, error } = await admin.auth.admin.createUser({
+          email,
+          password: DEMO_PASSWORD,
+          email_confirm: true,
+        });
+        if (error) throw error;
+        id = data.user.id;
+        authIdByEmail.set(email, id);
+      }
+      // PlatformUser rows are deleted by reset:demo (the auth account is
+      // reused by e-mail), so this is an upsert on the id.
+      await db.query(
+        `INSERT INTO "PlatformUser" (id, role, "companyId", name, email, "updatedAt")
+         VALUES ($1, $2, $3, $4, $5, now())
+         ON CONFLICT (id) DO UPDATE SET role = $2, "companyId" = $3, name = $4,
+           email = $5, "disabledAt" = NULL, "updatedAt" = now()`,
+        [id, role, company.id, name, email],
+      );
+      return id;
+    }
+
+    async function ensureRoleAssignment(userId, role, scopeType, scopeId) {
+      await selectOrInsert(
+        db,
+        "RoleAssignment",
+        {
+          platformUserId: userId,
+          role,
+          scopeType,
+          scopeId,
+          revokedAt: null,
+        },
+        {
+          id: crypto.randomUUID(),
+          platformUserId: userId,
+          role,
+          scopeType,
+          scopeId,
+          grantedByUserId: demoUserId,
+        },
+      );
+    }
+
+    // 1 Administrator — the existing demo-admin account, now also carrying an
+    //   explicit COMPANY-scoped assignment like the other four.
+    await ensureRoleAssignment(demoUserId, "COMPANY_ADMIN", "COMPANY", null);
+
+    const roleUserDefs = [
+      {
+        key: "siteAdmin",
+        email: "demo-standortadmin@statura.local",
+        name: "DEMO · Sabine Standorf (Standortadministratorin)",
+        role: "SITE_ADMIN",
+        scopeType: "SITE",
+        scope: () => site.id,
+        siteAssignment: true,
+      },
+      {
+        key: "ehs",
+        email: "demo-ehsfachkraft@statura.local",
+        name: "DEMO · Erich Fachl (EHS-Fachkraft)",
+        role: "EHS_SPECIALIST",
+        scopeType: "SITE",
+        scope: () => site.id,
+        siteAssignment: true,
+      },
+      {
+        key: "manager",
+        email: "demo-fuehrungskraft@statura.local",
+        name: "DEMO · Felix Leiter (Führungskraft Montage)",
+        role: "MANAGER",
+        scopeType: "ORG_UNIT",
+        scope: () => departments.Montage.id,
+        siteAssignment: false,
+      },
+      {
+        key: "employee",
+        email: "demo-mitarbeiter@statura.local",
+        name: "DEMO · Anna Berger (Mitarbeitende)",
+        role: "EMPLOYEE",
+        scopeType: "SELF",
+        scope: () => null,
+        siteAssignment: false,
+      },
+      // The two special roles from P10 keep their own narrow bundles (§1
+      // "unchanged and outside these five") but had no demo account either.
+      {
+        key: "physician",
+        email: "demo-arbeitsmedizin@statura.local",
+        name: "DEMO · Dr. Mira Ordinat (Arbeitsmedizin)",
+        role: "OCCUPATIONAL_PHYSICIAN",
+        scopeType: "COMPANY",
+        scope: () => null,
+        siteAssignment: false,
+      },
+      {
+        key: "worksCouncil",
+        email: "demo-betriebsrat@statura.local",
+        name: "DEMO · Beate Ratmann (Betriebsrat)",
+        role: "WORKS_COUNCIL",
+        scopeType: "COMPANY",
+        scope: () => null,
+        siteAssignment: false,
+      },
+    ];
+
+    const roleUserIds = {};
+    for (const def of roleUserDefs) {
+      const id = await ensureDemoUser({
+        email: def.email,
+        name: def.name,
+        role: def.role,
+      });
+      roleUserIds[def.key] = id;
+      await ensureRoleAssignment(id, def.role, def.scopeType, def.scope());
+      if (def.siteAssignment) {
+        await selectOrInsert(
+          db,
+          "SiteAssignment",
+          { userId: id, siteId: site.id },
+          { id: crypto.randomUUID(), userId: id, siteId: site.id },
+        );
+      }
+    }
+    console.log(
+      `P17 role users: ${roleUserDefs.length} + the existing administrator (password ${DEMO_PASSWORD})`,
+    );
+
+    // Person ↔ job assignments (P7a). Required for anything derived: the
+    // instruction requirements below, the leader's scoped matrix, and the
+    // employee's own Betriebsanweisungen/briefing all resolve through
+    // PersonAssignment, never through Person.orgUnitId.
+    const personAssignmentDefs = [
+      { nr: "D-1001", workstation: "Montageplatz Paneele 1" },
+      { nr: "D-1002", workstation: "Abkantpresse" },
+      { nr: "D-1003", workstation: "Lackierkabine" },
+      { nr: "D-1004", workstation: "Palettenverladung" },
+    ];
+    for (const def of personAssignmentDefs) {
+      const personId = personByNr[def.nr];
+      const workstation = workstations[def.workstation];
+      if (!personId || !workstation) continue;
+      await selectOrInsert(
+        db,
+        "PersonAssignment",
+        { personId, workstationId: workstation.id, orgUnitId: null },
+        {
+          id: crypto.randomUUID(),
+          personId,
+          workstationId: workstation.id,
+          validFrom: new Date("2026-01-01"),
+        },
+      );
+    }
+    console.log(
+      `PersonAssignment: ${personAssignmentDefs.length} job assignments`,
+    );
+
+    // Link the employee account to its Person (§5: PlatformUser ≠ Person, one
+    // optional one-way link for self-service) and put its e-mail on file, so
+    // the Konten page shows the e-mail-invite path for this person.
+    if (personByNr["D-1001"]) {
+      await db.query(
+        `UPDATE "Person" SET "platformUserId" = $2, email = $3 WHERE id = $1`,
+        [
+          personByNr["D-1001"],
+          roleUserIds.employee,
+          "demo-mitarbeiter@statura.local",
+        ],
+      );
+    }
+
+    // A second employee WITHOUT a company e-mail, to demo the access-code
+    // path end to end: own account on a synthetic .invalid address plus a
+    // live one-time code. The code is fixed here (a demo tenant, like the
+    // published demo-admin password) so a walkthrough can type it; in a real
+    // tenant it is random and only its hash is ever stored — which is exactly
+    // what is stored here too.
+    const ACCESS_CODE_DEMO_PLAINTEXT = "STARTJETZT";
+    if (personByNr["D-1004"]) {
+      const codeEmail = `pn-d1004.${company.id.toLowerCase()}@employee.sld.invalid`;
+      const codeUserId = await ensureDemoUser({
+        email: codeEmail,
+        name: "DEMO · Dieter Gruber (Mitarbeitender, Zugangscode)",
+        role: "EMPLOYEE",
+      });
+      await ensureRoleAssignment(codeUserId, "EMPLOYEE", "SELF", null);
+      await db.query(
+        `UPDATE "Person" SET "platformUserId" = $2, email = NULL WHERE id = $1`,
+        [personByNr["D-1004"], codeUserId],
+      );
+      // node:crypto's createHash — the global `crypto` here is WebCrypto
+      // (randomUUID only), which has no createHash.
+      const codeHash = createHash("sha256")
+        .update(ACCESS_CODE_DEMO_PLAINTEXT)
+        .digest("hex");
+      await selectOrInsert(
+        db,
+        "EmployeeAccessCode",
+        { codeHash },
+        {
+          id: crypto.randomUUID(),
+          companyId: company.id,
+          personId: personByNr["D-1004"],
+          platformUserId: codeUserId,
+          codeHash,
+          expiresAt: new Date(Date.now() + 14 * 86400000),
+          createdByUserId: demoUserId,
+        },
+      );
+      console.log(
+        `Access-code demo: Personalnr. D-1004 / Code ${ACCESS_CODE_DEMO_PLAINTEXT} (14 days)`,
+      );
+    }
+
+    // A document-read-confirmation instruction, required via the Montage org
+    // unit — the one kind an employee may confirm themselves (§5), so the
+    // walkthrough has something to confirm. Attached to the UNIT, not a
+    // person: requirements are always job-level.
+    const { row: fireSafetyType } = await selectOrInsert(
+      db,
+      "TrainingRequirementType",
+      {
+        companyId: company.id,
+        title: "Brandschutzordnung zur Kenntnis nehmen",
+      },
+      {
+        id: crypto.randomUUID(),
+        companyId: company.id,
+        title: "Brandschutzordnung zur Kenntnis nehmen",
+        contentOutline:
+          "Brandschutzordnung Teil A/B lesen und Kenntnisnahme bestätigen (§14 ASchG, jährlich).",
+        recurrenceMonths: 12,
+        deliveryMethod: "DOCUMENT_READ_CONFIRMATION",
+        updatedAt: new Date(),
+      },
+    );
+    for (const [typeId, subjectType, subjectId] of [
+      [fireSafetyType.id, "ORG_UNIT", departments.Montage.id],
+      // The annual in-person instruction applies plant-wide.
+      [annualInstructionType.id, "ORG_UNIT", plant.id],
+    ]) {
+      await selectOrInsert(
+        db,
+        "TrainingRequirementSource",
+        { requirementTypeId: typeId, subjectType, subjectId },
+        {
+          id: crypto.randomUUID(),
+          requirementTypeId: typeId,
+          subjectType,
+          subjectId,
+        },
+      );
+    }
+    console.log(
+      "TrainingRequirementSource: 2 job-level requirement attachments (unit + plant)",
+    );
 
     // --- P11 Rechtskataster demo (idempotent, marker = an AT site link).
     // AT + DE sites get a confirmed subset with a couple of evaluations (one

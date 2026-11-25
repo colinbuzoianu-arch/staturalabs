@@ -171,10 +171,36 @@ async function main() {
       `DELETE FROM "OperatingInstruction" WHERE "substanceId" IN (SELECT id FROM "Substance" WHERE "companyId" = $1)`,
       [company.id],
     );
+    // P15 S2 / P16 §3.1 (reset gaps until now — the P15/P16 slices added these
+    // children and never extended this script; the demo tenant only grew SDS
+    // components and a mixture composition with the P16 prospect pack, which is
+    // when it started failing). All FK Restrict, so leaf-to-root:
+    //   SdsComponent → SafetyDataSheet, SdsExtraction/MixtureComponent → Substance.
+    await del(
+      db,
+      "SdsComponent",
+      `DELETE FROM "SdsComponent" WHERE "safetyDataSheetId" IN (
+         SELECT sds.id FROM "SafetyDataSheet" sds
+         JOIN "Substance" sub ON sub.id = sds."substanceId"
+         WHERE sub."companyId" = $1)`,
+      [company.id],
+    );
     await del(
       db,
       "SafetyDataSheet",
       `DELETE FROM "SafetyDataSheet" WHERE "substanceId" IN (SELECT id FROM "Substance" WHERE "companyId" = $1)`,
+      [company.id],
+    );
+    await del(
+      db,
+      "SdsExtraction",
+      `DELETE FROM "SdsExtraction" WHERE "companyId" = $1`,
+      [company.id],
+    );
+    await del(
+      db,
+      "MixtureComponent",
+      `DELETE FROM "MixtureComponent" WHERE "substanceId" IN (SELECT id FROM "Substance" WHERE "companyId" = $1)`,
       [company.id],
     );
     await del(
@@ -496,6 +522,14 @@ async function main() {
       [siteIds],
     );
 
+    // P15 S5 storage locations (FK Site, Restrict; parent of SubstanceUse,
+    // already deleted above) — another reset gap from P15.
+    await del(
+      db,
+      "StorageLocation",
+      `DELETE FROM "StorageLocation" WHERE "siteId" = ANY($1)`,
+      [siteIds],
+    );
     await del(db, "Site", `DELETE FROM "Site" WHERE "companyId" = $1`, [
       company.id,
     ]);
@@ -506,12 +540,22 @@ async function main() {
       [company.id],
     );
     // P7c training (FK Person / TrainingRequirementType / TrainingSession,
-    // all Restrict) — records → sessions → types, before Person.
+    // all Restrict) — records → participants → sessions → types, before Person.
     await del(
       db,
       "TrainingRecord",
       `DELETE FROM "TrainingRecord" WHERE "personId" IN (
          SELECT id FROM "Person" WHERE "companyId" = $1)`,
+      [company.id],
+    );
+    // P17 slice 4 attendance roster (FK TrainingSession AND Person, both
+    // Restrict) — a reset gap until now: the demo had no planned session yet,
+    // so nothing had ever exercised it. Must go before TrainingSession.
+    await del(
+      db,
+      "TrainingSessionParticipant",
+      `DELETE FROM "TrainingSessionParticipant" WHERE "trainingSessionId" IN (
+         SELECT id FROM "TrainingSession" WHERE "companyId" = $1)`,
       [company.id],
     );
     await del(
@@ -544,6 +588,13 @@ async function main() {
       `DELETE FROM "CompanyRetentionSetting" WHERE "companyId" = $1`,
       [company.id],
     );
+    // P17 §5 employee access codes (FK Person, Restrict) — before Person.
+    await del(
+      db,
+      "EmployeeAccessCode",
+      `DELETE FROM "EmployeeAccessCode" WHERE "companyId" = $1`,
+      [company.id],
+    );
     // P7a people compartment: PersonAssignment (FK Person) then Person (FK
     // Company), both Restrict — before the Company delete.
     await del(
@@ -559,6 +610,18 @@ async function main() {
 
     // P1 CompanyModule entitlement rows FK to Company (Restrict) — delete
     // before the Company, same reset-gap class as the P4 document tables above.
+    // P15 S8 AI metering + P16 slice 1 engine flags + P17 slice 3 role bundles
+    // (all FK Company, Restrict) — before the Company delete.
+    for (const table of [
+      "AiUsageCounter",
+      "AiUsageCap",
+      "EngineFlagSetting",
+      "CompanyRoleBundle",
+    ]) {
+      await del(db, table, `DELETE FROM "${table}" WHERE "companyId" = $1`, [
+        company.id,
+      ]);
+    }
     await del(
       db,
       "CompanyModule",
