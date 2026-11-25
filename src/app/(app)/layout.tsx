@@ -39,6 +39,19 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // worker without e-mail. The card links straight to /app/me/broadcasts/[id],
   // which renders under this same layout but passes the check once nothing is
   // outstanding, so it is never a dead end: confirming clears it.
+  //
+  // Only the alerts are banner material, and the banner is mounted below ONLY
+  // when that list is non-empty: a mounted client component serialises its
+  // label props into every page's RSC payload, so an always-mounted
+  // return-null banner would ship its strings to every page for nothing.
+  const alerts = outstanding
+    .filter((b) => b.priority === "SAFETY_ALERT")
+    .map((b) => ({
+      broadcastId: b.broadcastId,
+      title: b.title,
+      requiresConfirmation: b.requiresConfirmation,
+    }));
+
   const blocking =
     user.email.endsWith("@employee.sld.invalid") && outstanding.length > 0;
 
@@ -63,20 +76,16 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <ImpersonationBanner />
-      <BroadcastAlertBanner
-        items={outstanding
-          .filter((b) => b.priority === "SAFETY_ALERT")
-          .map((b) => ({
-            broadcastId: b.broadcastId,
-            title: b.title,
-            requiresConfirmation: b.requiresConfirmation,
-          }))}
-        labels={{
-          title: broadcastDict.alertBannerTitle,
-          action: broadcastDict.alertBannerAction,
-          dismiss: broadcastDict.alertBannerDismiss,
-        }}
-      />
+      {alerts.length > 0 && (
+        <BroadcastAlertBanner
+          items={alerts}
+          labels={{
+            title: broadcastDict.alertBannerTitle,
+            action: broadcastDict.alertBannerAction,
+            dismiss: broadcastDict.alertBannerDismiss,
+          }}
+        />
+      )}
       {children}
     </>
   );
