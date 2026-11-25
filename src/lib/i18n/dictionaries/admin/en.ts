@@ -260,6 +260,8 @@ export const en = {
     notesLabel: "Notes (internal)",
     createHint:
       "All modules are entitled, chemistry engines run in PREVIEW, up to {users} users, {days} days by default. The contact receives the normal invite e-mail.",
+    termsNote:
+      "Hand the trial terms over with the invite: legal-templates/trial-terms-template.md (template — needs legal review). The AVV/DPA template applies if the prospect enters real personal data.",
     createButton: "Create trial",
     createdBanner: "Trial created and the contact invited.",
     openTenant: "Open tenant",

@@ -255,6 +255,8 @@ export const ro: typeof en = {
     notesLabel: "Note (interne)",
     createHint:
       "Toate modulele sunt activate, motoarele de chimie rulează în PREVIEW, până la {users} utilizatori, implicit {days} zile. Persoana de contact primește e-mailul de invitație obișnuit.",
+    termsNote:
+      "Predați condițiile de testare împreună cu invitația: legal-templates/trial-terms-template.md (model — necesită verificare juridică). Dacă se introduc date personale reale, se aplică și modelul AVV/DPA.",
     createButton: "Creează acces de test",
     createdBanner: "Acces de test creat și persoana de contact invitată.",
     openTenant: "Deschide tenantul",

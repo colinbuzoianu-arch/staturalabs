@@ -254,6 +254,8 @@ export const de: typeof en = {
     notesLabel: "Notizen (intern)",
     createHint:
       "Alle Module sind freigeschaltet, die Chemie-Engines laufen im PREVIEW, bis zu {users} Benutzende, standardmäßig {days} Tage. Die Ansprechperson erhält die normale Einladungs-E-Mail.",
+    termsNote:
+      "Die Testnutzungsbedingungen mit der Einladung übergeben: legal-templates/trial-terms-template.md (Vorlage — rechtlich zu prüfen). Bei echten Personendaten gilt zusätzlich die AVV-Vorlage.",
     createButton: "Testzugang anlegen",
     createdBanner: "Testzugang angelegt und Ansprechperson eingeladen.",
     openTenant: "Mandanten öffnen",

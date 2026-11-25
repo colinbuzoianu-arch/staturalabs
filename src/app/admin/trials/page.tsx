@@ -340,6 +340,7 @@ export default async function TrialsPage({
                 <Input id="trial-notes" name="notes" className="w-72" />
               </div>
             </div>
+            <p className="text-xs text-foreground-subtle">{dict.termsNote}</p>
             <p className="text-xs text-foreground-subtle">
               {dict.createHint
                 .replace("{users}", String(trialUserLimit("TRIAL") ?? 0))
