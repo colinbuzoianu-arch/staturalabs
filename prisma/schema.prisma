@@ -2092,6 +2092,11 @@ enum NotificationEventType {
   INSTRUCTION_DUE
   INSTRUCTION_OVERDUE
   LEGAL_REQUIREMENT_REVIEW_DUE
+  // Sicherheitsinformationen (safety broadcasts): published to a recipient,
+  // and the two confirmation reminders.
+  BROADCAST_PUBLISHED
+  BROADCAST_CONFIRMATION_DUE_SOON
+  BROADCAST_CONFIRMATION_OVERDUE
 }
 
 // A single in-app notification instance for one recipient. Like AuditEvent,

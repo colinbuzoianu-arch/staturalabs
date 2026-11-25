@@ -13,6 +13,9 @@ export type MeNavLabels = {
   navInstructions: string;
   navDocuments: string;
   navIncidents: string;
+  // Sicherheitsinformationen: shown to EVERY account, person-linked or not —
+  // a role audience addresses accounts directly.
+  navBroadcasts: string;
 };
 
 export function MeNav({
@@ -25,6 +28,7 @@ export function MeNav({
   const pathname = usePathname();
   const tabs: { href: string; label: string }[] = [
     { href: "/app/me", label: labels.navOverview },
+    { href: "/app/me/broadcasts", label: labels.navBroadcasts },
   ];
   if (hasPerson) {
     tabs.push(

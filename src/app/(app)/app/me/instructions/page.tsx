@@ -37,6 +37,7 @@ export default async function MyInstructionsPage() {
         navInstructions: dict.navInstructions,
         navDocuments: dict.navDocuments,
         navIncidents: dict.navIncidents,
+        navBroadcasts: dict.navBroadcasts,
       }}
       hasPerson={person !== null}
     />

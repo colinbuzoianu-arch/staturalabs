@@ -147,6 +147,7 @@ export default async function MyTasksPage() {
           navInstructions: selfDict.navInstructions,
           navDocuments: selfDict.navDocuments,
           navIncidents: selfDict.navIncidents,
+          navBroadcasts: selfDict.navBroadcasts,
         }}
         hasPerson={selfPerson !== null}
       />

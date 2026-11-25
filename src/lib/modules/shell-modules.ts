@@ -25,6 +25,7 @@ export const BUILT_MODULES: ReadonlySet<ModuleKey> = new Set<ModuleKey>([
   "INSPECTIONS",
   "INCIDENTS",
   "LEGAL",
+  "BROADCASTS",
 ]);
 
 // Resolve the sidebar's module list for a user in a company: registry filtered
