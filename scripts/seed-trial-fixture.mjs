@@ -607,13 +607,13 @@ async function main() {
         "SubstanceUse",
         {
           substanceId: substance.id,
-          workstationId: workstations["Werkstatt"].id,
+          workstationId: workstations.Werkstatt.id,
         },
         {
           id: crypto.randomUUID(),
           substanceId: substance.id,
           siteId: site.id,
-          workstationId: workstations["Werkstatt"].id,
+          workstationId: workstations.Werkstatt.id,
           purpose: "Reinigung und Wartung",
           quantityClass: "S",
           activeFrom: days(-150),

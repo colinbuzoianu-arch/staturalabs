@@ -32,10 +32,6 @@ export const TRIAL_REMINDER_LEAD_DAYS = [2, 7] as const;
 
 export type TrialReminderResult = { considered: number; created: number };
 
-function trialHref(companyId: string): string {
-  return `/admin/tenants/${companyId}`;
-}
-
 // Send the founder's copy. Separate from the in-app notification because the
 // founder is not a user of the trial tenant — they get an e-mail to the
 // configured address, or nothing at all when it is unset (never a guess).

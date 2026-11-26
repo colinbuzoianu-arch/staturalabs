@@ -87,6 +87,41 @@ function routeExists(path, patterns) {
 // Read from the repo's own seeded legal references rather than from the DB, so
 // the check runs in CI with no database: every legal reference the product
 // knows was seeded by a migration, and that SQL is in the repo.
+//
+// A citation is compared as a PAIR — the law AND the paragraph — because "§ 5"
+// on its own is meaningless: ASchG §5 and ArbSchG §5 are different duties in
+// different countries, and a check that accepted either would wave through a
+// citation pointing at the wrong country's law. The two sides also write the
+// same citation differently ("ASchG §5" in the seed SQL, "§ 5 ASchG" in German
+// prose), so both are normalised to "ASCHG §5".
+const LAW_TOKEN = /\b([A-ZÄÖÜ][A-Za-zÄÖÜäöüß]*(?:G|V|VO|O|GB|VII))\b/;
+const CITATION = /(?:§{1,2}|Art\.)\s?(\d+[a-z]?)/g;
+
+function normalisePair(law, paragraph) {
+  return `${law.toUpperCase()} §${paragraph.replace(/\s+/g, "")}`;
+}
+
+// Every "§ N"/"Art. N" in a text, paired with the nearest law abbreviation:
+// forward first (German prose puts the law after the §), then backward (the
+// seed SQL puts it before). A citation with no law anywhere near it is not
+// checkable and is skipped — the rule is about naming a provision, and a bare
+// number in a sentence about something else must not fail the build.
+function citationsIn(text) {
+  const found = new Set();
+  for (const match of text.matchAll(CITATION)) {
+    const afterStart = match.index + match[0].length;
+    const after = text.slice(afterStart, afterStart + 48);
+    const before = text.slice(Math.max(0, match.index - 48), match.index);
+    const law =
+      LAW_TOKEN.exec(after)?.[1] ??
+      [...before.matchAll(new RegExp(LAW_TOKEN, "g"))].pop()?.[1] ??
+      null;
+    if (!law) continue;
+    found.add(normalisePair(law, match[1]));
+  }
+  return found;
+}
+
 function allowedCitations() {
   const allowed = new Set();
   const migrationsDir = join(ROOT, "prisma", "migrations");
@@ -99,19 +134,12 @@ function allowedCitations() {
     }
   };
   walk(migrationsDir);
-  const citation =
-    /(§{1,2}\s?\d+[a-z]?(?:\s?Abs\.?\s?\d+)?|Art\.\s?\d+[a-z]?)/g;
   for (const file of files) {
-    const sql = readFileSync(file, "utf8");
-    for (const match of sql.matchAll(citation)) {
-      allowed.add(normaliseCitation(match[1]));
+    for (const cited of citationsIn(readFileSync(file, "utf8"))) {
+      allowed.add(cited);
     }
   }
   return allowed;
-}
-
-function normaliseCitation(raw) {
-  return raw.replace(/\s+/g, " ").replace(/§§/, "§").trim();
 }
 
 function main() {
@@ -122,8 +150,6 @@ function main() {
 
   const patterns = routePatterns();
   const allowed = allowedCitations();
-  const citation =
-    /(§{1,2}\s?\d+[a-z]?(?:\s?Abs\.?\s?\d+)?|Art\.\s?\d+[a-z]?)/g;
 
   for (const file of files) {
     const raw = readFileSync(join(SOURCE_DIR, file), "utf8");
@@ -152,8 +178,7 @@ function main() {
     }
 
     // 5. legal citations
-    for (const match of body.matchAll(citation)) {
-      const cited = normaliseCitation(match[1]);
+    for (const cited of citationsIn(body)) {
       if (!allowed.has(cited)) {
         fail(
           file,

@@ -71,9 +71,9 @@ export async function GET(
     }
   }
 
-  const escape = (value: string) =>
+  const escapeCell = (value: string) =>
     /[";\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
-  const csv = rows.map((r) => r.map(escape).join(";")).join("\r\n");
+  const csv = rows.map((r) => r.map(escapeCell).join(";")).join("\r\n");
   const fileName = `sicherheitsinformation-${broadcastId}.csv`;
 
   return new Response(`﻿${csv}`, {

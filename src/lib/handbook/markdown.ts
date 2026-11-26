@@ -77,6 +77,10 @@ function inline(text: string): string {
   );
   out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   out = out.replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>");
+  // The sentinel is deliberately a NUL: escapeHtml() has already run over the
+  // chapter text, so the only NUL in the string is the one the code-extraction
+  // step above inserted itself.
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: placeholder sentinel, see above
   out = out.replace(/\u0000CODE(\d+)\u0000/g, (_m, i: string) => {
     return `<code>${escapeHtml(codes[Number(i)])}</code>`;
   });

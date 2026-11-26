@@ -15,14 +15,14 @@ export function trialContactAddress(
   env: string | undefined = process.env.TRIAL_CONTACT_EMAIL,
 ): string | null {
   const value = env?.trim();
-  return value && value.includes("@") ? value : null;
+  return value?.includes("@") ? value : null;
 }
 
 export function trialNotifyAddress(
   env: string | undefined = process.env.TRIAL_NOTIFY_EMAIL,
 ): string | null {
   const value = env?.trim();
-  return value && value.includes("@") ? value : null;
+  return value?.includes("@") ? value : null;
 }
 
 // A mailto: with a pre-filled subject, so a prospect's question arrives with
