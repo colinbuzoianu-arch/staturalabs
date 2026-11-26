@@ -18,6 +18,12 @@ import { join } from "node:path";
 
 const BASE = process.env.SCREENSHOT_BASE_URL ?? "http://localhost:3000";
 const OUT_DIR = join(process.cwd(), "docs", "handbuch", "img");
+// Each shot is written twice, on purpose: docs/handbuch/img is the source the
+// Produktüberblick PDF reads (P18 B.4), and public/handbuch/img is what Next
+// serves for the `/handbuch/img/...` paths a chapter's Markdown links to. One
+// command, both consumers — a copy step someone has to remember is a copy step
+// someone forgets.
+const PUBLIC_DIR = join(process.cwd(), "public", "handbuch", "img");
 const VIEWPORT = { width: 1440, height: 900 };
 
 // The demo users seeded by P17 slice 7. One password for all of them (the demo
@@ -140,6 +146,7 @@ async function main() {
     throw new Error("No AT site in the DEMO tenant — run npm run seed:demo");
 
   mkdirSync(OUT_DIR, { recursive: true });
+  mkdirSync(PUBLIC_DIR, { recursive: true });
   const browser = await chromium.launch();
   const written = [];
 
@@ -173,7 +180,10 @@ async function main() {
       for (const shot of shots) {
         const target = `${BASE}${shot.path.replace("{siteId}", site.id)}`;
         await page.goto(target, { waitUntil: "networkidle" });
-        await page.screenshot({ path: join(OUT_DIR, shot.file) });
+        const bytes = await page.screenshot({
+          path: join(OUT_DIR, shot.file),
+        });
+        writeFileSync(join(PUBLIC_DIR, shot.file), bytes);
         written.push(shot.file);
         console.log(`  ${shot.file} ← ${shot.path}`);
       }

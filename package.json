@@ -19,6 +19,7 @@
     "seed:prospect": "node scripts/seed-prospect-fixture.mjs",
     "seed:trial": "node scripts/seed-trial-fixture.mjs",
     "docs:handbook": "node scripts/build-handbook.mjs",
+    "docs:overview": "node scripts/build-overview.mjs",
     "docs:check": "node scripts/check-handbook.mjs",
     "docs:screenshots": "node scripts/screenshot-handbook.mjs",
     "reset:prospect": "node scripts/reset-prospect-fixture.mjs"

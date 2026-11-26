@@ -670,6 +670,7 @@ export const de: typeof en = {
     internalBadge: "Intern",
     pdfFull: "Gesamthandbuch herunterladen (PDF)",
     pdfRole: "Handbuch für meine Rolle herunterladen (PDF)",
+    pdfOverview: "Produktüberblick herunterladen (PDF)",
     moduleHelp: "Hilfe zu diesem Modul",
   },
   broadcasts: {

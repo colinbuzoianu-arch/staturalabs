@@ -689,6 +689,7 @@ export const en = {
     internalBadge: "Internal",
     pdfFull: "Download the full handbook (PDF)",
     pdfRole: "Download my role handbook (PDF)",
+    pdfOverview: "Download the product overview (PDF)",
     moduleHelp: "Help for this module",
   },
   broadcasts: {

@@ -59,6 +59,16 @@ export default async function HelpPage({
           >
             {dict.pdfRole}
           </a>
+          {/* The sales document (P18 B.4). Shown to the roles that would hand
+              it on — not to every employee, who has no use for it. */}
+          {(user.role === "COMPANY_ADMIN" ||
+            user.role === "SITE_ADMIN" ||
+            user.role === "SUPER_ADMIN" ||
+            user.role === "L3_SUPPORT") && (
+            <a href="/api/overview/pdf" className="text-accent hover:underline">
+              {dict.pdfOverview}
+            </a>
+          )}
         </div>
       </div>
 

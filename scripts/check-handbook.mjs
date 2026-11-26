@@ -11,6 +11,15 @@
 //   6. syntax the in-app renderer does not support (a Markdown table, raw HTML,
 //      a setext heading), which would otherwise render as literal text.
 //
+// The same checks (1, 5, 6) also run over the Produktüberblick sources
+// (docs/ueberblick/de/**, P18 B.4), plus two of its own:
+//
+//   7. a section names a screenshot that is not in the screenshot script's
+//      manifest — the file itself is produced on demand and may be absent, but
+//      a typo in the name must be loud;
+//   8. the {{RECHTSABDECKUNG}} marker, which the PDF route replaces with the
+//      figures from the active legal catalogue, is missing or duplicated.
+//
 // Usage: npm run docs:check
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -20,27 +29,74 @@ const ROOT = process.cwd();
 const SOURCE_DIR = join(ROOT, "docs", "handbuch", "de");
 const IMG_DIR = join(ROOT, "docs", "handbuch", "img");
 const GENERATED = join(ROOT, "src", "generated", "handbook.ts");
+const OVERVIEW_DIR = join(ROOT, "docs", "ueberblick", "de");
+const OVERVIEW_GENERATED = join(ROOT, "src", "generated", "overview.ts");
+const SHOT_SCRIPT = join(ROOT, "scripts", "screenshot-handbook.mjs");
+const COVERAGE_MARKER = "{{RECHTSABDECKUNG}}";
 const APP_DIR = join(ROOT, "src", "app");
 
 const problems = [];
 const fail = (file, message) => problems.push(`${file}: ${message}`);
 
-// --- 1. the generated module is current -----------------------------------
-function checkGenerated() {
-  const before = existsSync(GENERATED) ? readFileSync(GENERATED, "utf8") : "";
-  execFileSync(
-    process.execPath,
-    [join(ROOT, "scripts", "build-handbook.mjs")],
-    {
-      cwd: ROOT,
-      stdio: "pipe",
-    },
-  );
-  const after = readFileSync(GENERATED, "utf8");
+// --- 1. the generated modules are current ---------------------------------
+// Runs the builder and compares: the generated file must be exactly what the
+// Markdown produces, so the two cannot drift. The builder throws on invalid
+// frontmatter, which fails this check too (that is check 2).
+function checkGenerated(builder, generated, label, command) {
+  const before = existsSync(generated) ? readFileSync(generated, "utf8") : "";
+  execFileSync(process.execPath, [join(ROOT, "scripts", builder)], {
+    cwd: ROOT,
+    stdio: "pipe",
+  });
+  const after = readFileSync(generated, "utf8");
   if (before !== after) {
+    fail(label, `stale — run \`${command}\` and commit the result`);
+  }
+}
+
+// --- 7./8. the Produktüberblick's own two checks ---------------------------
+function checkOverview(allowed) {
+  const shotScript = readFileSync(SHOT_SCRIPT, "utf8");
+  const knownShots = new Set(
+    [...shotScript.matchAll(/file:\s*"([^"]+\.png)"/g)].map((m) => m[1]),
+  );
+
+  const files = readdirSync(OVERVIEW_DIR).filter((f) => f.endsWith(".md"));
+  if (files.length === 0) fail("docs/ueberblick/de", "no sections found");
+
+  let markers = 0;
+  for (const file of files) {
+    const raw = readFileSync(join(OVERVIEW_DIR, file), "utf8");
+    const frontmatter = /^---\n([\s\S]*?)\n---/.exec(
+      raw.replace(/\r\n/g, "\n"),
+    );
+    const body = raw.replace(/^---\n[\s\S]*?\n---\n?/, "");
+
+    const shot = /^screenshot:\s*(.*)$/m.exec(frontmatter?.[1] ?? "")?.[1];
+    if (shot && shot !== "none" && !knownShots.has(shot)) {
+      fail(
+        file,
+        `names the screenshot ${shot}, which the screenshot script does not produce`,
+      );
+    }
+
+    markers += body.split(COVERAGE_MARKER).length - 1;
+
+    for (const cited of citationsIn(body)) {
+      if (!allowed.has(cited)) {
+        fail(
+          file,
+          `cites ${cited}, which is not in the verified legal catalogue — the overview must not state new law`,
+        );
+      }
+    }
+    checkUnsupportedSyntax(file, body);
+  }
+
+  if (markers !== 1) {
     fail(
-      "src/generated/handbook.ts",
-      "stale — run `npm run docs:handbook` and commit the result",
+      "docs/ueberblick/de",
+      `the ${COVERAGE_MARKER} marker appears ${markers} time(s); the legal-coverage figures need exactly one place to go`,
     );
   }
 }
@@ -142,8 +198,31 @@ function allowedCitations() {
   return allowed;
 }
 
+function checkUnsupportedSyntax(file, body) {
+  if (/^\s*\|.*\|\s*$/m.test(body)) {
+    fail(file, "uses a Markdown table, which the renderer does not support");
+  }
+  if (/<[a-zA-Z][^>]*>/.test(body)) {
+    fail(file, "contains raw HTML, which the renderer escapes to text");
+  }
+  if (/^(=+|-{3,})$/m.test(body.replace(/^-{3,}$/gm, ""))) {
+    fail(file, "uses a setext heading; use # instead");
+  }
+}
+
 function main() {
-  checkGenerated();
+  checkGenerated(
+    "build-handbook.mjs",
+    GENERATED,
+    "src/generated/handbook.ts",
+    "npm run docs:handbook",
+  );
+  checkGenerated(
+    "build-overview.mjs",
+    OVERVIEW_GENERATED,
+    "src/generated/overview.ts",
+    "npm run docs:overview",
+  );
 
   const files = readdirSync(SOURCE_DIR).filter((f) => f.endsWith(".md"));
   if (files.length === 0) fail("docs/handbuch/de", "no chapters found");
@@ -188,16 +267,10 @@ function main() {
     }
 
     // 6. unsupported syntax
-    if (/^\s*\|.*\|\s*$/m.test(body)) {
-      fail(file, "uses a Markdown table, which the renderer does not support");
-    }
-    if (/<[a-zA-Z][^>]*>/.test(body)) {
-      fail(file, "contains raw HTML, which the renderer escapes to text");
-    }
-    if (/^(=+|-{3,})$/m.test(body.replace(/^-{3,}$/gm, ""))) {
-      fail(file, "uses a setext heading; use # instead");
-    }
+    checkUnsupportedSyntax(file, body);
   }
+
+  checkOverview(allowed);
 
   if (problems.length > 0) {
     console.error("Handbook checks failed:\n");
@@ -205,7 +278,7 @@ function main() {
     process.exit(1);
   }
   console.log(
-    `handbook checks passed (${files.length} chapter(s), ${patterns.length} routes known, ${allowed.size} verified citations)`,
+    `handbook checks passed (${files.length} chapter(s), ${readdirSync(OVERVIEW_DIR).filter((f) => f.endsWith(".md")).length} overview section(s), ${patterns.length} routes known, ${allowed.size} verified citations)`,
   );
 }
 

@@ -55,5 +55,11 @@ next-env.d.ts
 # (npm run predev / prebuild), not committed.
 /public/fonts
 
+# Handbook screenshots: generated on demand by npm run docs:screenshots.
+# The source copy lives in docs/handbuch/img (also ignored); this one is the
+# served copy for the /handbuch/img paths a chapter links to.
+/public/handbuch
+/docs/handbuch/img
+
 certificates
 verify-prod-tmp.mjs

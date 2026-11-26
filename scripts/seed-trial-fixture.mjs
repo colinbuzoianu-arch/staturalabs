@@ -635,7 +635,7 @@ async function main() {
         "Beim Abstapeln verrutschte eine Palette. Keine Person betroffen. Keine Namen in dieser Beschreibung.",
       occurredAt: days(-9),
       status: "TRIAGED",
-      subjectWorkstationId: workstations["Kommissionierung"].id,
+      subjectWorkstationId: workstations.Kommissionierung.id,
       updatedAt: new Date(),
     });
 

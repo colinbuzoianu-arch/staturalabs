@@ -669,6 +669,7 @@ export const ro: typeof en = {
     internalBadge: "Intern",
     pdfFull: "Descarcă manualul complet (PDF)",
     pdfRole: "Descarcă manualul pentru rolul meu (PDF)",
+    pdfOverview: "Descarcă prezentarea produsului (PDF)",
     moduleHelp: "Ajutor pentru acest modul",
   },
   broadcasts: {
