@@ -10,9 +10,9 @@ Ein Testzugang ist ein echter, eigener Mandant — keine Vorführumgebung mit
 geteilten Daten.
 
 1. **Einrichtung.** Wir legen Ihren Testmandanten an: Standort mit Land,
-   Laufzeit, Benutzerobergrenze. Auf Wunsch mit **Beispieldaten** (jeder
-   Datensatz als Beispiel gekennzeichnet, mit erfundenen Firmen- und
-   Personennamen) oder leer.
+   Laufzeit, Benutzerobergrenze. Auf Wunsch mit **Beispieldaten** (als
+   Beispieldaten erkennbar — erfundene Firmen-, Produkt- und Personennamen,
+   die Beurteilungen als Testzugangsdaten gekennzeichnet) oder leer.
 2. **Einladung.** Ihr erster Administrator erhält eine Einladung per E-Mail
    und lädt selbst Kolleginnen und Kollegen ein. Eine öffentliche
    Registrierung gibt es nicht.

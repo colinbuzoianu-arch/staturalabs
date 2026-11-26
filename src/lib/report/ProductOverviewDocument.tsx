@@ -85,8 +85,13 @@ const styles = StyleSheet.create({
     borderLeft: "2 solid #e8622b",
     color: "#374151",
   },
+  // Capped height, not natural size: a 1440x900 screenshot at full page width
+  // is ~310pt tall and pushes most sections onto a second page. The document is
+  // meant to be short.
   shot: {
     marginTop: 14,
+    height: 190,
+    objectFit: "contain",
     border: "1 solid #d6d3cb",
     borderRadius: 3,
   },

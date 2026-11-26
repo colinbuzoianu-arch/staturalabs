@@ -16,6 +16,10 @@ export type MeNavLabels = {
   // Sicherheitsinformationen: shown to EVERY account, person-linked or not —
   // a role audience addresses accounts directly.
   navBroadcasts: string;
+  // The handbook, filtered to this role. Shown to EVERY account: a SELF-scoped
+  // employee has no accessible site, so the site-scoped Hilfe 404s for them and
+  // this is their only way into it.
+  navHelp: string;
 };
 
 export function MeNav({
@@ -29,6 +33,7 @@ export function MeNav({
   const tabs: { href: string; label: string }[] = [
     { href: "/app/me", label: labels.navOverview },
     { href: "/app/me/broadcasts", label: labels.navBroadcasts },
+    { href: "/app/me/help", label: labels.navHelp },
   ];
   if (hasPerson) {
     tabs.push(

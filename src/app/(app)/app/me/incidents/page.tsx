@@ -51,6 +51,7 @@ export default async function MyIncidentsPage({
         navDocuments: dict.navDocuments,
         navIncidents: dict.navIncidents,
         navBroadcasts: dict.navBroadcasts,
+        navHelp: dict.navHelp,
       }}
       hasPerson={person !== null}
     />

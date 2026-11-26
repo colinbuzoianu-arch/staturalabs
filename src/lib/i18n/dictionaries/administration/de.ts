@@ -1970,6 +1970,7 @@ export const de: typeof en = {
     navDocuments: "Meine Dokumente",
     navIncidents: "Ereignis melden",
     navBroadcasts: "Sicherheitsinformationen",
+    navHelp: "Hilfe",
     noPersonLinked:
       "Dieses Konto ist noch keinem Mitarbeitenden-Datensatz zugeordnet. Bitten Sie Ihre EHS-Leitung um die Verknüpfung, damit Ihre Unterweisungen und Dokumente hier erscheinen.",
 

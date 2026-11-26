@@ -1963,6 +1963,7 @@ export const ro: typeof en = {
     navDocuments: "Documentele mele",
     navIncidents: "Raportează un eveniment",
     navBroadcasts: "Informări de siguranță",
+    navHelp: "Ajutor",
     noPersonLinked:
       "Acest cont nu este încă asociat unei fișe de angajat. Cereți responsabilului SSM să îl asocieze pentru ca instructajele și documentele să apară aici.",
 

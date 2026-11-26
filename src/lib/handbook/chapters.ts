@@ -145,3 +145,14 @@ export function chapterForModule(
     visibleChapters(chapters, role).find((c) => c.module === module) ?? null
   );
 }
+
+// Who is offered the Produktüberblick (P18 B.4): the roles that would hand it
+// on. One decision, so the two Hilfe surfaces cannot disagree about it.
+export function showsProductOverview(role: PlatformRole): boolean {
+  return (
+    role === "COMPANY_ADMIN" ||
+    role === "SITE_ADMIN" ||
+    role === "SUPER_ADMIN" ||
+    role === "L3_SUPPORT"
+  );
+}

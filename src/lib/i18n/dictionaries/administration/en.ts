@@ -1974,6 +1974,7 @@ export const en = {
     navDocuments: "My documents",
     navIncidents: "Report an event",
     navBroadcasts: "Safety information",
+    navHelp: "Help",
     noPersonLinked:
       "This account is not linked to an employee record yet. Ask your EHS manager to link it so your instructions and documents appear here.",
 
