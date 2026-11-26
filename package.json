@@ -22,6 +22,7 @@
     "docs:overview": "node scripts/build-overview.mjs",
     "docs:check": "node scripts/check-handbook.mjs",
     "docs:screenshots": "node scripts/screenshot-handbook.mjs",
+    "docs:videos": "node scripts/record-videos.mjs",
     "reset:prospect": "node scripts/reset-prospect-fixture.mjs"
   },
   "dependencies": {

@@ -61,5 +61,8 @@ next-env.d.ts
 /public/handbuch
 /docs/handbuch/img
 
+# Raw screen recordings: generated on demand by npm run docs:videos.
+/docs/videos/raw
+
 certificates
 verify-prod-tmp.mjs

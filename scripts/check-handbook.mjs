@@ -18,7 +18,11 @@
 //      manifest — the file itself is produced on demand and may be absent, but
 //      a typo in the name must be loud;
 //   8. the {{RECHTSABDECKUNG}} marker, which the PDF route replaces with the
-//      figures from the active legal catalogue, is missing or duplicated.
+//      figures from the active legal catalogue, is missing or duplicated;
+//   9. a route in the screenshot manifest or in the video-recording script
+//      (Part C) does not exist — those scripts run rarely, by hand, so a path
+//      that rotted during a refactor would otherwise only surface in front of
+//      a camera.
 //
 // Usage: npm run docs:check
 import { execFileSync } from "node:child_process";
@@ -32,6 +36,7 @@ const GENERATED = join(ROOT, "src", "generated", "handbook.ts");
 const OVERVIEW_DIR = join(ROOT, "docs", "ueberblick", "de");
 const OVERVIEW_GENERATED = join(ROOT, "src", "generated", "overview.ts");
 const SHOT_SCRIPT = join(ROOT, "scripts", "screenshot-handbook.mjs");
+const VIDEO_SCRIPT = join(ROOT, "scripts", "record-videos.mjs");
 const COVERAGE_MARKER = "{{RECHTSABDECKUNG}}";
 const APP_DIR = join(ROOT, "src", "app");
 
@@ -198,6 +203,24 @@ function allowedCitations() {
   return allowed;
 }
 
+// --- 9. the paths the capture scripts drive --------------------------------
+function checkCapturePaths(patterns) {
+  for (const [label, file] of [
+    ["scripts/screenshot-handbook.mjs", SHOT_SCRIPT],
+    ["scripts/record-videos.mjs", VIDEO_SCRIPT],
+  ]) {
+    const source = readFileSync(file, "utf8");
+    for (const match of source.matchAll(/path:\s*"(\/[^"]*)"/g)) {
+      // {siteId} stands for a real id at run time; the route inventory already
+      // treats a dynamic segment as a wildcard.
+      const route = match[1].replace("{siteId}", "x");
+      if (!routeExists(route, patterns)) {
+        fail(label, `drives a route that does not exist: ${match[1]}`);
+      }
+    }
+  }
+}
+
 function checkUnsupportedSyntax(file, body) {
   if (/^\s*\|.*\|\s*$/m.test(body)) {
     fail(file, "uses a Markdown table, which the renderer does not support");
@@ -271,6 +294,7 @@ function main() {
   }
 
   checkOverview(allowed);
+  checkCapturePaths(patterns);
 
   if (problems.length > 0) {
     console.error("Handbook checks failed:\n");
